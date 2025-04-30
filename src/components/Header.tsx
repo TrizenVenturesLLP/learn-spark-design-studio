@@ -11,7 +11,11 @@ const Header = () => {
       <div className="container flex h-16 max-w-7xl items-center justify-between">
         <div className="flex items-center gap-2">
           <Link to="/" className="flex items-center gap-2">
-            <span className="text-xl font-bold text-primary">TrizenLearn</span>
+            <img 
+              src="/lovable-uploads/b66cad1a-9e89-49b0-a481-bbbb0a2bbded.png" 
+              alt="Trizen Logo" 
+              className="h-10" 
+            />
           </Link>
         </div>
 
