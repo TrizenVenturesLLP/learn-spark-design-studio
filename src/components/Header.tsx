@@ -14,7 +14,7 @@ const Header = () => {
             <img 
               src="/lovable-uploads/b66cad1a-9e89-49b0-a481-bbbb0a2bbded.png" 
               alt="Trizen Logo" 
-              className="h-10" 
+              className="h-14" 
             />
           </Link>
         </div>
