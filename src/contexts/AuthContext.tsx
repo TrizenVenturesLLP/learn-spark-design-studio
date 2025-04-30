@@ -30,7 +30,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         const token = localStorage.getItem('authToken');
         if (token) {
-          const response = await fetch('http://localhost:5000/api/auth/me', {
+          const response = await fetch('http://localhost:5001/api/auth/me', {
             method: 'GET',
             headers: {
               'Authorization': `Bearer ${token}`,
@@ -59,7 +59,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (email: string, password: string) => {
     try {
       setLoading(true);
-      const response = await fetch('http://localhost:5000/api/auth/login', {
+      const response = await fetch('http://localhost:5001/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -94,7 +94,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signup = async (name: string, email: string, password: string) => {
     try {
       setLoading(true);
-      const response = await fetch('http://localhost:5000/api/auth/signup', {
+      const response = await fetch('http://localhost:5001/api/auth/signup', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
