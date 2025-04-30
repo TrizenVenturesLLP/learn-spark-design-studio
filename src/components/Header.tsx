@@ -1,10 +1,13 @@
 
 import React from "react";
 import { Button } from "@/components/ui/button";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
+  const { user, logout, isAuthenticated } = useAuth();
+  const navigate = useNavigate();
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -30,8 +33,17 @@ const Header = () => {
 
         {/* Auth Buttons */}
         <div className="hidden md:flex items-center gap-2">
-          <Button variant="outline" size="sm">Login</Button>
-          <Button size="sm">Signup</Button>
+          {isAuthenticated ? (
+            <>
+              <span className="text-sm mr-2">Hello, {user?.name || user?.email}</span>
+              <Button variant="outline" size="sm" onClick={logout}>Logout</Button>
+            </>
+          ) : (
+            <>
+              <Button variant="outline" size="sm" onClick={() => navigate('/login')}>Login</Button>
+              <Button size="sm" onClick={() => navigate('/signup')}>Signup</Button>
+            </>
+          )}
         </div>
 
         {/* Mobile Menu Button */}
@@ -68,8 +80,17 @@ const Header = () => {
           <Link to="/contact" className="text-sm font-medium px-2 py-1">Contact</Link>
           
           <div className="flex flex-col gap-2 pt-2 border-t">
-            <Button variant="outline" size="sm" className="w-full">Login</Button>
-            <Button size="sm" className="w-full">Signup</Button>
+            {isAuthenticated ? (
+              <>
+                <span className="text-sm px-2 py-1">Hello, {user?.name || user?.email}</span>
+                <Button variant="outline" size="sm" className="w-full" onClick={logout}>Logout</Button>
+              </>
+            ) : (
+              <>
+                <Button variant="outline" size="sm" className="w-full" onClick={() => navigate('/login')}>Login</Button>
+                <Button size="sm" className="w-full" onClick={() => navigate('/signup')}>Signup</Button>
+              </>
+            )}
           </div>
         </div>
       )}
