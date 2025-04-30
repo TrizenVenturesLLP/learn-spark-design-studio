@@ -8,7 +8,7 @@ const Footer = () => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           <div className="col-span-1 md:col-span-1">
             <Link to="/" className="flex items-center gap-2 mb-4">
-              <span className="text-xl font-bold text-primary">LearnSpark</span>
+              <span className="text-xl font-bold text-primary">TrizenLearn</span>
             </Link>
             <p className="text-sm text-muted-foreground">
               High-quality recorded and live online training for professionals and beginners.
@@ -47,7 +47,7 @@ const Footer = () => {
         
         <div className="mt-12 pt-6 border-t border-gray-200 flex flex-col md:flex-row justify-between items-center">
           <p className="text-sm text-muted-foreground">
-            &copy; {new Date().getFullYear()} LearnSpark. All rights reserved.
+            &copy; {new Date().getFullYear()} TrizenLearn. All rights reserved.
           </p>
           
           <div className="mt-4 md:mt-0 flex space-x-6">
