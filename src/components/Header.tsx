@@ -3,6 +3,7 @@ import React from "react";
 import { Button } from "@/components/ui/button";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
   NavigationMenu,
   NavigationMenuContent,
@@ -17,6 +18,7 @@ const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
   const { user, logout, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
 
   const mainNavItems = [
     { name: "Research", path: "/research" },
@@ -37,10 +39,10 @@ const Header = () => {
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       {/* Top Navigation Bar with Logo and Main Nav Items */}
-      <div className="container flex h-16 max-w-7xl items-center justify-start border-b gap-8">
+      <div className="container flex h-16 max-w-7xl items-center border-b">
         {/* Logo */}
-        <div className="flex items-center gap-2">
-          <Link to="/" className="flex items-center gap-2">
+        <div className="flex items-center mr-8">
+          <Link to="/" className="flex items-center">
             <img 
               src="/lovable-uploads/b66cad1a-9e89-49b0-a481-bbbb0a2bbded.png" 
               alt="Trizen Logo" 
@@ -51,12 +53,12 @@ const Header = () => {
 
         {/* Top Nav - Main Items */}
         <nav className="hidden lg:flex items-center">
-          <div className="flex gap-6">
+          <div className="flex">
             {mainNavItems.map((item) => (
               <Link 
                 key={item.name} 
                 to={item.path}
-                className="text-sm font-medium transition-colors hover:text-primary"
+                className="text-sm font-medium transition-colors hover:text-primary mr-6"
               >
                 {item.name}
               </Link>
@@ -105,13 +107,13 @@ const Header = () => {
 
       {/* Bottom Navigation Bar - Secondary Links aligned left */}
       <div className="container hidden lg:block max-w-7xl">
-        <nav className="flex h-10 items-center justify-start">
-          <div className="flex gap-6">
+        <nav className="flex h-10 items-center">
+          <div className="flex">
             {secondaryNavItems.map((item) => (
               <Link 
                 key={item.name} 
                 to={item.path}
-                className="text-sm font-medium transition-colors hover:text-primary"
+                className="text-sm font-medium transition-colors hover:text-primary mr-6"
               >
                 {item.name}
               </Link>
@@ -122,45 +124,51 @@ const Header = () => {
 
       {/* Mobile Menu */}
       {isMenuOpen && (
-        <div className="container lg:hidden py-4 flex flex-col gap-4 border-t">
-          {/* Main Nav Items for Mobile */}
+        <div className="container lg:hidden py-4 flex flex-col border-t">
+          {/* Main Nav Items for Mobile - Now properly left-aligned */}
           <div className="space-y-3">
-            <h4 className="text-sm font-semibold text-muted-foreground px-2">Main Navigation</h4>
-            {mainNavItems.map((item) => (
-              <Link 
-                key={item.name} 
-                to={item.path} 
-                className="block text-sm font-medium px-2 py-1"
-              >
-                {item.name}
-              </Link>
-            ))}
+            <h4 className="text-sm font-semibold text-muted-foreground">Main Navigation</h4>
+            <div className="flex flex-col">
+              {mainNavItems.map((item) => (
+                <Link 
+                  key={item.name} 
+                  to={item.path} 
+                  className="text-sm font-medium py-2 text-left"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  {item.name}
+                </Link>
+              ))}
+            </div>
           </div>
           
-          <div className="space-y-3 pt-2 border-t">
-            <h4 className="text-sm font-semibold text-muted-foreground px-2">Quick Links</h4>
-            {secondaryNavItems.map((item) => (
-              <Link 
-                key={item.name} 
-                to={item.path} 
-                className="block text-sm font-medium px-2 py-1"
-              >
-                {item.name}
-              </Link>
-            ))}
+          <div className="space-y-3 pt-4 mt-2 border-t">
+            <h4 className="text-sm font-semibold text-muted-foreground">Quick Links</h4>
+            <div className="flex flex-col">
+              {secondaryNavItems.map((item) => (
+                <Link 
+                  key={item.name} 
+                  to={item.path} 
+                  className="text-sm font-medium py-2 text-left"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  {item.name}
+                </Link>
+              ))}
+            </div>
           </div>
           
-          <div className="flex flex-col gap-2 pt-2 border-t">
+          <div className="flex flex-col gap-2 pt-4 mt-2 border-t">
             {isAuthenticated ? (
               <>
-                <span className="text-sm px-2 py-1">Hello, {user?.name || user?.email}</span>
-                <Button variant="outline" size="sm" className="w-full" onClick={logout}>Logout</Button>
+                <span className="text-sm py-2 text-left">Hello, {user?.name || user?.email}</span>
+                <Button variant="outline" size="sm" className="mt-2" onClick={logout}>Logout</Button>
               </>
             ) : (
-              <>
-                <Button variant="outline" size="sm" className="w-full" onClick={() => navigate('/login')}>Login</Button>
-                <Button size="sm" className="w-full" onClick={() => navigate('/signup')}>Signup</Button>
-              </>
+              <div className="flex flex-col gap-2 mt-2">
+                <Button variant="outline" size="sm" onClick={() => { navigate('/login'); setIsMenuOpen(false); }}>Login</Button>
+                <Button size="sm" onClick={() => { navigate('/signup'); setIsMenuOpen(false); }}>Signup</Button>
+              </div>
             )}
           </div>
         </div>
