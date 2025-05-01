@@ -51,7 +51,7 @@ const SignupForm = () => {
     <div className="w-full max-w-md mx-auto space-y-6 p-6 bg-card rounded-lg shadow-md">
       <div className="text-center">
         <h2 className="text-2xl font-bold">Create an Account</h2>
-        <p className="text-muted-foreground mt-1">Join TrizenLearn to access high-quality courses</p>
+        <p className="text-muted-foreground mt-1">Join Trizen to access high-quality courses</p>
       </div>
       
       <form onSubmit={handleSubmit} className="space-y-4">

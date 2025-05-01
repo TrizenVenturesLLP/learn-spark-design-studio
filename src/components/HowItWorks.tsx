@@ -82,7 +82,7 @@ const HowItWorks = () => {
         <div className="mb-10 text-center">
           <h2 className="text-3xl font-bold mb-4">How It Works</h2>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            Getting started with TrizenLearn is simple and straightforward
+            Getting started with Trizen is simple and straightforward
           </p>
         </div>
         

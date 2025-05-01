@@ -5,35 +5,35 @@ import { CheckIcon, XIcon } from "lucide-react";
 const features = [
   {
     name: "User-Friendly Interface",
-    Trizenlearn: true,
+    Trizen: true,
     zoho: true,
     moodle: false,
     talentLms: true,
   },
   {
     name: "No Technical Skills Required",
-    Trizenlearn: true,
+    Trizen: true,
     zoho: false,
     moodle: false,
     talentLms: true,
   },
   {
     name: "Affordable Pricing",
-    Trizenlearn: true,
+    Trizen: true,
     zoho: false,
     moodle: true,
     talentLms: false,
   },
   {
     name: "Interactive Live Classes",
-    Trizenlearn: true,
+    Trizen: true,
     zoho: true,
     moodle: false,
     talentLms: true,
   },
   {
     name: "Mobile-Friendly",
-    Trizenlearn: true,
+    Trizen: true,
     zoho: true,
     moodle: true,
     talentLms: true,
@@ -46,7 +46,7 @@ const PlatformComparison = () => {
       <div className="mb-10 text-center">
         <h2 className="text-3xl font-bold mb-4">How We Compare</h2>
         <p className="text-muted-foreground max-w-2xl mx-auto">
-          See how TrizenLearn stacks up against other learning platforms
+          See how Trizen stacks up against other learning platforms
         </p>
       </div>
       
@@ -56,7 +56,7 @@ const PlatformComparison = () => {
             <TableRow className="bg-gray-50 hover:bg-gray-50">
               <TableHead className="w-[300px]">Feature</TableHead>
               <TableHead className="text-center font-bold text-primary">
-                TrizenLearn
+                Trizen
               </TableHead>
               <TableHead className="text-center">
                 Zoho Learn
@@ -74,7 +74,7 @@ const PlatformComparison = () => {
               <TableRow key={feature.name}>
                 <TableCell className="font-medium">{feature.name}</TableCell>
                 <TableCell className="text-center">
-                  {feature.Trizenlearn ? (
+                  {feature.Trizen ? (
                     <CheckIcon className="h-5 w-5 text-green-500 mx-auto" />
                   ) : (
                     <XIcon className="h-5 w-5 text-red-500 mx-auto" />

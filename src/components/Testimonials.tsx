@@ -5,21 +5,21 @@ import { Card, CardContent } from "@/components/ui/card";
 const testimonials = [
   {
     id: 1,
-    content: "TrizenLearn transformed my career path. The courses are in-depth, practical, and the live sessions add tremendous value. I landed a new job within 2 months of finishing my first course!",
+    content: "Trizen transformed my career path. The courses are in-depth, practical, and the live sessions add tremendous value. I landed a new job within 2 months of finishing my first course!",
     author: "Sarah Johnson",
     role: "Frontend Developer",
     avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80",
   },
   {
     id: 2,
-    content: "As someone with no technical background, I was worried about keeping up, but TrizenLearn's curriculum is designed so well that even beginners can follow along easily. The support is phenomenal!",
+    content: "As someone with no technical background, I was worried about keeping up, but Trizen's curriculum is designed so well that even beginners can follow along easily. The support is phenomenal!",
     author: "Michael Rodriguez",
     role: "Career Switcher",
     avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80",
   },
   {
     id: 3,
-    content: "The quality of instructors on TrizenLearn is unmatched. These are real industry experts who share practical knowledge, not just theory. Worth every penny and more!",
+    content: "The quality of instructors on Trizen is unmatched. These are real industry experts who share practical knowledge, not just theory. Worth every penny and more!",
     author: "Emily Chen",
     role: "Product Manager",
     avatar: "https://images.unsplash.com/photo-1580489944761-15a19d654956?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80",
@@ -43,7 +43,7 @@ const Testimonials = () => {
         <div className="mb-10 text-center">
           <h2 className="text-3xl font-bold mb-4">What Our Students Say</h2>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            Join thousands of satisfied learners who have transformed their careers with TrizenLearn
+            Join thousands of satisfied learners who have transformed their careers with Trizen
           </p>
         </div>
         
