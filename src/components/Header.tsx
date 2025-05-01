@@ -36,8 +36,9 @@ const Header = () => {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      {/* Top Navigation Bar with Logo */}
-      <div className="container flex h-16 max-w-7xl items-center justify-between border-b">
+      {/* Top Navigation Bar with Logo and Main Nav Items */}
+      <div className="container flex h-16 max-w-7xl items-center justify-start border-b gap-8">
+        {/* Logo */}
         <div className="flex items-center gap-2">
           <Link to="/" className="flex items-center gap-2">
             <img 
@@ -50,12 +51,12 @@ const Header = () => {
 
         {/* Top Nav - Main Items */}
         <nav className="hidden lg:flex items-center">
-          <div className="flex">
+          <div className="flex gap-6">
             {mainNavItems.map((item) => (
               <Link 
                 key={item.name} 
                 to={item.path}
-                className="text-sm font-medium transition-colors hover:text-primary mr-6"
+                className="text-sm font-medium transition-colors hover:text-primary"
               >
                 {item.name}
               </Link>
@@ -63,8 +64,8 @@ const Header = () => {
           </div>
         </nav>
 
-        {/* Auth Buttons */}
-        <div className="hidden lg:flex items-center gap-2">
+         {/* Spacer and Auth Buttons aligned right */}
+        <div className="flex-1 flex justify-end items-center gap-2">
           {isAuthenticated ? (
             <>
               <span className="text-sm mr-2">Hello, {user?.name || user?.email}</span>
@@ -77,7 +78,7 @@ const Header = () => {
             </>
           )}
         </div>
-
+        
         {/* Mobile Menu Button */}
         <button 
           className="lg:hidden p-2" 
@@ -102,15 +103,15 @@ const Header = () => {
         </button>
       </div>
 
-      {/* Bottom Navigation Bar */}
+      {/* Bottom Navigation Bar - Secondary Links aligned left */}
       <div className="container hidden lg:block max-w-7xl">
-        <nav className="flex h-10 items-center">
-          <div className="flex">
+        <nav className="flex h-10 items-center justify-start">
+          <div className="flex gap-6">
             {secondaryNavItems.map((item) => (
               <Link 
                 key={item.name} 
                 to={item.path}
-                className="text-sm font-medium transition-colors hover:text-primary mr-6"
+                className="text-sm font-medium transition-colors hover:text-primary"
               >
                 {item.name}
               </Link>
