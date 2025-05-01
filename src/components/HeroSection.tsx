@@ -30,7 +30,10 @@ const HeroSection = () => {
               Browse Courses
             </Button>
             <Button variant="outline" size="lg" className="text-md px-8 py-6 bg-white/10 text-white border-white/30 hover:bg-white/20 backdrop-blur-sm">
-              Join Live Session
+              Get Certified
+            </Button>
+            <Button variant="outline" size="lg" className="text-md px-8 py-6 bg-white/10 text-white border-white/30 hover:bg-white/20 backdrop-blur-sm">
+              Partner with Us
             </Button>
           </div>
         </div>
