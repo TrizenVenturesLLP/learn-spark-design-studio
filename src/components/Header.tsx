@@ -49,16 +49,18 @@ const Header = () => {
         </div>
 
         {/* Top Nav - Main Items */}
-        <nav className="hidden lg:flex items-center gap-6">
-          {mainNavItems.map((item) => (
-            <Link 
-              key={item.name} 
-              to={item.path}
-              className="text-sm font-medium transition-colors hover:text-primary"
-            >
-              {item.name}
-            </Link>
-          ))}
+        <nav className="hidden lg:flex items-center">
+          <div className="flex justify-start">
+            {mainNavItems.map((item) => (
+              <Link 
+                key={item.name} 
+                to={item.path}
+                className="text-sm font-medium transition-colors hover:text-primary mr-6"
+              >
+                {item.name}
+              </Link>
+            ))}
+          </div>
         </nav>
 
         {/* Auth Buttons */}
@@ -102,16 +104,18 @@ const Header = () => {
 
       {/* Bottom Navigation Bar */}
       <div className="container hidden lg:block max-w-7xl">
-        <nav className="flex h-10 items-center justify-center">
-          {secondaryNavItems.map((item) => (
-            <Link 
-              key={item.name} 
-              to={item.path}
-              className="px-4 text-sm font-medium transition-colors hover:text-primary"
-            >
-              {item.name}
-            </Link>
-          ))}
+        <nav className="flex h-10 items-center">
+          <div className="flex justify-start">
+            {secondaryNavItems.map((item) => (
+              <Link 
+                key={item.name} 
+                to={item.path}
+                className="text-sm font-medium transition-colors hover:text-primary mr-6"
+              >
+                {item.name}
+              </Link>
+            ))}
+          </div>
         </nav>
       </div>
 
