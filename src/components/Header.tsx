@@ -50,7 +50,7 @@ const Header = () => {
 
         {/* Top Nav - Main Items */}
         <nav className="hidden lg:flex items-center">
-          <div className="flex justify-start">
+          <div className="flex">
             {mainNavItems.map((item) => (
               <Link 
                 key={item.name} 
@@ -105,7 +105,7 @@ const Header = () => {
       {/* Bottom Navigation Bar */}
       <div className="container hidden lg:block max-w-7xl">
         <nav className="flex h-10 items-center">
-          <div className="flex justify-start">
+          <div className="flex">
             {secondaryNavItems.map((item) => (
               <Link 
                 key={item.name} 
