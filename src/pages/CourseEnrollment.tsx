@@ -4,7 +4,7 @@ import EnrollForm from '@/components/EnrollForm';
 import { useParams } from 'react-router-dom';
 
 const CourseEnrollment = () => {
-  const { courseId } = useParams();
+  const { courseId } = useParams<{ courseId: string }>();
   
   return (
     <div className="min-h-screen">
