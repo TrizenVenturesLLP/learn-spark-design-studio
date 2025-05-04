@@ -30,7 +30,8 @@ const Header = () => {
 
   const secondaryNavItems = [
     { name: "Home", path: "/" },
-    { name: "Courses", path: "/courses" },
+    { name: "My Courses", path: "/my-courses" },
+    { name: "Explore Courses", path: "/explore-courses" },
     { name: "Pricing", path: "/pricing" },
     { name: "About", path: "/about" },
     { name: "Contact", path: "/contact" },

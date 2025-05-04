@@ -26,7 +26,8 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
 
   const menuItems = [
     { icon: LayoutDashboard, name: 'Dashboard', path: '/dashboard' },
-    { icon: BookOpen, name: 'Courses', path: '/courses' },
+    { icon: BookOpen, name: 'My Courses', path: '/my-courses' },
+    { icon: BookOpen, name: 'Explore Courses', path: '/explore-courses' },
     { icon: FileText, name: 'Assignments', path: '/assignments' },
     { icon: Calendar, name: 'Calendar', path: '/calendar' },
     { icon: MessageSquare, name: 'Discussions', path: '/discussions' },
