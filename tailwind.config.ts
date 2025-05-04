@@ -59,6 +59,8 @@ export default {
           green: "#10B981",
           gray: "#6B7280",
           lightGray: "#F3F4F6",
+          purple: "#2E2A84", // TRIZEN primary color
+          lightPurple: "#D6BCFA", // Light accent color
         },
       },
       borderRadius: {

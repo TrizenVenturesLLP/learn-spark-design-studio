@@ -1,30 +1,43 @@
-
 import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useNavigate } from 'react-router-dom';
+import { useForm, zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { useToast } from '@/contexts/ToastContext';
+
+const formSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(6),
+});
 
 const LoginForm = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const { login } = useAuth();
   const navigate = useNavigate();
+  const { login } = useAuth();
+  const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      email: "",
+      password: "",
+    },
+  });
+
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    setIsLoading(true);
     try {
-      setIsLoading(true);
-      await login(email, password);
-      navigate('/'); // Redirect to home page after successful login
+      await login(values.email, values.password);
+      navigate('/dashboard');  // <-- Changed to redirect to dashboard
     } catch (error) {
-      console.error("Login error:", error);
+      console.error('Login error:', error);
     } finally {
       setIsLoading(false);
     }
-  };
+  }
 
   return (
     <div className="w-full max-w-md mx-auto space-y-6 p-6 bg-card rounded-lg shadow-md">
@@ -33,15 +46,15 @@ const LoginForm = () => {
         <p className="text-muted-foreground mt-1">Enter your credentials to access your account</p>
       </div>
       
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="email">Email</Label>
           <Input
             id="email"
             type="email"
             placeholder="name@example.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            value={form.watch('email')}
+            onChange={form.register('email')}
             required
           />
         </div>
@@ -56,8 +69,8 @@ const LoginForm = () => {
           <Input
             id="password"
             type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            value={form.watch('password')}
+            onChange={form.register('password')}
             required
           />
         </div>
