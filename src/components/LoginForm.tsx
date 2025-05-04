@@ -1,12 +1,14 @@
+
 import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useNavigate } from 'react-router-dom';
-import { useForm, zodResolver } from '@hookform/resolvers/zod';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useToast } from '@/contexts/ToastContext';
+import { useToast } from '@/hooks/use-toast';
 
 const formSchema = z.object({
   email: z.string().email(),
@@ -53,8 +55,7 @@ const LoginForm = () => {
             id="email"
             type="email"
             placeholder="name@example.com"
-            value={form.watch('email')}
-            onChange={form.register('email')}
+            {...form.register('email')}
             required
           />
         </div>
@@ -69,8 +70,7 @@ const LoginForm = () => {
           <Input
             id="password"
             type="password"
-            value={form.watch('password')}
-            onChange={form.register('password')}
+            {...form.register('password')}
             required
           />
         </div>
