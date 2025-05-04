@@ -4,6 +4,10 @@ import { Button } from "@/components/ui/button";
 import CourseCard from "./CourseCard";
 import { Badge } from "@/components/ui/badge";
 
+interface FilterableCoursesSectionProps {
+  onCourseClick?: (courseId: number) => void;
+}
+
 // Course categories
 const categories = [
   { id: "all", name: "All" },
@@ -85,7 +89,7 @@ const courseData = [
   },
 ];
 
-const FilterableCoursesSection = () => {
+const FilterableCoursesSection = ({ onCourseClick }: FilterableCoursesSectionProps) => {
   const [activeCategory, setActiveCategory] = useState("all");
 
   // Filter courses based on selected category
@@ -122,7 +126,13 @@ const FilterableCoursesSection = () => {
       
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredCourses.map((course) => (
-          <CourseCard key={course.id} {...course} />
+          <div 
+            key={course.id} 
+            className="cursor-pointer" 
+            onClick={() => onCourseClick && onCourseClick(course.id)}
+          >
+            <CourseCard {...course} />
+          </div>
         ))}
       </div>
       

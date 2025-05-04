@@ -10,6 +10,7 @@ interface CourseCardProps {
   rating: number;
   students: number;
   level: "Beginner" | "Intermediate" | "Advanced";
+  onClick?: () => void;
 }
 
 const CourseCard = ({
@@ -19,10 +20,14 @@ const CourseCard = ({
   duration,
   rating,
   students,
-  level
+  level,
+  onClick
 }: CourseCardProps) => {
   return (
-    <Card className="overflow-hidden transition-all duration-300 hover:shadow-md">
+    <Card 
+      className="overflow-hidden transition-all duration-300 hover:shadow-md"
+      onClick={onClick}
+    >
       <div className="aspect-video w-full overflow-hidden">
         <img 
           src={image} 
