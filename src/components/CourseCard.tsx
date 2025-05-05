@@ -134,64 +134,68 @@ const CourseCard = ({
           </div>
         </div>
         
-        {(progress !== undefined && progress > 0) && (
-          <div className="mt-4">
-            <div className="flex justify-between text-xs mb-1">
-              <span>Progress</span>
-              <span>{progress}%</span>
+        <div className="mt-4 flex flex-col gap-4">
+          {enrollmentStatus && (
+            <div className="flex items-center gap-4">
+              <div className="flex-1">
+                <div className="flex justify-between text-xs mb-1">
+                  <span>Progress</span>
+                  <span>{progress || 0}%</span>
+                </div>
+                <div className="w-full bg-secondary h-2 rounded-full">
+                  <div 
+                    className="bg-primary h-2 rounded-full" 
+                    style={{ width: `${progress || 0}%` }}
+                  ></div>
+                </div>
+              </div>
+
+              {enrollmentStatus === 'enrolled' && onStartClick && (
+                <Button 
+                  size="sm"
+                  className="rounded-full bg-green-600 hover:bg-green-700 text-white font-medium shadow-sm"
+                  onClick={(e) => handleActionClick(e, onStartClick)}
+                >
+                  <Play className="h-4 w-4 mr-1" />
+                  Start Course
+                </Button>
+              )}
+              
+              {enrollmentStatus === 'started' && onResumeClick && (
+                <Button 
+                  size="sm"
+                  className="rounded-full bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-sm"
+                  onClick={(e) => handleActionClick(e, onResumeClick)}
+                >
+                  <ArrowRight className="h-4 w-4 mr-1" />
+                  Resume
+                </Button>
+              )}
+              
+              {enrollmentStatus === 'completed' && (
+                <Badge className="px-3 py-1 rounded-full bg-green-600 text-white flex items-center gap-1">
+                  <Check className="h-3 w-3" />
+                  Completed
+                </Badge>
+              )}
             </div>
-            <div className="w-full bg-secondary h-2 rounded-full">
-              <div 
-                className="bg-primary h-2 rounded-full" 
-                style={{ width: `${progress}%` }}
-              ></div>
+          )}
+
+          {!enrollmentStatus && onEnrollClick && (
+            <div className="flex justify-end">
+              <Button 
+                variant="outline"
+                size="sm"
+                className="rounded-full border border-primary text-primary hover:bg-primary/10 hover:text-primary font-medium shadow-sm"
+                onClick={(e) => handleActionClick(e, onEnrollClick)}
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                Enroll
+              </Button>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </CardContent>
-      
-      <CardFooter className="p-4 pt-0 mt-auto flex justify-end">
-        {!enrollmentStatus && onEnrollClick && (
-          <Button 
-            variant="outline"
-            size="sm"
-            className="rounded-full border border-primary text-primary hover:bg-primary/10 hover:text-primary font-medium shadow-sm"
-            onClick={(e) => handleActionClick(e, onEnrollClick)}
-          >
-            <Plus className="h-4 w-4 mr-1" />
-            Enroll
-          </Button>
-        )}
-        
-        {enrollmentStatus === 'enrolled' && onStartClick && (
-          <Button 
-            size="sm"
-            className="rounded-full bg-green-600 hover:bg-green-700 text-white font-medium shadow-sm"
-            onClick={(e) => handleActionClick(e, onStartClick)}
-          >
-            <Play className="h-4 w-4 mr-1" />
-            Start Course
-          </Button>
-        )}
-        
-        {enrollmentStatus === 'started' && onResumeClick && (
-          <Button 
-            size="sm"
-            className="rounded-full bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-sm"
-            onClick={(e) => handleActionClick(e, onResumeClick)}
-          >
-            <ArrowRight className="h-4 w-4 mr-1" />
-            Resume
-          </Button>
-        )}
-        
-        {enrollmentStatus === 'completed' && (
-          <Badge className="px-3 py-1 rounded-full bg-green-600 text-white flex items-center gap-1">
-            <Check className="h-3 w-3" />
-            Completed
-          </Badge>
-        )}
-      </CardFooter>
     </Card>
   );
 };
