@@ -3,6 +3,7 @@ import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge";
 
 interface CourseCardProps {
+  id: string;
   image: string;
   title: string;
   description: string;
@@ -11,9 +12,11 @@ interface CourseCardProps {
   students: number;
   level: "Beginner" | "Intermediate" | "Advanced";
   onClick?: () => void;
+  progress?: number;
 }
 
 const CourseCard = ({
+  id,
   image,
   title,
   description,
@@ -21,7 +24,8 @@ const CourseCard = ({
   rating,
   students,
   level,
-  onClick
+  onClick,
+  progress
 }: CourseCardProps) => {
   return (
     <Card 
@@ -35,6 +39,7 @@ const CourseCard = ({
           className="h-full w-full object-cover transition-transform duration-300 hover:scale-105"
         />
       </div>
+      
       <CardHeader className="p-4">
         <div className="flex items-center justify-between">
           <Badge variant={
@@ -65,6 +70,7 @@ const CourseCard = ({
         <h3 className="mt-2 font-semibold leading-tight">{title}</h3>
         <p className="line-clamp-2 text-sm text-muted-foreground">{description}</p>
       </CardHeader>
+      
       <CardContent className="p-4 pt-0">
         <div className="flex items-center gap-4 text-sm text-muted-foreground">
           <div className="flex items-center gap-1">
@@ -104,6 +110,21 @@ const CourseCard = ({
             <span>{students} students</span>
           </div>
         </div>
+        
+        {progress !== undefined && (
+          <div className="mt-4">
+            <div className="flex justify-between text-xs mb-1">
+              <span>Progress</span>
+              <span>{progress}%</span>
+            </div>
+            <div className="w-full bg-secondary h-2 rounded-full">
+              <div 
+                className="bg-primary h-2 rounded-full" 
+                style={{ width: `${progress}%` }}
+              ></div>
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

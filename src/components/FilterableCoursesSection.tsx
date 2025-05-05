@@ -3,9 +3,11 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import CourseCard from "./CourseCard";
 import { Badge } from "@/components/ui/badge";
+import { Course } from "@/services/courseService";
 
 interface FilterableCoursesSectionProps {
-  onCourseClick?: (courseId: number) => void;
+  courses: Course[];
+  onCourseClick?: (courseId: string) => void;
 }
 
 // Course categories
@@ -19,83 +21,13 @@ const categories = [
   { id: "soft", name: "Soft Skills & Communication" }
 ];
 
-// Course data with categories
-const courseData = [
-  {
-    id: 1,
-    image: "https://images.unsplash.com/photo-1461749280684-dccba630e2f6?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80",
-    title: "Machine Learning Fundamentals",
-    description: "Learn the foundations of machine learning algorithms and their practical applications",
-    duration: "36 hours",
-    rating: 4.8,
-    students: 8745,
-    level: "Beginner" as const,
-    category: "ai"
-  },
-  {
-    id: 2,
-    image: "https://images.unsplash.com/photo-1498050108023-c5249f4df085?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80",
-    title: "AWS Cloud Practitioner",
-    description: "Master AWS fundamentals and prepare for the Cloud Practitioner certification",
-    duration: "30 hours",
-    rating: 4.9,
-    students: 6521,
-    level: "Beginner" as const,
-    category: "cloud"
-  },
-  {
-    id: 3,
-    image: "https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80",
-    title: "Full-Stack Web Development",
-    description: "Build modern web applications with React, Node.js, and MongoDB",
-    duration: "48 hours",
-    rating: 4.7,
-    students: 9874,
-    level: "Intermediate" as const,
-    category: "web"
-  },
-  {
-    id: 4,
-    image: "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80",
-    title: "Ethical Hacking & Penetration Testing",
-    description: "Learn to identify and exploit vulnerabilities in computer systems and networks",
-    duration: "42 hours",
-    rating: 4.9,
-    students: 5326,
-    level: "Advanced" as const,
-    category: "security"
-  },
-  {
-    id: 5,
-    image: "https://images.unsplash.com/photo-1488590528505-98d2b5aba04b?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80",
-    title: "Data Analysis with Python",
-    description: "Explore and analyze data using Python libraries like Pandas, NumPy, and Matplotlib",
-    duration: "32 hours",
-    rating: 4.6,
-    students: 7425,
-    level: "Intermediate" as const,
-    category: "data"
-  },
-  {
-    id: 6,
-    image: "https://images.unsplash.com/photo-1649972904349-6e44c42644a7?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80",
-    title: "Business Communication Skills",
-    description: "Develop effective communication skills for professional environments",
-    duration: "24 hours",
-    rating: 4.8,
-    students: 4219,
-    level: "Beginner" as const,
-    category: "soft"
-  },
-];
-
-const FilterableCoursesSection = ({ onCourseClick }: FilterableCoursesSectionProps) => {
+const FilterableCoursesSection = ({ courses, onCourseClick }: FilterableCoursesSectionProps) => {
   const [activeCategory, setActiveCategory] = useState("all");
 
   // Filter courses based on selected category
   const filteredCourses = activeCategory === "all" 
-    ? courseData 
-    : courseData.filter(course => course.category === activeCategory);
+    ? courses 
+    : courses.filter(course => course.category === activeCategory);
 
   return (
     <section className="section-padding">
@@ -124,17 +56,32 @@ const FilterableCoursesSection = ({ onCourseClick }: FilterableCoursesSectionPro
         ))}
       </div>
       
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredCourses.map((course) => (
-          <div 
-            key={course.id} 
-            className="cursor-pointer" 
-            onClick={() => onCourseClick && onCourseClick(course.id)}
-          >
-            <CourseCard {...course} />
-          </div>
-        ))}
-      </div>
+      {filteredCourses.length === 0 ? (
+        <div className="text-center py-8">
+          <p className="text-muted-foreground">No courses found in this category.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredCourses.map((course) => (
+            <div 
+              key={course._id} 
+              className="cursor-pointer" 
+              onClick={() => onCourseClick && onCourseClick(course._id)}
+            >
+              <CourseCard 
+                id={course._id}
+                image={course.image}
+                title={course.title}
+                description={course.description}
+                duration={course.duration}
+                rating={course.rating}
+                students={course.students}
+                level={course.level}
+              />
+            </div>
+          ))}
+        </div>
+      )}
       
       <div className="mt-12 text-center">
         <Button size="lg" variant="outline" className="px-8">

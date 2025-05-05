@@ -1,151 +1,105 @@
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { useToast } from "@/hooks/use-toast";
+import React, { createContext, useState, useContext, useEffect } from 'react';
+import axios from 'axios';
 
-interface User {
-  _id?: string;
-  name?: string;
+type User = {
+  _id: string;
+  name: string;
   email: string;
-}
+};
 
-interface AuthContextType {
+type AuthContextType = {
   user: User | null;
-  loading: boolean;
+  token: string | null;
   login: (email: string, password: string) => Promise<void>;
   signup: (name: string, email: string, password: string) => Promise<void>;
   logout: () => void;
-  isAuthenticated: boolean;
-}
+  loading: boolean;
+  error: string | null;
+};
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  const { toast } = useToast();
+  const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Check if user is logged in on page load
-    const checkAuthStatus = async () => {
-      try {
-        const token = localStorage.getItem('authToken');
-        if (token) {
-          const response = await fetch('http://localhost:5001/api/auth/me', {
-            method: 'GET',
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json'
-            }
-          });
-
-          if (response.ok) {
-            const userData = await response.json();
-            setUser(userData);
-          } else {
-            // Token is invalid or expired
-            localStorage.removeItem('authToken');
-          }
-        }
-      } catch (error) {
-        console.error("Authentication check failed:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    checkAuthStatus();
+    const storedToken = localStorage.getItem('token');
+    if (storedToken) {
+      setToken(storedToken);
+      fetchUserData(storedToken);
+    }
   }, []);
+
+  const fetchUserData = async (authToken: string) => {
+    try {
+      setLoading(true);
+      const response = await axios.get('http://localhost:5001/api/auth/me', {
+        headers: { Authorization: `Bearer ${authToken}` }
+      });
+      setUser(response.data);
+      setLoading(false);
+    } catch (err) {
+      localStorage.removeItem('token');
+      setToken(null);
+      setUser(null);
+      setLoading(false);
+      setError('Failed to authenticate. Please login again.');
+    }
+  };
 
   const login = async (email: string, password: string) => {
     try {
       setLoading(true);
-      const response = await fetch('http://localhost:5001/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
+      setError(null);
+      const response = await axios.post('http://localhost:5001/api/auth/login', {
+        email,
+        password
       });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Login failed');
-      }
-
-      localStorage.setItem('authToken', data.token);
-      setUser(data.user);
-      toast({
-        title: "Success",
-        description: "You have been logged in successfully!",
-      });
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Login Failed",
-        description: error instanceof Error ? error.message : "Something went wrong",
-      });
-      throw error;
-    } finally {
+      const { token, user } = response.data;
+      localStorage.setItem('token', token);
+      setToken(token);
+      setUser(user);
       setLoading(false);
+    } catch (err: any) {
+      setLoading(false);
+      setError(err.response?.data?.message || 'Failed to login. Please check your credentials.');
+      throw err;
     }
   };
 
   const signup = async (name: string, email: string, password: string) => {
     try {
       setLoading(true);
-      const response = await fetch('http://localhost:5001/api/auth/signup', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ name, email, password }),
+      setError(null);
+      const response = await axios.post('http://localhost:5001/api/auth/signup', {
+        name,
+        email,
+        password
       });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Signup failed');
-      }
-
-      localStorage.setItem('authToken', data.token);
-      setUser(data.user);
-      toast({
-        title: "Success",
-        description: "Your account has been created!",
-      });
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Signup Failed",
-        description: error instanceof Error ? error.message : "Something went wrong",
-      });
-      throw error;
-    } finally {
+      const { token, user } = response.data;
+      localStorage.setItem('token', token);
+      setToken(token);
+      setUser(user);
       setLoading(false);
+    } catch (err: any) {
+      setLoading(false);
+      setError(err.response?.data?.message || 'Failed to register. Please try again.');
+      throw err;
     }
   };
 
   const logout = () => {
-    localStorage.removeItem('authToken');
+    localStorage.removeItem('token');
+    setToken(null);
     setUser(null);
-    toast({
-      title: "Logged out",
-      description: "You have been logged out successfully.",
-    });
   };
 
   return (
-    <AuthContext.Provider 
-      value={{ 
-        user, 
-        loading, 
-        login, 
-        signup, 
-        logout, 
-        isAuthenticated: !!user 
-      }}
-    >
+    <AuthContext.Provider value={{ user, token, login, signup, logout, loading, error }}>
       {children}
     </AuthContext.Provider>
   );

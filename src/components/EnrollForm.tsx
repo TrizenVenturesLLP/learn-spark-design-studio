@@ -4,8 +4,9 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { useCourseDetails } from '@/services/courseService';
+import { useCourseDetails, useEnrollCourse } from '@/services/courseService';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface EnrollFormProps {
   courseId?: string;
@@ -14,17 +15,40 @@ interface EnrollFormProps {
 const EnrollForm: React.FC<EnrollFormProps> = ({ courseId }) => {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { user, token } = useAuth();
   const { data: course, isLoading, isError } = useCourseDetails(courseId);
+  const enrollMutation = useEnrollCourse();
   
-  const handleEnroll = () => {
-    toast({
-      title: "Enrollment Successful!",
-      description: `You have successfully enrolled in ${course?.title || 'this course'}.`,
-    });
-    // Redirect to my courses after successful enrollment
-    setTimeout(() => {
-      navigate('/my-courses');
-    }, 2000);
+  const handleEnroll = async () => {
+    if (!user || !token) {
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to enroll in this course.",
+        variant: "destructive",
+      });
+      navigate('/login', { state: { from: `/course/${courseId}` } });
+      return;
+    }
+    
+    try {
+      await enrollMutation.mutateAsync({ courseId: courseId!, token });
+      
+      toast({
+        title: "Enrollment Successful!",
+        description: `You have successfully enrolled in ${course?.title || 'this course'}.`,
+      });
+      
+      // Redirect to my courses after successful enrollment
+      setTimeout(() => {
+        navigate('/my-courses');
+      }, 2000);
+    } catch (error: any) {
+      toast({
+        title: "Enrollment Failed",
+        description: error.response?.data?.message || "Could not enroll in this course. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   if (isLoading) {
@@ -101,19 +125,24 @@ const EnrollForm: React.FC<EnrollFormProps> = ({ courseId }) => {
       <div className="container max-w-7xl py-8">
         {/* Hero Section */}
         <div className="mb-10">
-          <h1 className="text-4xl font-bold mb-4">{course.title}</h1>
+          <h1 className="text-4xl font-bold mb-4">{course?.title}</h1>
           <p className="text-lg text-muted-foreground mb-6 max-w-3xl">
-            {course.longDescription}
+            {course?.longDescription}
           </p>
           <div className="flex items-center gap-2 mb-6">
             <span className="text-muted-foreground">Instructor:</span>
-            <span className="font-medium">{course.instructor}</span>
+            <span className="font-medium">{course?.instructor}</span>
           </div>
-          <Button size="lg" onClick={handleEnroll} className="mb-4">
-            Enroll for Free
+          <Button 
+            size="lg" 
+            onClick={handleEnroll} 
+            className="mb-4"
+            disabled={enrollMutation.isPending}
+          >
+            {enrollMutation.isPending ? "Enrolling..." : "Enroll for Free"}
           </Button>
           <div className="flex flex-col sm:flex-row gap-2 sm:gap-6 text-sm text-muted-foreground">
-            <span>{course.students.toLocaleString()} already enrolled</span>
+            <span>{course?.students?.toLocaleString()} already enrolled</span>
             <span>Included with <strong>TRIZEN Premium</strong></span>
           </div>
         </div>
@@ -290,5 +319,29 @@ const EnrollForm: React.FC<EnrollFormProps> = ({ courseId }) => {
     </div>
   );
 };
+
+// Helper component for the header to avoid repetition
+function Header() {
+  return (
+    <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="container flex h-16 max-w-7xl items-center">
+        <div className="flex items-center mr-8">
+          <Link to="/" className="flex items-center">
+            <img 
+              src="/lovable-uploads/b66cad1a-9e89-49b0-a481-bbbb0a2bbded.png" 
+              alt="Trizen Logo" 
+              className="h-14" 
+            />
+          </Link>
+        </div>
+        <div className="flex-1 flex justify-end">
+          <Link to="/explore-courses" className="text-sm font-medium hover:text-primary mr-4">
+            Back to Courses
+          </Link>
+        </div>
+      </div>
+    </header>
+  );
+}
 
 export default EnrollForm;
