@@ -4,7 +4,7 @@ import CourseCard from "./CourseCard";
 
 const courseData = [
   {
-    id: 1,
+    id: "1", // Changed from number to string
     image: "https://images.unsplash.com/photo-1461749280684-dccba630e2f6?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80",
     title: "Complete Web Development Bootcamp",
     description: "Learn HTML, CSS, JavaScript, React and Node.js from scratch with real-world projects",
@@ -14,7 +14,7 @@ const courseData = [
     level: "Beginner" as const,
   },
   {
-    id: 2,
+    id: "2", // Changed from number to string
     image: "https://images.unsplash.com/photo-1498050108023-c5249f4df085?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80",
     title: "Python for Data Science & Machine Learning",
     description: "Master Python and dive into data analysis, visualization, and machine learning algorithms",
@@ -24,7 +24,7 @@ const courseData = [
     level: "Intermediate" as const,
   },
   {
-    id: 3,
+    id: "3", // Changed from number to string
     image: "https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80",
     title: "UI/UX Design Masterclass",
     description: "Create stunning user interfaces and enhance user experience with industry-standard tools",
@@ -34,7 +34,7 @@ const courseData = [
     level: "Intermediate" as const,
   },
   {
-    id: 4,
+    id: "4", // Changed from number to string
     image: "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80",
     title: "Advanced Cloud Architecture",
     description: "Design scalable, secure, and resilient cloud solutions with AWS, Azure, and Google Cloud",
@@ -44,7 +44,7 @@ const courseData = [
     level: "Advanced" as const,
   },
   {
-    id: 5,
+    id: "5", // Changed from number to string
     image: "https://images.unsplash.com/photo-1488590528505-98d2b5aba04b?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80",
     title: "Mobile App Development with React Native",
     description: "Build cross-platform mobile apps for iOS and Android using React Native",
@@ -54,7 +54,7 @@ const courseData = [
     level: "Intermediate" as const,
   },
   {
-    id: 6,
+    id: "6", // Changed from number to string
     image: "https://images.unsplash.com/photo-1649972904349-6e44c42644a7?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80",
     title: "Cybersecurity Fundamentals",
     description: "Learn essential cybersecurity concepts, tools, and practices to protect digital assets",

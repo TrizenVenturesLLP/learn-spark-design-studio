@@ -5,6 +5,7 @@ import DashboardLayout from '@/components/layouts/DashboardLayout';
 import FilterableCoursesSection from '@/components/FilterableCoursesSection';
 import { useAllCourses } from '@/services/courseService';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button'; // Added Button import
 
 const ExploreCourses = () => {
   const navigate = useNavigate();

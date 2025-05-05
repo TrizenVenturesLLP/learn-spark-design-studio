@@ -16,6 +16,7 @@ type AuthContextType = {
   logout: () => void;
   loading: boolean;
   error: string | null;
+  isAuthenticated: boolean; // Added the isAuthenticated property
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -25,6 +26,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const isAuthenticated = !!user && !!token; // Added isAuthenticated computed property
 
   useEffect(() => {
     const storedToken = localStorage.getItem('token');
@@ -99,7 +101,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, login, signup, logout, loading, error }}>
+    <AuthContext.Provider value={{ user, token, login, signup, logout, loading, error, isAuthenticated }}>
       {children}
     </AuthContext.Provider>
   );
