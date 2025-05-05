@@ -2,6 +2,7 @@
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Check, Play, Plus, ArrowRight } from "lucide-react";
 
 interface CourseCardProps {
   id: string;
@@ -149,36 +150,44 @@ const CourseCard = ({
         )}
       </CardContent>
       
-      <CardFooter className="p-4 pt-0 mt-auto">
+      <CardFooter className="p-4 pt-0 mt-auto flex justify-end">
         {!enrollmentStatus && onEnrollClick && (
           <Button 
-            className="w-full" 
+            variant="outline"
+            size="sm"
+            className="rounded-full border border-primary text-primary hover:bg-primary/10 hover:text-primary font-medium shadow-sm"
             onClick={(e) => handleActionClick(e, onEnrollClick)}
           >
+            <Plus className="h-4 w-4 mr-1" />
             Enroll
           </Button>
         )}
         
         {enrollmentStatus === 'enrolled' && onStartClick && (
           <Button 
-            className="w-full bg-green-600 hover:bg-green-700"
+            size="sm"
+            className="rounded-full bg-green-600 hover:bg-green-700 text-white font-medium shadow-sm"
             onClick={(e) => handleActionClick(e, onStartClick)}
           >
+            <Play className="h-4 w-4 mr-1" />
             Start Course
           </Button>
         )}
         
         {enrollmentStatus === 'started' && onResumeClick && (
           <Button 
-            className="w-full bg-blue-600 hover:bg-blue-700"
+            size="sm"
+            className="rounded-full bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-sm"
             onClick={(e) => handleActionClick(e, onResumeClick)}
           >
-            Resume Course
+            <ArrowRight className="h-4 w-4 mr-1" />
+            Resume
           </Button>
         )}
         
         {enrollmentStatus === 'completed' && (
-          <Badge className="w-full py-2 flex justify-center bg-green-600">
+          <Badge className="px-3 py-1 rounded-full bg-green-600 text-white flex items-center gap-1">
+            <Check className="h-3 w-3" />
             Completed
           </Badge>
         )}
