@@ -4,15 +4,17 @@ import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Button } from "@/components/ui/button";
 import CourseCard from "@/components/CourseCard";
-import { useEnrolledCourses } from '@/services/courseService';
+import { useEnrolledCourses, useUpdateProgress } from '@/services/courseService';
 import { useAuth } from '@/contexts/AuthContext';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Progress } from '@/components/ui/progress';
+import { useToast } from '@/hooks/use-toast';
 
 const Courses = () => {
   const navigate = useNavigate();
   const { token } = useAuth();
+  const { toast } = useToast();
   const { data: enrolledCourses, isLoading, isError } = useEnrolledCourses(token);
+  const updateProgressMutation = useUpdateProgress();
   
   const handleCourseClick = (courseId: string) => {
     navigate(`/course/${courseId}`);
@@ -20,6 +22,31 @@ const Courses = () => {
   
   const handleExploreCoursesClick = () => {
     navigate('/explore-courses');
+  };
+  
+  const handleStartClick = async (courseId: string) => {
+    if (!token) return;
+    
+    try {
+      await updateProgressMutation.mutateAsync({ 
+        courseId, 
+        progress: 1, 
+        status: 'started',
+        token 
+      });
+      
+      navigate(`/course/${courseId}`);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Could not start the course. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+  
+  const handleResumeClick = (courseId: string) => {
+    navigate(`/course/${courseId}`);
   };
   
   if (isLoading) {
@@ -64,23 +91,23 @@ const Courses = () => {
             <h2 className="text-xl font-semibold mb-4">In Progress</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
               {enrolledCourses.map((course) => (
-                <div 
+                <CourseCard
                   key={course._id}
+                  id={course._id}
+                  image={course.image}
+                  title={course.title}
+                  description={course.description}
+                  duration={course.duration}
+                  rating={course.rating}
+                  students={course.students}
+                  level={course.level}
+                  progress={course.progress}
+                  instructor={course.instructor}
+                  enrollmentStatus={course.status as 'enrolled' | 'started' | 'completed'}
                   onClick={() => handleCourseClick(course._id)}
-                  className="cursor-pointer"
-                >
-                  <CourseCard
-                    id={course._id}
-                    image={course.image}
-                    title={course.title}
-                    description={course.description}
-                    duration={course.duration}
-                    rating={course.rating}
-                    students={course.students}
-                    level={course.level}
-                    progress={course.progress}
-                  />
-                </div>
+                  onStartClick={course.status === 'enrolled' ? () => handleStartClick(course._id) : undefined}
+                  onResumeClick={course.status === 'started' ? () => handleResumeClick(course._id) : undefined}
+                />
               ))}
             </div>
             

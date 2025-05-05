@@ -28,6 +28,9 @@ export interface Course {
   }[];
   progress?: number; // Added for enrolled courses
   enrolledAt?: string; // Added for enrolled courses
+  enrollmentStatus?: 'enrolled' | 'started' | 'completed'; // Added for enrollment status
+  status?: 'enrolled' | 'started' | 'completed'; // Added for enrollment status
+  lastAccessedAt?: string; // Added for tracking last access
 }
 
 // Fetch all courses
@@ -35,7 +38,10 @@ export const useAllCourses = () => {
   return useQuery({
     queryKey: ['courses'],
     queryFn: async (): Promise<Course[]> => {
-      const response = await axios.get(`${API_URL}/courses`);
+      const token = localStorage.getItem('token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      
+      const response = await axios.get(`${API_URL}/courses`, { headers });
       return response.data;
     },
   });
@@ -47,7 +53,11 @@ export const useCourseDetails = (courseId: string | undefined) => {
     queryKey: ['course', courseId],
     queryFn: async (): Promise<Course> => {
       if (!courseId) throw new Error("Course ID is required");
-      const response = await axios.get(`${API_URL}/courses/${courseId}`);
+      
+      const token = localStorage.getItem('token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      
+      const response = await axios.get(`${API_URL}/courses/${courseId}`, { headers });
       if (!response.data) {
         throw new Error(`Course with ID ${courseId} not found`);
       }
@@ -100,7 +110,7 @@ export const useEnrollCourse = () => {
   });
 };
 
-// Update course progress
+// Update course progress and status
 export const useUpdateProgress = () => {
   const queryClient = useQueryClient();
   
@@ -108,21 +118,24 @@ export const useUpdateProgress = () => {
     mutationFn: async ({ 
       courseId, 
       progress, 
+      status,
       token 
     }: { 
       courseId: string, 
       progress: number,
+      status?: 'enrolled' | 'started' | 'completed',
       token: string 
     }) => {
       const response = await axios.put(
         `${API_URL}/my-courses/${courseId}/progress`, 
-        { progress }, 
+        { progress, status }, 
         { headers: { Authorization: `Bearer ${token}` } }
       );
       return response.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['enrolledCourses'] });
+      queryClient.invalidateQueries({ queryKey: ['courses'] });
     },
   });
 };

@@ -1,6 +1,7 @@
 
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 interface CourseCardProps {
   id: string;
@@ -13,6 +14,11 @@ interface CourseCardProps {
   level: "Beginner" | "Intermediate" | "Advanced";
   onClick?: () => void;
   progress?: number;
+  enrollmentStatus?: 'enrolled' | 'started' | 'completed';
+  onEnrollClick?: (e: React.MouseEvent) => void;
+  onStartClick?: (e: React.MouseEvent) => void;
+  onResumeClick?: (e: React.MouseEvent) => void;
+  instructor?: string;
 }
 
 const CourseCard = ({
@@ -25,11 +31,23 @@ const CourseCard = ({
   students,
   level,
   onClick,
-  progress
+  progress,
+  enrollmentStatus,
+  onEnrollClick,
+  onStartClick,
+  onResumeClick,
+  instructor
 }: CourseCardProps) => {
+  
+  // Handle button clicks without propagating to the card
+  const handleActionClick = (e: React.MouseEvent, callback?: (e: React.MouseEvent) => void) => {
+    e.stopPropagation();
+    if (callback) callback(e);
+  };
+  
   return (
     <Card 
-      className="overflow-hidden transition-all duration-300 hover:shadow-md"
+      className="overflow-hidden transition-all duration-300 hover:shadow-md flex flex-col"
       onClick={onClick}
     >
       <div className="aspect-video w-full overflow-hidden">
@@ -69,9 +87,13 @@ const CourseCard = ({
         </div>
         <h3 className="mt-2 font-semibold leading-tight">{title}</h3>
         <p className="line-clamp-2 text-sm text-muted-foreground">{description}</p>
+        
+        {instructor && (
+          <p className="text-sm text-muted-foreground mt-1">Instructor: {instructor}</p>
+        )}
       </CardHeader>
       
-      <CardContent className="p-4 pt-0">
+      <CardContent className="p-4 pt-0 flex-grow">
         <div className="flex items-center gap-4 text-sm text-muted-foreground">
           <div className="flex items-center gap-1">
             <svg
@@ -111,7 +133,7 @@ const CourseCard = ({
           </div>
         </div>
         
-        {progress !== undefined && (
+        {(progress !== undefined && progress > 0) && (
           <div className="mt-4">
             <div className="flex justify-between text-xs mb-1">
               <span>Progress</span>
@@ -126,6 +148,41 @@ const CourseCard = ({
           </div>
         )}
       </CardContent>
+      
+      <CardFooter className="p-4 pt-0 mt-auto">
+        {!enrollmentStatus && onEnrollClick && (
+          <Button 
+            className="w-full" 
+            onClick={(e) => handleActionClick(e, onEnrollClick)}
+          >
+            Enroll
+          </Button>
+        )}
+        
+        {enrollmentStatus === 'enrolled' && onStartClick && (
+          <Button 
+            className="w-full bg-green-600 hover:bg-green-700"
+            onClick={(e) => handleActionClick(e, onStartClick)}
+          >
+            Start Course
+          </Button>
+        )}
+        
+        {enrollmentStatus === 'started' && onResumeClick && (
+          <Button 
+            className="w-full bg-blue-600 hover:bg-blue-700"
+            onClick={(e) => handleActionClick(e, onResumeClick)}
+          >
+            Resume Course
+          </Button>
+        )}
+        
+        {enrollmentStatus === 'completed' && (
+          <Badge className="w-full py-2 flex justify-center bg-green-600">
+            Completed
+          </Badge>
+        )}
+      </CardFooter>
     </Card>
   );
 };

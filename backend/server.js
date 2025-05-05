@@ -152,7 +152,49 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
 app.get('/api/courses', async (req, res) => {
   try {
     const courses = await Course.find().select('-__v');
-    res.json(courses);
+    
+    // If user is authenticated, check enrollment status for each course
+    const token = req.headers.authorization?.split(' ')[1];
+    let userId;
+    
+    if (token) {
+      try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        userId = decoded.id;
+      } catch (err) {
+        // Invalid token, but we'll still return courses without enrollment info
+      }
+    }
+    
+    if (userId) {
+      // Get all enrollments for this user
+      const enrollments = await UserCourse.find({ userId });
+      const enrollmentMap = {};
+      
+      enrollments.forEach(enrollment => {
+        enrollmentMap[enrollment.courseId.toString()] = {
+          status: enrollment.status,
+          progress: enrollment.progress
+        };
+      });
+      
+      // Add enrollment status to each course
+      const coursesWithEnrollment = courses.map(course => {
+        const courseObj = course.toObject();
+        const enrollment = enrollmentMap[course._id.toString()];
+        
+        if (enrollment) {
+          courseObj.enrollmentStatus = enrollment.status;
+          courseObj.progress = enrollment.progress;
+        }
+        
+        return courseObj;
+      });
+      
+      res.json(coursesWithEnrollment);
+    } else {
+      res.json(courses);
+    }
   } catch (error) {
     console.error('Get courses error:', error);
     res.status(500).json({ message: 'Server error' });
@@ -166,7 +208,41 @@ app.get('/api/courses/:id', async (req, res) => {
     if (!course) {
       return res.status(404).json({ message: 'Course not found' });
     }
-    res.json(course);
+    
+    // If user is authenticated, check enrollment status
+    const token = req.headers.authorization?.split(' ')[1];
+    let enrollmentStatus = null;
+    
+    if (token) {
+      try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        const userId = decoded.id;
+        
+        // Check if user is enrolled in this course
+        const enrollment = await UserCourse.findOne({
+          userId,
+          courseId: req.params.id
+        });
+        
+        if (enrollment) {
+          enrollmentStatus = {
+            status: enrollment.status,
+            progress: enrollment.progress
+          };
+        }
+      } catch (err) {
+        // Invalid token, but we'll still return the course
+      }
+    }
+    
+    // Add enrollment status to course
+    const courseObj = course.toObject();
+    if (enrollmentStatus) {
+      courseObj.enrollmentStatus = enrollmentStatus.status;
+      courseObj.progress = enrollmentStatus.progress;
+    }
+    
+    res.json(courseObj);
   } catch (error) {
     console.error('Get course error:', error);
     res.status(500).json({ message: 'Server error' });
@@ -199,7 +275,8 @@ app.post('/api/enrollments', authenticateToken, async (req, res) => {
     // Create new enrollment
     const enrollment = new UserCourse({
       userId: req.user.id,
-      courseId
+      courseId,
+      status: 'enrolled'
     });
     
     await enrollment.save();
@@ -239,7 +316,9 @@ app.get('/api/my-courses', authenticateToken, async (req, res) => {
       return {
         ...course.toObject(),
         progress: enrollment.progress,
-        enrolledAt: enrollment.enrolledAt
+        enrolledAt: enrollment.enrolledAt,
+        status: enrollment.status,
+        lastAccessedAt: enrollment.lastAccessedAt
       };
     });
     
@@ -251,10 +330,10 @@ app.get('/api/my-courses', authenticateToken, async (req, res) => {
   }
 });
 
-// Update course progress
+// Update course progress and status
 app.put('/api/my-courses/:courseId/progress', authenticateToken, async (req, res) => {
   try {
-    const { progress } = req.body;
+    const { progress, status } = req.body;
     const { courseId } = req.params;
     
     if (progress < 0 || progress > 100) {
@@ -270,7 +349,21 @@ app.put('/api/my-courses/:courseId/progress', authenticateToken, async (req, res
       return res.status(404).json({ message: 'Enrollment not found' });
     }
     
+    // Update enrollment
     enrollment.progress = progress;
+    
+    if (status) {
+      enrollment.status = status;
+    }
+    
+    // If status is 'started' and there's no progress, set to 1
+    if (status === 'started' && progress === 0) {
+      enrollment.progress = 1;
+    }
+    
+    // Update last accessed timestamp
+    enrollment.lastAccessedAt = new Date();
+    
     await enrollment.save();
     
     res.json({

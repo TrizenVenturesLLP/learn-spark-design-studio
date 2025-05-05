@@ -8,6 +8,9 @@ import { Course } from "@/services/courseService";
 interface FilterableCoursesSectionProps {
   courses: Course[];
   onCourseClick?: (courseId: string) => void;
+  onEnrollClick?: (courseId: string) => void;
+  onStartClick?: (courseId: string) => void;
+  onResumeClick?: (courseId: string) => void;
 }
 
 // Course categories
@@ -21,7 +24,13 @@ const categories = [
   { id: "soft", name: "Soft Skills & Communication" }
 ];
 
-const FilterableCoursesSection = ({ courses, onCourseClick }: FilterableCoursesSectionProps) => {
+const FilterableCoursesSection = ({ 
+  courses, 
+  onCourseClick,
+  onEnrollClick,
+  onStartClick,
+  onResumeClick
+}: FilterableCoursesSectionProps) => {
   const [activeCategory, setActiveCategory] = useState("all");
 
   // Filter courses based on selected category
@@ -63,22 +72,24 @@ const FilterableCoursesSection = ({ courses, onCourseClick }: FilterableCoursesS
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredCourses.map((course) => (
-            <div 
-              key={course._id} 
-              className="cursor-pointer" 
+            <CourseCard 
+              key={course._id}
+              id={course._id}
+              image={course.image}
+              title={course.title}
+              description={course.description}
+              duration={course.duration}
+              rating={course.rating}
+              students={course.students}
+              level={course.level}
+              progress={course.progress}
+              enrollmentStatus={course.enrollmentStatus}
+              instructor={course.instructor}
               onClick={() => onCourseClick && onCourseClick(course._id)}
-            >
-              <CourseCard 
-                id={course._id}
-                image={course.image}
-                title={course.title}
-                description={course.description}
-                duration={course.duration}
-                rating={course.rating}
-                students={course.students}
-                level={course.level}
-              />
-            </div>
+              onEnrollClick={onEnrollClick ? () => onEnrollClick(course._id) : undefined}
+              onStartClick={onStartClick ? () => onStartClick(course._id) : undefined}
+              onResumeClick={onResumeClick ? () => onResumeClick(course._id) : undefined}
+            />
           ))}
         </div>
       )}

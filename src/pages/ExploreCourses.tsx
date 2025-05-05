@@ -3,16 +3,77 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import FilterableCoursesSection from '@/components/FilterableCoursesSection';
-import { useAllCourses } from '@/services/courseService';
+import { useAllCourses, useEnrollCourse, useUpdateProgress } from '@/services/courseService';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Button } from '@/components/ui/button'; // Added Button import
+import { Button } from '@/components/ui/button';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
 
 const ExploreCourses = () => {
   const navigate = useNavigate();
+  const { user, token, isAuthenticated } = useAuth();
+  const { toast } = useToast();
   const { data: courses, isLoading, isError } = useAllCourses();
+  const enrollMutation = useEnrollCourse();
+  const updateProgressMutation = useUpdateProgress();
   
-  // Handler for when a course is clicked
+  // Handler for when a course card is clicked
   const handleCourseClick = (courseId: string) => {
+    navigate(`/course/${courseId}`);
+  };
+  
+  // Handler for enrolling in a course
+  const handleEnrollClick = async (courseId: string) => {
+    if (!isAuthenticated) {
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to enroll in courses.",
+        variant: "destructive",
+      });
+      navigate('/login', { state: { from: `/explore-courses` } });
+      return;
+    }
+    
+    try {
+      await enrollMutation.mutateAsync({ courseId, token: token! });
+      
+      toast({
+        title: "Enrollment Successful!",
+        description: "You have been enrolled in this course.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Enrollment Failed",
+        description: error.response?.data?.message || "Could not enroll in this course.",
+        variant: "destructive",
+      });
+    }
+  };
+  
+  // Handler for starting a course
+  const handleStartClick = async (courseId: string) => {
+    if (!token) return;
+    
+    try {
+      await updateProgressMutation.mutateAsync({ 
+        courseId, 
+        progress: 1, 
+        status: 'started',
+        token 
+      });
+      
+      navigate(`/course/${courseId}`);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Could not start the course. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+  
+  // Handler for resuming a course
+  const handleResumeClick = (courseId: string) => {
     navigate(`/course/${courseId}`);
   };
   
@@ -65,7 +126,10 @@ const ExploreCourses = () => {
         
         <FilterableCoursesSection 
           courses={courses || []} 
-          onCourseClick={handleCourseClick} 
+          onCourseClick={handleCourseClick}
+          onEnrollClick={handleEnrollClick}
+          onStartClick={handleStartClick}
+          onResumeClick={handleResumeClick}
         />
       </main>
     </DashboardLayout>

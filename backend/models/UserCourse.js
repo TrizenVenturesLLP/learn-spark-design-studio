@@ -16,9 +16,18 @@ const userCourseSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  status: {
+    type: String,
+    enum: ['enrolled', 'started', 'completed'],
+    default: 'enrolled'
+  },
   enrolledAt: { 
     type: Date,
     default: Date.now 
+  },
+  lastAccessedAt: {
+    type: Date,
+    default: null
   }
 });
 

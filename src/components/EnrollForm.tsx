@@ -4,7 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { useCourseDetails, useEnrollCourse } from '@/services/courseService';
+import { useCourseDetails, useEnrollCourse, useUpdateProgress } from '@/services/courseService';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -15,12 +15,13 @@ interface EnrollFormProps {
 const EnrollForm: React.FC<EnrollFormProps> = ({ courseId }) => {
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { user, token } = useAuth();
+  const { user, token, isAuthenticated } = useAuth();
   const { data: course, isLoading, isError } = useCourseDetails(courseId);
   const enrollMutation = useEnrollCourse();
+  const updateProgressMutation = useUpdateProgress();
   
   const handleEnroll = async () => {
-    if (!user || !token) {
+    if (!isAuthenticated) {
       toast({
         title: "Authentication Required",
         description: "Please log in to enroll in this course.",
@@ -31,7 +32,7 @@ const EnrollForm: React.FC<EnrollFormProps> = ({ courseId }) => {
     }
     
     try {
-      await enrollMutation.mutateAsync({ courseId: courseId!, token });
+      await enrollMutation.mutateAsync({ courseId: courseId!, token: token! });
       
       toast({
         title: "Enrollment Successful!",
@@ -49,6 +50,39 @@ const EnrollForm: React.FC<EnrollFormProps> = ({ courseId }) => {
         variant: "destructive",
       });
     }
+  };
+
+  const handleStartCourse = async () => {
+    if (!token) return;
+    
+    try {
+      await updateProgressMutation.mutateAsync({ 
+        courseId: courseId!, 
+        progress: 1, 
+        status: 'started',
+        token 
+      });
+      
+      toast({
+        title: "Course Started",
+        description: "You can now access all course materials.",
+      });
+      
+      // Redirect to my courses
+      setTimeout(() => {
+        navigate('/my-courses');
+      }, 1000);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Could not start the course. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleResumeCourse = () => {
+    navigate('/my-courses');
   };
 
   if (isLoading) {
@@ -93,28 +127,46 @@ const EnrollForm: React.FC<EnrollFormProps> = ({ courseId }) => {
       </div>
     );
   }
-
-  // Helper component for the header to avoid repetition
-  function Header() {
-    return (
-      <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-16 max-w-7xl items-center">
-          <div className="flex items-center mr-8">
-            <Link to="/" className="flex items-center">
-              <img 
-                src="/lovable-uploads/b66cad1a-9e89-49b0-a481-bbbb0a2bbded.png" 
-                alt="Trizen Logo" 
-                className="h-14" 
-              />
-            </Link>
-          </div>
-          <div className="flex-1 flex justify-end">
-            <Link to="/explore-courses" className="text-sm font-medium hover:text-primary mr-4">
-              Back to Courses
-            </Link>
-          </div>
-        </div>
-      </header>
+  
+  // Determine button type based on enrollment status
+  let actionButton;
+  if (!course.enrollmentStatus) {
+    actionButton = (
+      <Button 
+        size="lg" 
+        onClick={handleEnroll} 
+        className="mb-4"
+        disabled={enrollMutation.isPending}
+      >
+        {enrollMutation.isPending ? "Enrolling..." : "Enroll for Free"}
+      </Button>
+    );
+  } else if (course.enrollmentStatus === 'enrolled') {
+    actionButton = (
+      <Button 
+        size="lg" 
+        onClick={handleStartCourse} 
+        className="mb-4 bg-green-600 hover:bg-green-700"
+        disabled={updateProgressMutation.isPending}
+      >
+        {updateProgressMutation.isPending ? "Starting..." : "Start Course"}
+      </Button>
+    );
+  } else if (course.enrollmentStatus === 'started') {
+    actionButton = (
+      <Button 
+        size="lg" 
+        onClick={handleResumeCourse} 
+        className="mb-4 bg-blue-600 hover:bg-blue-700"
+      >
+        Resume Course
+      </Button>
+    );
+  } else {
+    actionButton = (
+      <Badge className="mb-4 text-lg py-2 px-4 bg-green-600">
+        Course Completed
+      </Badge>
     );
   }
 
@@ -133,14 +185,9 @@ const EnrollForm: React.FC<EnrollFormProps> = ({ courseId }) => {
             <span className="text-muted-foreground">Instructor:</span>
             <span className="font-medium">{course?.instructor}</span>
           </div>
-          <Button 
-            size="lg" 
-            onClick={handleEnroll} 
-            className="mb-4"
-            disabled={enrollMutation.isPending}
-          >
-            {enrollMutation.isPending ? "Enrolling..." : "Enroll for Free"}
-          </Button>
+          
+          {actionButton}
+          
           <div className="flex flex-col sm:flex-row gap-2 sm:gap-6 text-sm text-muted-foreground">
             <span>{course?.students?.toLocaleString()} already enrolled</span>
             <span>Included with <strong>TRIZEN Premium</strong></span>
