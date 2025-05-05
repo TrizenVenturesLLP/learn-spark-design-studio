@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
@@ -17,7 +16,7 @@ const Courses = () => {
   const updateProgressMutation = useUpdateProgress();
   
   const handleCourseClick = (courseId: string) => {
-    navigate(`/course/${courseId}`);
+    navigate(`/course/${courseId}/weeks`);  // Updated to navigate to week view
   };
   
   const handleExploreCoursesClick = () => {
@@ -35,7 +34,7 @@ const Courses = () => {
         token 
       });
       
-      navigate(`/course/${courseId}`);
+      navigate(`/course/${courseId}/weeks`);  // Updated to navigate to week view
     } catch (error) {
       toast({
         title: "Error",
@@ -46,7 +45,7 @@ const Courses = () => {
   };
   
   const handleResumeClick = (courseId: string) => {
-    navigate(`/course/${courseId}`);
+    navigate(`/course/${courseId}/weeks`);  // Updated to navigate to week view
   };
   
   if (isLoading) {

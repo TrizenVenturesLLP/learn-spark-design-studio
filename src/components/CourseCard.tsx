@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -47,6 +46,7 @@ const CourseCard = ({
   };
   
   return (
+    
     <Card 
       className="overflow-hidden transition-all duration-300 hover:shadow-md flex flex-col"
       onClick={onClick}
