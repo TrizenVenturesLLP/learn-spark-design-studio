@@ -14,7 +14,9 @@ const userCourseSchema = new mongoose.Schema({
   },
   progress: {
     type: Number,
-    default: 0
+    default: 0,
+    min: 0,
+    max: 100
   },
   status: {
     type: String,
@@ -27,7 +29,11 @@ const userCourseSchema = new mongoose.Schema({
   },
   lastAccessedAt: {
     type: Date,
-    default: null
+    default: Date.now
+  },
+  completedDays: {
+    type: [Number],
+    default: []
   }
 });
 

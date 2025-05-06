@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -9,12 +10,15 @@ import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Video, CheckCircle, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
+import { useUpdateProgress } from '@/services/courseService';
 
 interface RoadmapDay {
   day: number;
   topics: string;
   video: string;
-  transcript?: string; // Add transcript field
+  transcript?: string;
 }
 
 interface CourseData {
@@ -84,6 +88,9 @@ const CourseWeekView = () => {
   const { courseId } = useParams();
   const [selectedDay, setSelectedDay] = useState<number>(1);
   const [completedDays, setCompletedDays] = useState<number[]>([]);
+  const { token } = useAuth();
+  const { toast } = useToast();
+  const updateProgressMutation = useUpdateProgress();
 
   const { data: course, isLoading, error } = useQuery<CourseData>({
     queryKey: ['course', courseId],
@@ -93,14 +100,73 @@ const CourseWeekView = () => {
     }
   });
 
+  // Load completed days from the course data when it's fetched
   useEffect(() => {
-    if (course?.roadmap?.length > 0) {
-      setSelectedDay(course.roadmap[0].day);
+    if (course) {
+      // Initialize selected day
+      if (course.roadmap?.length > 0) {
+        setSelectedDay(course.roadmap[0].day);
+      }
+      
+      // Initialize completed days from the course progress data
+      if (typeof course.progress === 'number' && course.roadmap) {
+        const completedCount = Math.round((course.progress * course.roadmap.length) / 100);
+        const newCompletedDays = Array.from({ length: completedCount }, (_, i) => i + 1);
+        setCompletedDays(newCompletedDays);
+      }
     }
   }, [course]);
 
-  const handleDayComplete = (day: number) => {
-    setCompletedDays(prev => [...prev, day]);
+  const handleDayComplete = async (day: number) => {
+    if (!token || !courseId || !course?.roadmap) return;
+    
+    let newCompletedDays: number[];
+    
+    if (completedDays.includes(day)) {
+      // Remove day from completed days
+      newCompletedDays = completedDays.filter(d => d !== day);
+    } else {
+      // Add day to completed days
+      newCompletedDays = [...completedDays, day];
+    }
+    
+    setCompletedDays(newCompletedDays);
+    
+    // Calculate progress percentage
+    const progressPercentage = Math.round((newCompletedDays.length / course.roadmap.length) * 100);
+    
+    // Determine course status
+    let status = 'enrolled';
+    if (progressPercentage > 0 && progressPercentage < 100) {
+      status = 'started';
+    } else if (progressPercentage === 100) {
+      status = 'completed';
+    }
+    
+    try {
+      await updateProgressMutation.mutateAsync({
+        courseId,
+        progress: progressPercentage,
+        status: status as 'enrolled' | 'started' | 'completed',
+        token
+      });
+      
+      toast({
+        title: completedDays.includes(day) ? "Progress removed" : "Progress saved",
+        description: completedDays.includes(day) 
+          ? `Day ${day} marked as incomplete` 
+          : `Day ${day} marked as complete`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error saving progress",
+        description: "Could not update your course progress. Please try again.",
+        variant: "destructive",
+      });
+      
+      // Revert the UI state if the API call fails
+      setCompletedDays(completedDays);
+    }
   };
 
   if (isLoading || error || !course) {
@@ -207,14 +273,19 @@ const CourseWeekView = () => {
                 </CardContent>
               </Card>
 
-              {!completedDays.includes(currentDay.day) && (
-                <button
-                  onClick={() => handleDayComplete(currentDay.day)}
-                  className="w-full bg-primary text-primary-foreground p-2 rounded-lg hover:bg-primary/90"
-                >
-                  Mark as Complete
-                </button>
-              )}
+              <Button
+                onClick={() => handleDayComplete(currentDay.day)}
+                className={cn(
+                  "w-full p-2 rounded-lg",
+                  completedDays.includes(currentDay.day)
+                    ? "bg-green-500 hover:bg-green-600 text-white"
+                    : "bg-primary text-primary-foreground hover:bg-primary/90"
+                )}
+              >
+                {completedDays.includes(currentDay.day)
+                  ? "Mark as Incomplete"
+                  : "Mark as Complete"}
+              </Button>
             </div>
           )}
         </div>

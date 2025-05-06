@@ -1,4 +1,3 @@
-
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -340,6 +339,7 @@ app.put('/api/my-courses/:courseId/progress', authenticateToken, async (req, res
       return res.status(400).json({ message: 'Progress must be between 0 and 100' });
     }
     
+    // Find the user enrollment
     const enrollment = await UserCourse.findOne({
       userId: req.user.id,
       courseId
@@ -349,26 +349,37 @@ app.put('/api/my-courses/:courseId/progress', authenticateToken, async (req, res
       return res.status(404).json({ message: 'Enrollment not found' });
     }
     
-    // Update enrollment
+    // Update enrollment progress
     enrollment.progress = progress;
     
+    // Update status if provided
     if (status) {
       enrollment.status = status;
+    } else {
+      // Automatically determine status based on progress if not explicitly provided
+      if (progress === 100) {
+        enrollment.status = 'completed';
+      } else if (progress > 0) {
+        enrollment.status = 'started';
+      }
     }
     
-    // If status is 'started' and there's no progress, set to 1
-    if (status === 'started' && progress === 0) {
-      enrollment.progress = 1;
-    }
-    
-    // Update last accessed timestamp
+    // Always update the last accessed timestamp
     enrollment.lastAccessedAt = new Date();
     
     await enrollment.save();
     
+    // Return the updated enrollment data
     res.json({
       message: 'Progress updated successfully',
-      enrollment
+      enrollment: {
+        userId: enrollment.userId,
+        courseId: enrollment.courseId,
+        progress: enrollment.progress,
+        status: enrollment.status,
+        enrolledAt: enrollment.enrolledAt,
+        lastAccessedAt: enrollment.lastAccessedAt
+      }
     });
     
   } catch (error) {

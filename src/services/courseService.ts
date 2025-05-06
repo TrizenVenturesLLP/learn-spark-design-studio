@@ -1,12 +1,9 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import axios from "axios";
-import { Key } from "readline";
-
-const API_URL = "http://localhost:5001/api";
+import axios from "../lib/axios";
 
 export interface Course {
-  id: Key;
+  id: string;
   _id: string;
   image: string;
   title: string;
@@ -40,10 +37,7 @@ export const useAllCourses = () => {
   return useQuery({
     queryKey: ['courses'],
     queryFn: async (): Promise<Course[]> => {
-      const token = localStorage.getItem('token');
-      const headers = token ? { Authorization: `Bearer ${token}` } : {};
-      
-      const response = await axios.get(`${API_URL}/courses`, { headers });
+      const response = await axios.get(`/api/courses`);
       if (!Array.isArray(response.data)) {
         throw new Error("Invalid response format: expected an array of courses");
       }
@@ -59,10 +53,7 @@ export const useCourseDetails = (courseId: string | undefined) => {
     queryFn: async (): Promise<Course> => {
       if (!courseId) throw new Error("Course ID is required");
       
-      const token = localStorage.getItem('token');
-      const headers = token ? { Authorization: `Bearer ${token}` } : {};
-      
-      const response = await axios.get(`${API_URL}/courses/${courseId}`, { headers });
+      const response = await axios.get(`/api/courses/${courseId}`);
       if (!response.data) {
         throw new Error(`Course with ID ${courseId} not found`);
       }
@@ -79,9 +70,7 @@ export const useEnrolledCourses = (token: string | null) => {
     queryKey: ['enrolledCourses'],
     queryFn: async (): Promise<Course[]> => {
       if (!token) throw new Error("Authentication required");
-      const response = await axios.get(`${API_URL}/my-courses`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await axios.get(`/api/my-courses`);
       return response.data as Course[];
     },
     enabled: !!token,
@@ -101,9 +90,8 @@ export const useEnrollCourse = () => {
       token: string 
     }) => {
       const response = await axios.post(
-        `${API_URL}/enrollments`, 
-        { courseId }, 
-        { headers: { Authorization: `Bearer ${token}` } }
+        `/api/enrollments`, 
+        { courseId }
       );
       return response.data;
     },
@@ -132,15 +120,16 @@ export const useUpdateProgress = () => {
       token: string 
     }) => {
       const response = await axios.put(
-        `${API_URL}/my-courses/${courseId}/progress`, 
-        { progress, status }, 
-        { headers: { Authorization: `Bearer ${token}` } }
+        `/api/my-courses/${courseId}/progress`, 
+        { progress, status }
       );
       return response.data;
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
+      // Invalidate and refetch the relevant queries
       queryClient.invalidateQueries({ queryKey: ['enrolledCourses'] });
       queryClient.invalidateQueries({ queryKey: ['courses'] });
+      queryClient.invalidateQueries({ queryKey: ['course', variables.courseId] });
     },
   });
 };

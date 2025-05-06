@@ -1,3 +1,4 @@
+
 import axios from 'axios';
 
 const instance = axios.create({
@@ -15,5 +16,19 @@ instance.interceptors.request.use((config) => {
   }
   return config;
 });
+
+// Add response interceptor to handle common errors
+instance.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    // Handle token expiry or unauthorized errors
+    if (error.response && error.response.status === 401) {
+      localStorage.removeItem('token');
+      // Optionally redirect to login page
+      // window.location.href = '/login';
+    }
+    return Promise.reject(error);
+  }
+);
 
 export default instance;
