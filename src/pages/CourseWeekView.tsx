@@ -1,250 +1,223 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import axios from '../lib/axios';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
-import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import CourseWeeklySidebar from '@/components/CourseWeeklySidebar';
-import CourseModuleContent from '@/components/CourseModuleContent';
-import CourseProgressTracker from '@/components/CourseProgressTracker';
-import { useCourseDetails, useUpdateProgress } from '@/services/courseService';
-import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/contexts/AuthContext';
-import courseWeekData, { WeekData } from '@/data/courseWeekData';
+import { cn } from "@/lib/utils";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Video, CheckCircle, AlertCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
-type WeekProgress = {
-  m: boolean;
-  t: boolean;
-  w: boolean;
-  th: boolean;
-  f: boolean;
-  s: boolean;
-  su: boolean;
+interface RoadmapDay {
+  day: number;
+  topics: string;
+  video: string;
+  transcript?: string; // Add transcript field
+}
+
+interface CourseData {
+  _id: string;
+  title: string;
+  description: string;
+  roadmap: RoadmapDay[];
+}
+
+const VideoPlayer = ({ videoUrl }: { videoUrl: string }) => {
+  // Extract video ID from YouTube URL
+  const getYouTubeId = (url: string) => {
+    const match = url.match(/[?&]v=([^&]+)/);
+    return match ? match[1] : url;
+  };
+
+  const videoId = getYouTubeId(videoUrl);
+
+  return (
+    <div className="aspect-video w-full rounded-lg overflow-hidden bg-black">
+      <iframe
+        width="100%"
+        height="100%"
+        src={`https://www.youtube.com/embed/${videoId}`}
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowFullScreen
+        className="w-full h-full"
+      />
+    </div>
+  );
 };
 
-// Custom useMediaQuery hook implementation
-const useMediaQuery = (query: string): boolean => {
-  const [matches, setMatches] = useState(false);
+const TranscriptSection = ({ transcript }: { transcript?: string }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
 
-  useEffect(() => {
-    const media = window.matchMedia(query);
-    
-    const updateMatches = () => setMatches(media.matches);
-    updateMatches(); // Initialize
-    
-    media.addEventListener('change', updateMatches);
-    return () => media.removeEventListener('change', updateMatches);
-  }, [query]);
+  if (!transcript) return null;
 
-  return matches;
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center justify-between">
+          <span>Video Transcript</span>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setIsExpanded(!isExpanded)}
+          >
+            {isExpanded ? "Show Less" : "Show More"}
+          </Button>
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div
+          className={cn(
+            "prose prose-sm max-w-none text-muted-foreground",
+            !isExpanded && "max-h-32 overflow-hidden"
+          )}
+        >
+          {transcript}
+        </div>
+      </CardContent>
+    </Card>
+  );
 };
 
 const CourseWeekView = () => {
-  const { courseId } = useParams<{ courseId: string }>();
-  const { token } = useAuth();
-  const { toast } = useToast();
-  const { data: courseDetails, isLoading } = useCourseDetails(courseId);
-  const updateProgressMutation = useUpdateProgress();
-  const isLargeScreen = useMediaQuery('(min-width: 1400px)'); // 1400px breakpoint
-  
-  const [selectedWeek, setSelectedWeek] = useState<string>('week1');
-  const [weekData, setWeekData] = useState<Record<string, WeekData>>(courseWeekData);
-  const [learningGoal, setLearningGoal] = useState<number>(5);
-  const [weekProgress, setWeekProgress] = useState<WeekProgress>({
-    m: false, t: false, w: false, th: false, f: false, s: false, su: false
+  const { courseId } = useParams();
+  const [selectedDay, setSelectedDay] = useState<number>(1);
+  const [completedDays, setCompletedDays] = useState<number[]>([]);
+
+  const { data: course, isLoading, error } = useQuery<CourseData>({
+    queryKey: ['course', courseId],
+    queryFn: async () => {
+      const { data } = await axios.get(`/api/courses/${courseId}`);
+      return data;
+    }
   });
 
-  // Calculate overall course progress
-  const courseProgress = useMemo(() => {
-    const totalLectures = Object.values(weekData).flatMap(week => 
-      week.modules.flatMap(module => module.lectures)
-    ).length;
-    
-    const completedLectures = Object.values(weekData).flatMap(week => 
-      week.modules.flatMap(module => module.lectures.filter(lecture => lecture.completed))
-    ).length;
-    
-    return Math.round((completedLectures / totalLectures) * 100);
-  }, [weekData]);
-
-  // Handle week selection
-  const handleWeekSelect = (weekId: string) => {
-    setSelectedWeek(weekId);
-  };
-  
-  // Mark lecture as complete or incomplete
-  const markLectureComplete = (weekId: string, moduleId: string, lectureId: string) => {
-    setWeekData(prevData => {
-      const updatedWeekData = { ...prevData };
-      const moduleIndex = updatedWeekData[weekId].modules.findIndex(m => m.id === moduleId);
-      if (moduleIndex === -1) return prevData;
-      
-      const lectureIndex = updatedWeekData[weekId].modules[moduleIndex].lectures.findIndex(l => l.id === lectureId);
-      if (lectureIndex === -1) return prevData;
-      
-      // Toggle completion status
-      const lecture = updatedWeekData[weekId].modules[moduleIndex].lectures[lectureIndex];
-      const newCompletionStatus = !lecture.completed;
-      lecture.completed = newCompletionStatus;
-      
-      // Update module progress counts
-      const durationValue = parseInt(lecture.duration.split(' ')[0]) || 0;
-      
-      if (lecture.type === 'video') {
-        updatedWeekData[weekId].modules[moduleIndex].videosLeft += newCompletionStatus ? -durationValue : durationValue;
-      } else if (lecture.type === 'reading') {
-        updatedWeekData[weekId].modules[moduleIndex].readingsLeft += newCompletionStatus ? -durationValue : durationValue;
-      } else if (lecture.type === 'quiz') {
-        updatedWeekData[weekId].modules[moduleIndex].assessmentsLeft += newCompletionStatus ? -1 : 1;
-      }
-      
-      return updatedWeekData;
-    });
-  };
-
-  // Update course progress in database when weekData changes
   useEffect(() => {
-    if (courseId && token) {
-      updateProgressMutation.mutate({ 
-        courseId, 
-        progress: courseProgress,
-        token
-      });
+    if (course?.roadmap?.length > 0) {
+      setSelectedDay(course.roadmap[0].day);
     }
-  }, [courseProgress, courseId, token]);
+  }, [course]);
 
-  // Toggle module expansion
-  const toggleModuleExpansion = (weekId: string, moduleId: string) => {
-    setWeekData(prevData => {
-      const updatedWeekData = { ...prevData };
-      const moduleIndex = updatedWeekData[weekId].modules.findIndex(m => m.id === moduleId);
-      if (moduleIndex === -1) return prevData;
-      
-      updatedWeekData[weekId].modules[moduleIndex].expanded = 
-        !updatedWeekData[weekId].modules[moduleIndex].expanded;
-      return updatedWeekData;
-    });
-  };
-  
-  // Toggle week completion status
-  const toggleWeekComplete = (weekId: string) => {
-    setWeekData(prevData => {
-      const updatedWeekData = { ...prevData };
-      updatedWeekData[weekId].completed = !updatedWeekData[weekId].completed;
-      
-      // Check if all weeks are completed
-      const allWeeksCompleted = Object.values(updatedWeekData).every(week => week.completed);
-      
-      if (allWeeksCompleted && courseId && token) {
-        updateProgressMutation.mutate({ 
-          courseId, 
-          progress: 100,
-          status: 'completed',
-          token
-        });
-        
-        toast({
-          title: "Course Completed! 🎉",
-          description: "Congratulations on completing this course!",
-        });
-      }
-      
-      return updatedWeekData;
-    });
-  };
-  
-  // Toggle day progress
-  const toggleDayProgress = (day: keyof WeekProgress) => {
-    setWeekProgress(prev => ({
-      ...prev,
-      [day]: !prev[day]
-    }));
+  const handleDayComplete = (day: number) => {
+    setCompletedDays(prev => [...prev, day]);
   };
 
-  if (isLoading) {
+  if (isLoading || error || !course) {
     return (
       <DashboardLayout>
-        <div className="flex justify-center items-center h-screen">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+        <div className="flex justify-center items-center h-full">
+          {isLoading ? (
+            <div className="animate-spin"><Video className="h-6 w-6" /></div>
+          ) : (
+            <div className="flex items-center text-red-500">
+              <AlertCircle className="h-6 w-6 mr-2" />
+              <span>Error loading course content</span>
+            </div>
+          )}
         </div>
       </DashboardLayout>
     );
   }
 
+  const currentDay = course.roadmap.find(day => day.day === selectedDay);
+
   return (
     <DashboardLayout>
-      <div className="flex flex-col md:flex-row min-h-screen bg-background">
-        {/* Left Sidebar with weeks list */}
-        <CourseWeeklySidebar 
-          weekData={weekData} 
-          selectedWeek={selectedWeek}
-          onWeekSelect={handleWeekSelect}
-          courseTitle={courseDetails?.title || "Course Content"}
-          instructor={courseDetails?.instructor || "Instructor"}
-        />
-        
-        {/* Main content area */}
-        <div className="flex-1 p-6 overflow-y-auto">
-          {/* Course header with title and progress */}
-          <div className="mb-6">
-            <h1 className="text-2xl font-bold">{weekData[selectedWeek]?.title || "Week Content"}</h1>
-            <div className="mt-2">
-              <div className="flex justify-between text-sm mb-1">
-                <span>Course Progress</span>
-                <span>{courseProgress}%</span>
-              </div>
-              <Progress value={courseProgress} className="h-2" />
+      <div className="flex h-[calc(100vh-4rem)]">
+        {/* Sidebar */}
+        <div className="w-80 border-r bg-muted/40">
+          <div className="p-4 border-b">
+            <h2 className="font-semibold">Course Content</h2>
+            <p className="text-sm text-muted-foreground">{course.title}</p>
+          </div>
+          <ScrollArea className="h-[calc(100vh-10rem)]">
+            <div className="p-4 space-y-2">
+              {course.roadmap.map((day) => (
+                <button
+                  key={day.day}
+                  onClick={() => setSelectedDay(day.day)}
+                  className={cn(
+                    "flex flex-col w-full p-3 rounded-lg text-sm gap-1 transition-colors text-left",
+                    selectedDay === day.day
+                      ? "bg-primary text-primary-foreground"
+                      : "hover:bg-muted",
+                    completedDays.includes(day.day) && selectedDay !== day.day && "text-green-500"
+                  )}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">Day {day.day}</span>
+                      {completedDays.includes(day.day) && (
+                        <CheckCircle className="h-4 w-4" />
+                      )}
+                    </div>
+                    <span className="text-xs opacity-70">
+                      {completedDays.includes(day.day) ? 'Completed' : 'Not Started'}
+                    </span>
+                  </div>
+                  <p className={cn(
+                    "text-xs mt-1 line-clamp-2",
+                    selectedDay === day.day 
+                      ? "text-primary-foreground/80"
+                      : "text-muted-foreground"
+                  )}>
+                    {day.topics}
+                  </p>
+                </button>
+              ))}
             </div>
-          </div>
-          
-          {/* Module content */}
-          {weekData[selectedWeek]?.modules.map(module => (
-            <CourseModuleContent
-              key={module.id}
-              module={module}
-              weekId={selectedWeek}
-              onLectureComplete={(lectureId) => markLectureComplete(selectedWeek, module.id, lectureId)}
-              onToggleExpansion={() => toggleModuleExpansion(selectedWeek, module.id)}
+          </ScrollArea>
+          <div className="p-4 border-t">
+            <Progress 
+              value={(completedDays.length / course.roadmap.length) * 100} 
+              className="h-2"
             />
-          ))}
-          
-          {/* Week completion button */}
-          <div className="mt-8 flex justify-center">
-            <Button
-              onClick={() => toggleWeekComplete(selectedWeek)}
-              className={`px-6 ${
-                weekData[selectedWeek]?.completed 
-                  ? "bg-green-600 hover:bg-green-700" 
-                  : "bg-primary hover:bg-primary/90"
-              }`}
-            >
-              {weekData[selectedWeek]?.completed ? "✓ Week Completed" : "Mark Week as Complete"}
-            </Button>
+            <p className="text-sm text-muted-foreground mt-2">
+              {completedDays.length} of {course.roadmap.length} days completed
+            </p>
           </div>
+        </div>
 
-          {/* Progress tracker for smaller screens (under 1400px) */}
-          {!isLargeScreen && (
-            <div className="mt-8">
-              <CourseProgressTracker
-                weekProgress={weekProgress}
-                learningGoal={learningGoal}
-                onDayToggle={toggleDayProgress}
-                onGoalChange={setLearningGoal}
-                courseDetails={courseDetails}
-              />
+        {/* Main Content */}
+        <div className="flex-1 overflow-y-auto p-6">
+          {currentDay && (
+            <div className="max-w-4xl mx-auto space-y-6">
+              <div>
+                <h1 className="text-2xl font-bold mb-2">Day {currentDay.day}</h1>
+                <p className="text-muted-foreground">{currentDay.topics}</p>
+              </div>
+
+              <Card>
+                <CardContent className="p-6">
+                  <VideoPlayer videoUrl={currentDay.video} />
+                </CardContent>
+              </Card>
+
+              <TranscriptSection transcript={currentDay.transcript} />
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Topics Covered</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-muted-foreground">
+                    {currentDay.topics}
+                  </p>
+                </CardContent>
+              </Card>
+
+              {!completedDays.includes(currentDay.day) && (
+                <button
+                  onClick={() => handleDayComplete(currentDay.day)}
+                  className="w-full bg-primary text-primary-foreground p-2 rounded-lg hover:bg-primary/90"
+                >
+                  Mark as Complete
+                </button>
+              )}
             </div>
           )}
         </div>
-        
-        {/* Right sidebar with progress tracker - only shown on screens 1400px and larger */}
-        {isLargeScreen && (
-          <CourseProgressTracker
-            weekProgress={weekProgress}
-            learningGoal={learningGoal}
-            onDayToggle={toggleDayProgress}
-            onGoalChange={setLearningGoal}
-            courseDetails={courseDetails}
-          />
-        )}
       </div>
     </DashboardLayout>
   );
