@@ -30,6 +30,15 @@ export interface Course {
   enrollmentStatus?: 'enrolled' | 'started' | 'completed'; // Added for enrollment status
   status?: 'enrolled' | 'started' | 'completed'; // Added for enrollment status
   lastAccessedAt?: string; // Added for tracking last access
+  roadmap?: RoadmapDay[]; // Added for course weekly content
+}
+
+// Define the RoadmapDay interface for course content structure
+export interface RoadmapDay {
+  day: number;
+  topics: string;
+  video: string;
+  transcript?: string;
 }
 
 // Fetch all courses

@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import axios from '../lib/axios';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
@@ -12,16 +12,9 @@ import { Video, CheckCircle, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { useUpdateProgress } from '@/services/courseService';
+import { useUpdateProgress, Course, RoadmapDay } from '@/services/courseService';
 
-interface RoadmapDay {
-  day: number;
-  topics: string;
-  video: string;
-  transcript?: string;
-}
-
-interface CourseData {
+interface CourseData extends Course {
   _id: string;
   title: string;
   description: string;
@@ -85,26 +78,38 @@ const TranscriptSection = ({ transcript }: { transcript?: string }) => {
 };
 
 const CourseWeekView = () => {
-  const { courseId } = useParams();
+  const { courseId } = useParams<{ courseId: string }>();
   const [selectedDay, setSelectedDay] = useState<number>(1);
   const [completedDays, setCompletedDays] = useState<number[]>([]);
-  const { token } = useAuth();
+  const { token, isAuthenticated, loading } = useAuth();
   const { toast } = useToast();
   const updateProgressMutation = useUpdateProgress();
+  const navigate = useNavigate();
 
   const { data: course, isLoading, error } = useQuery<CourseData>({
     queryKey: ['course', courseId],
     queryFn: async () => {
+      if (!courseId) throw new Error("Course ID is required");
       const { data } = await axios.get(`/api/courses/${courseId}`);
-      return data;
-    }
+      return data as CourseData;
+    },
+    enabled: !!courseId && isAuthenticated
   });
+
+  // Redirect if not authenticated and not loading
+  useEffect(() => {
+    if (!loading && !isAuthenticated && courseId) {
+      // Save the current path to localStorage before redirecting
+      localStorage.setItem('redirectPath', `/course/${courseId}/weeks`);
+      navigate('/login');
+    }
+  }, [loading, isAuthenticated, navigate, courseId]);
 
   // Load completed days from the course data when it's fetched
   useEffect(() => {
-    if (course) {
+    if (course && course.roadmap) {
       // Initialize selected day
-      if (course.roadmap?.length > 0) {
+      if (course.roadmap.length > 0) {
         setSelectedDay(course.roadmap[0].day);
       }
       

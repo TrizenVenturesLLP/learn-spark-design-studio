@@ -1,8 +1,9 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
@@ -32,12 +33,15 @@ const queryClient = new QueryClient({
 // Protected Route Component
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, loading } = useAuth();
+  const location = useLocation();
 
   if (loading) {
     return <div>Loading...</div>; // Add a proper loading component
   }
 
   if (!isAuthenticated) {
+    // Save the current location so we can redirect back after login
+    localStorage.setItem('redirectPath', location.pathname);
     return <Navigate to="/login" />;
   }
 
@@ -49,6 +53,14 @@ const PublicRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated } = useAuth();
 
   if (isAuthenticated) {
+    // Check if there's a stored redirect path
+    const redirectPath = localStorage.getItem('redirectPath');
+    
+    if (redirectPath) {
+      localStorage.removeItem('redirectPath');
+      return <Navigate to={redirectPath} />;
+    }
+    
     return <Navigate to="/dashboard" />;
   }
 
