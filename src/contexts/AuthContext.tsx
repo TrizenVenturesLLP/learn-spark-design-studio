@@ -9,6 +9,11 @@ interface User {
   email: string;
 }
 
+interface AuthResponse {
+  token: string;
+  user: User;
+}
+
 interface AuthContextType {
   isAuthenticated: boolean;
   user: User | null;
@@ -65,7 +70,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (email: string, password: string) => {
     try {
       const response = await axios.post('/api/auth/login', { email, password });
-      const { token: authToken, user: userData } = response.data;
+      const { token: authToken, user: userData } = response.data as AuthResponse;
       
       localStorage.setItem('token', authToken);
       setToken(authToken);
@@ -84,7 +89,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signup = async (name: string, email: string, password: string) => {
     try {
       const response = await axios.post('/api/auth/register', { name, email, password });
-      const { token: authToken, user: userData } = response.data;
+      const { token: authToken, user: userData } = response.data as AuthResponse;
       
       localStorage.setItem('token', authToken);
       setToken(authToken);
