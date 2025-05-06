@@ -1,7 +1,17 @@
 
 import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
 
 const HeroSection = () => {
+  const navigate = useNavigate();
+
+  const scrollToCourses = () => {
+    const coursesSection = document.getElementById('courses-section');
+    if (coursesSection) {
+      coursesSection.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
   return (
     <section className="relative min-h-[600px] flex items-center justify-center overflow-hidden bg-gradient-to-b from-blue-50 to-white">
       {/* Background Image with Overlay */}
@@ -26,13 +36,27 @@ const HeroSection = () => {
           </p>
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button size="lg" className="text-md px-8 py-6 shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 transition-all">
+            <Button 
+              size="lg" 
+              className="text-md px-8 py-6 shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 transition-all"
+              onClick={scrollToCourses}
+            >
               Browse Courses
             </Button>
-            <Button variant="outline" size="lg" className="text-md px-8 py-6 bg-white/10 text-white border-white/30 hover:bg-white/20 backdrop-blur-sm">
+            <Button 
+              variant="outline" 
+              size="lg" 
+              className="text-md px-8 py-6 bg-white/10 text-white border-white/30 hover:bg-white/20 backdrop-blur-sm"
+              onClick={scrollToCourses}
+            >
               Get Certified
             </Button>
-            <Button variant="outline" size="lg" className="text-md px-8 py-6 bg-white/10 text-white border-white/30 hover:bg-white/20 backdrop-blur-sm">
+            <Button 
+              variant="outline" 
+              size="lg" 
+              className="text-md px-8 py-6 bg-white/10 text-white border-white/30 hover:bg-white/20 backdrop-blur-sm"
+              onClick={() => navigate('/not-found-page')}
+            >
               Partner with Us
             </Button>
           </div>

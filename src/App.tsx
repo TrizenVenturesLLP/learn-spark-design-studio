@@ -147,6 +147,9 @@ const App = () => (
               </ProtectedRoute>
             } />
 
+            {/* Added explicit not-found-page route */}
+            <Route path="/not-found-page" element={<NotFound />} />
+            
             {/* Catch-all route */}
             <Route path="*" element={<NotFound />} />
           </Routes>

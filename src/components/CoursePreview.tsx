@@ -67,7 +67,7 @@ const courseData = [
 
 const CoursePreview = () => {
   return (
-    <section className="section-padding">
+    <section id="courses-section" className="section-padding">
       <div className="mb-10 text-center">
         <h2 className="text-3xl font-bold mb-4">Explore Our Top Courses</h2>
         <p className="text-muted-foreground max-w-2xl mx-auto">
