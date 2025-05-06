@@ -33,6 +33,13 @@ const Header = () => {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  const scrollToCourses = () => {
+    const coursesSection = document.getElementById('courses-section');
+    if (coursesSection) {
+      coursesSection.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
   const mainNavItems = [
     { 
       name: "Research", 
@@ -79,7 +86,11 @@ const Header = () => {
   const secondaryNavItems = [
     { name: "Home", path: "/" },
     { name: "My Courses", path: "/my-courses" },
-    { name: "Explore Courses", path: "/explore-courses" },
+    { 
+      name: "Explore Courses", 
+      path: "#courses-section",
+      action: scrollToCourses
+    },
     { name: "Pricing", path: "/pricing" },
     { name: "About", path: "/about" },
     { name: "Contact", path: "/contact" },
@@ -87,6 +98,13 @@ const Header = () => {
 
   const isActive = (path: string) => {
     return location.pathname === path;
+  };
+
+  const handleNavItemClick = (item: any, e: React.MouseEvent) => {
+    if (item.action) {
+      e.preventDefault();
+      item.action();
+    }
   };
 
   return (
@@ -232,6 +250,7 @@ const Header = () => {
                 <Link 
                   key={item.name} 
                   to={item.path}
+                  onClick={(e) => handleNavItemClick(item, e)}
                   className={cn(
                     "text-sm font-medium mr-6 transition-colors hover:text-primary relative group",
                     isActive(item.path) ? "text-primary" : "text-muted-foreground"
@@ -307,7 +326,10 @@ const Header = () => {
                     "block text-base font-medium py-2",
                     isActive(item.path) ? "text-primary" : "text-muted-foreground"
                   )}
-                  onClick={() => setIsMenuOpen(false)}
+                  onClick={(e) => {
+                    handleNavItemClick(item, e);
+                    setIsMenuOpen(false);
+                  }}
                 >
                   {item.name}
                 </Link>
