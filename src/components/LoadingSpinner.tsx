@@ -1,8 +1,8 @@
 
 import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { LucideProps } from "lucide-react";
 
-// Remove HTMLAttributes<HTMLDivElement> since Lucide icons expect SVG-related props
-export const LoadingSpinner = ({ className, ...props }: React.ComponentProps<typeof Loader2>) => (
+export const LoadingSpinner = ({ className, ...props }: LucideProps) => (
   <Loader2 className={cn("h-4 w-4 animate-spin", className)} {...props} />
 );
