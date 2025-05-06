@@ -6,11 +6,14 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ChevronDown, Menu, Search, User, X } from "lucide-react";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  NavigationMenu,
+  NavigationMenuContent,
+  NavigationMenuItem,
+  NavigationMenuLink,
+  NavigationMenuList,
+  NavigationMenuTrigger,
+} from "@/components/ui/navigation-menu";
+import { cn } from "@/lib/utils";
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
@@ -91,163 +94,192 @@ const Header = () => {
     setActiveTab(tab);
   };
 
+  // Helper for NavigationMenu links
+  const NavigationLinkItem = React.forwardRef<
+    React.ElementRef<"a">,
+    React.ComponentPropsWithoutRef<"a">
+  >(({ className, title, children, ...props }, ref) => {
+    return (
+      <a
+        ref={ref}
+        className={cn(
+          "block select-none rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground",
+          className
+        )}
+        {...props}
+      >
+        <div className="text-sm font-medium leading-none">{title}</div>
+        <p className="line-clamp-2 mt-1 text-sm leading-snug text-muted-foreground">
+          {children}
+        </p>
+      </a>
+    );
+  });
+  NavigationLinkItem.displayName = "NavigationLinkItem";
+
   return (
     <header 
       className={`sticky top-0 z-50 w-full bg-white transition-all duration-300 ${
-        scrolled ? "shadow-sm" : "border-b border-[#e0e0e0]"
+        scrolled ? "shadow-sm" : ""
       }`}
     >
-      {/* Global Header - Top Navbar */}
-      <div className="container max-w-7xl mx-auto">
-        <div className={`flex items-center justify-between transition-all ${
-          scrolled ? "h-16" : "h-20"
-        }`}>
-          {/* Logo */}
-          <div className="flex-shrink-0">
-            <Link to="/" className="flex items-center">
-              <img 
-                src="/lovable-uploads/b66cad1a-9e89-49b0-a481-bbbb0a2bbded.png" 
-                alt="Trizen Logo" 
-                className={`transition-all ${scrolled ? "h-10" : "h-14"}`} 
-              />
-            </Link>
-          </div>
-
-          {/* Primary Navigation - Desktop */}
-          <nav className="hidden lg:flex items-center ml-10 space-x-8">
-            {primaryNavCategories.map((category) => (
-              <DropdownMenu key={category.name}>
-                <DropdownMenuTrigger asChild>
-                  <button 
-                    className={`flex items-center text-base font-medium ${
-                      activeTab === category.name.toLowerCase() 
-                        ? "text-primary font-semibold" 
-                        : "text-gray-700 hover:text-primary"
-                    }`}
-                    onClick={() => handleNavClick(category.name.toLowerCase())}
-                  >
-                    {category.name}
-                    <ChevronDown className="ml-1 h-4 w-4" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-56 bg-white">
-                  {category.items.map((item) => (
-                    <DropdownMenuItem key={item.name} asChild>
-                      <Link 
-                        to={item.path}
-                        className="w-full cursor-pointer flex items-center py-2 px-3 hover:bg-gray-50"
-                      >
-                        {item.name}
-                      </Link>
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            ))}
-            <Link 
-              to="/careers" 
-              className={`text-base font-medium ${
-                activeTab === "careers" 
-                  ? "text-primary font-semibold" 
-                  : "text-gray-700 hover:text-primary"
-              }`}
-              onClick={() => handleNavClick("careers")}
-            >
-              Careers
-            </Link>
-          </nav>
-
-          {/* Right Side - Auth & Icons */}
-          <div className="flex items-center">
-            {/* Search Icon */}
-            <button className="ml-4 p-2 text-gray-600 hover:text-primary">
-              <Search className="h-5 w-5" />
-            </button>
-            
-            {/* Auth Buttons */}
-            <div className="hidden md:flex items-center ml-4 space-x-3">
-              {isAuthenticated ? (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <button className="flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-primary">
-                      <User className="h-5 w-5" />
-                      <span className="hidden sm:inline">{user?.name || user?.email}</span>
-                    </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem asChild>
-                      <Link to="/profile" className="w-full cursor-pointer">Profile</Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link to="/settings" className="w-full cursor-pointer">Settings</Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <button 
-                        onClick={logout} 
-                        className="w-full text-left cursor-pointer text-red-500 hover:text-red-600"
-                      >
-                        Logout
-                      </button>
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              ) : (
-                <>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="font-medium"
-                    onClick={() => navigate('/login')}
-                  >
-                    Login
-                  </Button>
-                  <Button 
-                    size="sm" 
-                    className="font-medium"
-                    onClick={() => navigate('/signup')}
-                  >
-                    Sign up
-                  </Button>
-                </>
-              )}
+      {/* Global Header - Top Navbar (IBM style) */}
+      <div className="border-b border-[#e0e0e0]">
+        <div className="container max-w-[1400px] mx-auto px-4">
+          <div className={`flex items-center justify-between transition-all ${
+            scrolled ? "h-14" : "h-16"
+          }`}>
+            {/* Logo */}
+            <div className="flex-shrink-0">
+              <Link to="/" className="flex items-center">
+                <img 
+                  src="/lovable-uploads/b66cad1a-9e89-49b0-a481-bbbb0a2bbded.png" 
+                  alt="Trizen Logo" 
+                  className={`transition-all ${scrolled ? "h-8" : "h-10"}`} 
+                />
+              </Link>
             </div>
 
-            {/* Mobile Menu Button */}
-            <button 
-              className="lg:hidden ml-4 p-2 text-gray-600 hover:text-primary"
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-            >
-              {isMenuOpen ? (
-                <X className="h-6 w-6" />
-              ) : (
-                <Menu className="h-6 w-6" />
-              )}
-            </button>
+            {/* Primary Navigation - Desktop */}
+            <div className="hidden lg:flex items-center ml-8 h-full">
+              <NavigationMenu className="h-full">
+                <NavigationMenuList className="h-full space-x-1">
+                  {primaryNavCategories.map((category) => (
+                    <NavigationMenuItem key={category.name} className="h-full">
+                      <NavigationMenuTrigger 
+                        className={`h-full font-medium text-sm ${
+                          activeTab === category.name.toLowerCase() 
+                            ? "text-primary font-semibold" 
+                            : "text-gray-700"
+                        }`}
+                        onClick={() => handleNavClick(category.name.toLowerCase())}
+                      >
+                        {category.name}
+                      </NavigationMenuTrigger>
+                      <NavigationMenuContent>
+                        <ul className="grid w-[400px] gap-2 p-4">
+                          {category.items.map((item) => (
+                            <li key={item.name}>
+                              <NavigationMenuLink asChild>
+                                <Link 
+                                  to={item.path}
+                                  className="block p-2 hover:bg-gray-50 rounded text-sm"
+                                >
+                                  {item.name}
+                                </Link>
+                              </NavigationMenuLink>
+                            </li>
+                          ))}
+                        </ul>
+                      </NavigationMenuContent>
+                    </NavigationMenuItem>
+                  ))}
+                  <NavigationMenuItem className="h-full">
+                    <Link 
+                      to="/careers" 
+                      className={`flex items-center h-full px-4 text-sm font-medium ${
+                        activeTab === "careers" 
+                          ? "text-primary font-semibold" 
+                          : "text-gray-700 hover:text-primary"
+                      }`}
+                      onClick={() => handleNavClick("careers")}
+                    >
+                      Careers
+                    </Link>
+                  </NavigationMenuItem>
+                </NavigationMenuList>
+              </NavigationMenu>
+            </div>
+
+            {/* Right Side - Auth & Icons */}
+            <div className="flex items-center gap-1 md:gap-3">
+              {/* Search Icon */}
+              <button className="p-2 text-gray-600 hover:text-primary">
+                <Search className="h-5 w-5" />
+              </button>
+              
+              {/* Auth Buttons */}
+              <div className="hidden md:flex items-center space-x-3">
+                {isAuthenticated ? (
+                  <div className="flex items-center">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="font-medium flex items-center gap-2"
+                      onClick={() => navigate('/profile')}
+                    >
+                      <User className="h-4 w-4" />
+                      <span className="hidden sm:inline text-gray-700 text-sm">{user?.name || user?.email}</span>
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="font-medium text-sm"
+                      onClick={() => navigate('/login')}
+                    >
+                      Login
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      className="font-medium text-sm"
+                      onClick={() => navigate('/signup')}
+                    >
+                      Sign up
+                    </Button>
+                  </>
+                )}
+              </div>
+
+              {/* Mobile Menu Button */}
+              <button 
+                className="lg:hidden p-2 text-gray-600 hover:text-primary ml-2"
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
+              >
+                {isMenuOpen ? (
+                  <X className="h-6 w-6" />
+                ) : (
+                  <Menu className="h-6 w-6" />
+                )}
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Secondary Navigation - Sub Navbar */}
-      <div className="hidden lg:block border-t border-[#f3f3f3]">
-        <div className="container max-w-7xl mx-auto">
-          <nav className="flex h-10 items-center">
-            {secondaryNavItems.map((item) => (
-              <Link 
-                key={item.name} 
-                to={item.path}
-                className={`text-sm mr-6 transition-colors ${
-                  activeTab === item.name.toLowerCase() 
-                    ? "font-medium text-primary" 
-                    : "text-gray-600 hover:text-primary"
-                }`}
-                onClick={() => handleNavClick(item.name.toLowerCase())}
-              >
-                {item.name}
-              </Link>
-            ))}
-          </nav>
+      {/* Secondary Navigation - Sub Navbar (if there's an active category) */}
+      {activeTab !== "home" && !isMobile && (
+        <div className="hidden lg:block border-b border-[#f1f1f1] bg-[#f9f9f9]">
+          <div className="container max-w-[1400px] mx-auto px-4">
+            <div className="flex h-12 items-center">
+              <div className="flex space-x-6">
+                {secondaryNavItems.map((item) => (
+                  <Link 
+                    key={item.name} 
+                    to={item.path}
+                    className="text-sm text-gray-600 hover:text-primary transition-colors"
+                    onClick={() => handleNavClick(item.name.toLowerCase())}
+                  >
+                    {item.name}
+                  </Link>
+                ))}
+              </div>
+              {/* Secondary CTA button - positioned right */}
+              <div className="ml-auto">
+                <Button 
+                  size="sm" 
+                  variant="outline"
+                  className="text-sm font-medium"
+                >
+                  Contact Trizen
+                </Button>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Mobile Menu */}
       {isMenuOpen && (
