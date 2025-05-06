@@ -28,7 +28,7 @@ const Index = () => {
       <main className="flex-1">
         <HeroSection />
         <AboutSection />
-        <CoursePreview />
+        {/* <CoursePreview /> */}
         <FilterableCoursesSection 
           courses={courses || []} 
           onCourseClick={handleCourseClick}
