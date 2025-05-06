@@ -3,6 +3,7 @@ import Header from "@/components/Header";
 import HeroSection from "@/components/HeroSection";
 import AboutSection from "@/components/AboutSection";
 import FilterableCoursesSection from "@/components/FilterableCoursesSection";
+import CoursePreview from "@/components/CoursePreview";  // Add this import
 import WhyChooseUsSection from "@/components/WhyChooseUsSection";
 import TestimonialsCarousel from "@/components/TestimonialsCarousel";
 import CorporateTrainingSection from "@/components/CorporateTrainingSection";
@@ -27,6 +28,7 @@ const Index = () => {
       <main className="flex-1">
         <HeroSection />
         <AboutSection />
+        <CoursePreview />  {/* Add the CoursePreview component before FilterableCoursesSection */}
         <FilterableCoursesSection 
           courses={courses || []} 
           onCourseClick={handleCourseClick}
