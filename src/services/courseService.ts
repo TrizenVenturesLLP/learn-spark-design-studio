@@ -1,10 +1,12 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
+import { Key } from "readline";
 
 const API_URL = "http://localhost:5001/api";
 
 export interface Course {
+  id: Key;
   _id: string;
   image: string;
   title: string;
@@ -42,7 +44,10 @@ export const useAllCourses = () => {
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
       
       const response = await axios.get(`${API_URL}/courses`, { headers });
-      return response.data;
+      if (!Array.isArray(response.data)) {
+        throw new Error("Invalid response format: expected an array of courses");
+      }
+      return response.data.map(course => course as Course);
     },
   });
 };
@@ -61,7 +66,7 @@ export const useCourseDetails = (courseId: string | undefined) => {
       if (!response.data) {
         throw new Error(`Course with ID ${courseId} not found`);
       }
-      return response.data;
+      return response.data as Course;
     },
     enabled: !!courseId,
     staleTime: 1000 * 60 * 5, // 5 minutes
@@ -77,7 +82,7 @@ export const useEnrolledCourses = (token: string | null) => {
       const response = await axios.get(`${API_URL}/my-courses`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      return response.data;
+      return response.data as Course[];
     },
     enabled: !!token,
   });

@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import axios from 'axios';
 
@@ -8,16 +7,16 @@ type User = {
   email: string;
 };
 
-type AuthContextType = {
+export interface AuthContextType {
   user: User | null;
+  isAuthenticated: boolean;
+  loading: boolean;
   token: string | null;
   login: (email: string, password: string) => Promise<void>;
   signup: (name: string, email: string, password: string) => Promise<void>;
   logout: () => void;
-  loading: boolean;
   error: string | null;
-  isAuthenticated: boolean; // Added the isAuthenticated property
-};
+}
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -112,5 +111,6 @@ export const useAuth = () => {
   if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
+  console.log('Auth Context:', context); // Debug log
   return context;
 };
