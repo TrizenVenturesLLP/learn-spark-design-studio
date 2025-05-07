@@ -1,5 +1,6 @@
 
-import { useState, useEffect } from 'react';
+
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import axios from '../lib/axios';
@@ -21,22 +22,125 @@ interface CourseData extends Course {
   roadmap: RoadmapDay[];
 }
 
-const VideoPlayer = ({ videoUrl }: { videoUrl: string }) => {
-  // Extract video ID from YouTube URL
-  const getYouTubeId = (url: string) => {
-    const match = url.match(/[?&]v=([^&]+)/);
-    return match ? match[1] : url;
+const VideoPlayer = ({ 
+  videoUrl, 
+  onVideoComplete,
+  isEnabled = true 
+}: { 
+  videoUrl: string;
+  onVideoComplete: () => void;
+  isEnabled?: boolean;
+}) => {
+  const [isVideoCompleted, setIsVideoCompleted] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  const getDriveFileId = (url: string) => {
+    try {
+      const pattern = /(?:https?:\/\/)?(?:drive\.google\.com\/)?(?:file\/d\/|open\?id=|uc\?id=)([a-zA-Z0-9_-]+)/;
+      const match = url.match(pattern);
+      return match ? match[1] : '';
+    } catch (error) {
+      console.error('Error parsing Google Drive URL:', error);
+      return '';
+    }
   };
 
-  const videoId = getYouTubeId(videoUrl);
+  const fileId = getDriveFileId(videoUrl);
+  
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    let lastValidTime = 0;
+
+    const checkVideoProgress = () => {
+      if (iframeRef.current) {
+        iframeRef.current.contentWindow?.postMessage(
+          JSON.stringify({
+            event: 'requesting',
+            func: 'getCurrentTime'
+          }),
+          '*'
+        );
+      }
+    };
+
+    timer = setInterval(checkVideoProgress, 1000);
+
+    const handleMessage = (event: MessageEvent) => {
+      if (event.origin === 'https://drive.google.com') {
+        try {
+          const data = JSON.parse(event.data);
+          
+          // Handle video time updates
+          if (data.currentTime) {
+            const newTime = parseFloat(data.currentTime);
+            // If user tries to skip forward more than 2 seconds
+            if (newTime > lastValidTime + 2) {
+              // Send message to iframe to seek back
+              iframeRef.current?.contentWindow?.postMessage(
+                JSON.stringify({
+                  event: 'command',
+                  func: 'seekTo',
+                  args: [lastValidTime]
+                }),
+                '*'
+              );
+            } else {
+              lastValidTime = newTime;
+              setCurrentTime(newTime);
+            }
+          }
+
+          // Handle video completion
+          if (data.percentPlayed >= 95 && !isVideoCompleted) {
+            setIsVideoCompleted(true);
+            onVideoComplete();
+            clearInterval(timer);
+          }
+        } catch (e) {
+          // Ignore parsing errors
+        }
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener('message', handleMessage);
+    };
+  }, [onVideoComplete, isVideoCompleted]);
+
+  if (!fileId) {
+    return (
+      <div className="aspect-video w-full rounded-lg overflow-hidden bg-black flex items-center justify-center text-white">
+        Invalid video URL
+      </div>
+    );
+  }
+
+  if (!isEnabled) {
+    return (
+      <div className="aspect-video w-full rounded-lg overflow-hidden bg-black/90 flex items-center justify-center text-white">
+        <div className="text-center space-y-2">
+          <AlertCircle className="h-8 w-8 mx-auto" />
+          <p>Complete the previous day's content to unlock this video</p>
+        </div>
+      </div>
+    );
+  }
+
+  const driveEmbedUrl = `https://drive.google.com/file/d/${fileId}/preview?controls=0&disablekb=1&modestbranding=1&rel=0&showinfo=0`;
 
   return (
     <div className="aspect-video w-full rounded-lg overflow-hidden bg-black">
       <iframe
+        ref={iframeRef}
+        title="Course Video"
         width="100%"
         height="100%"
-        src={`https://www.youtube.com/embed/${videoId}`}
-        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        src={driveEmbedUrl}
+        allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
         allowFullScreen
         className="w-full h-full"
       />
@@ -81,6 +185,7 @@ const CourseWeekView = () => {
   const { courseId } = useParams<{ courseId: string }>();
   const [selectedDay, setSelectedDay] = useState<number>(1);
   const [completedDays, setCompletedDays] = useState<number[]>([]);
+  const [watchedVideos, setWatchedVideos] = useState<number[]>([]);
   const { token, isAuthenticated, loading } = useAuth();
   const { toast } = useToast();
   const updateProgressMutation = useUpdateProgress();
@@ -96,24 +201,19 @@ const CourseWeekView = () => {
     enabled: !!courseId && isAuthenticated
   });
 
-  // Redirect if not authenticated and not loading
   useEffect(() => {
     if (!loading && !isAuthenticated && courseId) {
-      // Save the current path to localStorage before redirecting
       localStorage.setItem('redirectPath', `/course/${courseId}/weeks`);
       navigate('/login');
     }
   }, [loading, isAuthenticated, navigate, courseId]);
 
-  // Load completed days from the course data when it's fetched
   useEffect(() => {
     if (course && course.roadmap) {
-      // Initialize selected day
       if (course.roadmap.length > 0) {
         setSelectedDay(course.roadmap[0].day);
       }
       
-      // Initialize completed days from the course progress data
       if (typeof course.progress === 'number' && course.roadmap) {
         const completedCount = Math.round((course.progress * course.roadmap.length) / 100);
         const newCompletedDays = Array.from({ length: completedCount }, (_, i) => i + 1);
@@ -128,19 +228,15 @@ const CourseWeekView = () => {
     let newCompletedDays: number[];
     
     if (completedDays.includes(day)) {
-      // Remove day from completed days
       newCompletedDays = completedDays.filter(d => d !== day);
     } else {
-      // Add day to completed days
       newCompletedDays = [...completedDays, day];
     }
     
     setCompletedDays(newCompletedDays);
     
-    // Calculate progress percentage
     const progressPercentage = Math.round((newCompletedDays.length / course.roadmap.length) * 100);
     
-    // Determine course status
     let status = 'enrolled';
     if (progressPercentage > 0 && progressPercentage < 100) {
       status = 'started';
@@ -169,9 +265,18 @@ const CourseWeekView = () => {
         variant: "destructive",
       });
       
-      // Revert the UI state if the API call fails
       setCompletedDays(completedDays);
     }
+  };
+
+  const handleVideoComplete = (day: number) => {
+    console.log(`Video ${day} completed`);
+    setWatchedVideos(prev => [...prev, day]);
+  };
+
+  const isVideoEnabled = (day: number) => {
+    if (day === 1) return true;
+    return watchedVideos.includes(day - 1) || completedDays.includes(day - 1);
   };
 
   if (isLoading || error || !course) {
@@ -196,7 +301,6 @@ const CourseWeekView = () => {
   return (
     <DashboardLayout>
       <div className="flex h-[calc(100vh-4rem)]">
-        {/* Sidebar */}
         <div className="w-80 border-r bg-muted/40">
           <div className="p-4 border-b">
             <h2 className="font-semibold">Course Content</h2>
@@ -250,7 +354,6 @@ const CourseWeekView = () => {
           </div>
         </div>
 
-        {/* Main Content */}
         <div className="flex-1 overflow-y-auto p-6">
           {currentDay && (
             <div className="max-w-4xl mx-auto space-y-6">
@@ -261,7 +364,11 @@ const CourseWeekView = () => {
 
               <Card>
                 <CardContent className="p-6">
-                  <VideoPlayer videoUrl={currentDay.video} />
+                  <VideoPlayer 
+                    videoUrl={currentDay.video} 
+                    onVideoComplete={() => handleVideoComplete(currentDay.day)}
+                    isEnabled={isVideoEnabled(currentDay.day)}
+                  />
                 </CardContent>
               </Card>
 
@@ -280,8 +387,9 @@ const CourseWeekView = () => {
 
               <Button
                 onClick={() => handleDayComplete(currentDay.day)}
+                variant="default"
                 className={cn(
-                  "w-full p-2 rounded-lg",
+                  "w-full",
                   completedDays.includes(currentDay.day)
                     ? "bg-green-500 hover:bg-green-600 text-white"
                     : "bg-primary text-primary-foreground hover:bg-primary/90"
@@ -290,8 +398,7 @@ const CourseWeekView = () => {
                 {completedDays.includes(currentDay.day)
                   ? "Mark as Incomplete"
                   : "Mark as Complete"}
-              </Button>
-            </div>
+              </Button>    </div>
           )}
         </div>
       </div>
