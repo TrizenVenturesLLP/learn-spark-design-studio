@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -133,8 +134,8 @@ const VideoPlayer = ({
     );
   }
 
-  // Add parameters to disable player controls and keyboard controls
-  const driveEmbedUrl = `https://drive.google.com/file/d/${fileId}/preview?controls=0&disablekb=1&modestbranding=1&rel=0&showinfo=0`;
+  // Add parameters to disable player controls, seekbar, keyboard controls, and hide timeline
+  const driveEmbedUrl = `https://drive.google.com/file/d/${fileId}/preview?controls=0&disablekb=1&modestbranding=1&rel=0&showinfo=0&enablejsapi=1&widgetid=1&fs=0&iv_load_policy=3&playsinline=1&autohide=1&html5=1&cc_load_policy=0`;
 
   return (
     <div className="aspect-video w-full rounded-lg overflow-hidden bg-black">
