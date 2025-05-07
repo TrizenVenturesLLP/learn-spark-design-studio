@@ -1,4 +1,3 @@
-
 import {
   Accordion,
   AccordionContent,
@@ -28,11 +27,11 @@ const faqs = [
 
 const FAQSection = () => {
   return (
-    <section className="py-16 bg-gray-50">
+    <section className="py-12"> {/* Reduced padding */}
       <div className="container max-w-7xl mx-auto px-4">
-        <div className="text-center mb-10">
-          <h2 className="text-3xl font-bold mb-4">Frequently Asked Questions</h2>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+        <div className="text-center mb-8"> {/* Reduced margin */}
+          <h2 className="text-2xl font-bold mb-3">Frequently Asked Questions</h2> {/* Smaller heading */}
+          <p className="text-base text-gray-600 max-w-2xl mx-auto"> {/* Smaller text */}
             Find answers to common questions about our training programs and certifications.
           </p>
         </div>
@@ -41,19 +40,19 @@ const FAQSection = () => {
           <Accordion type="single" collapsible className="w-full">
             {faqs.map((faq, index) => (
               <AccordionItem key={index} value={`item-${index}`}>
-                <AccordionTrigger className="text-left text-lg font-medium">
+                <AccordionTrigger className="text-left text-base font-medium"> {/* Smaller question text */}
                   {faq.question}
                 </AccordionTrigger>
-                <AccordionContent className="text-gray-600">
+                <AccordionContent className="text-sm text-gray-600"> {/* Smaller answer text */}
                   {faq.answer}
                 </AccordionContent>
               </AccordionItem>
             ))}
           </Accordion>
           
-          <div className="text-center mt-10">
-            <p className="text-lg font-medium mb-4">Can't find what you're looking for?</p>
-            <Button>Contact Support</Button>
+          <div className="text-center mt-8"> {/* Reduced margin */}
+            <p className="text-base font-medium mb-3">Can't find what you're looking for?</p> {/* Smaller text */}
+            <Button size="sm">Contact Support</Button> {/* Smaller button */}
           </div>
         </div>
       </div>

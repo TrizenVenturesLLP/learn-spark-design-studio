@@ -1,5 +1,10 @@
-
 import { Link } from "react-router-dom";
+import { 
+  HandHeart, // for Contribute
+  Calendar, // for Events
+  Image, // for Gallery
+  Users // for About Us
+} from "lucide-react";
 
 const Footer = () => {
   return (
@@ -18,6 +23,30 @@ const Footer = () => {
           <div>
             <h3 className="font-semibold mb-3">Platform</h3>
             <ul className="space-y-2 text-sm">
+              <li>
+                <Link to="/contribute" className="text-muted-foreground hover:text-primary flex items-center gap-2">
+                  <HandHeart className="h-4 w-4" />
+                  <span>Contribute</span>
+                </Link>
+              </li>
+              <li>
+                <Link to="/events" className="text-muted-foreground hover:text-primary flex items-center gap-2">
+                  <Calendar className="h-4 w-4" />
+                  <span>Events</span>
+                </Link>
+              </li>
+              <li>
+                <Link to="/gallery" className="text-muted-foreground hover:text-primary flex items-center gap-2">
+                  <Image className="h-4 w-4" />
+                  <span>Gallery</span>
+                </Link>
+              </li>
+              <li>
+                <Link to="/about" className="text-muted-foreground hover:text-primary flex items-center gap-2">
+                  <Users className="h-4 w-4" />
+                  <span>About Us</span>
+                </Link>
+              </li>
               <li><Link to="/courses" className="text-muted-foreground hover:text-primary">Browse Courses</Link></li>
               <li><Link to="/live-sessions" className="text-muted-foreground hover:text-primary">Live Sessions</Link></li>
               <li><Link to="/instructors" className="text-muted-foreground hover:text-primary">Instructors</Link></li>
