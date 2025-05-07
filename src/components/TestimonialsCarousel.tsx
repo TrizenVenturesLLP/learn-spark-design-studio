@@ -1,31 +1,22 @@
-
 import { useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const testimonials = [
   {
     id: 1,
-    name: "Alex Johnson",
-    role: "Software Engineer, TechCorp",
-    image: "https://randomuser.me/api/portraits/women/44.jpg",
-    content: "The AI certification from Trizen Training helped me transition into a machine learning role. The hands-on projects were particularly valuable."
+    name: "Spoorthi Sameera Varada",
+    role: "",
+    content:
+      "The ML course from Trizen Learning provides a strong foundation in machine learning with clear and practical explanations. The hands-on projects helped me overcome my fear of ML and boosted my confidence. The instructors were knowledgeable and supportive throughout the course. I highly recommend it to anyone starting their ML journey.",
   },
   {
     id: 2,
-    name: "Michael Chen",
-    role: "DevOps Engineer, CloudTech",
-    image: "https://randomuser.me/api/portraits/men/32.jpg",
-    content: "The cloud certification program gave me the skills I needed to implement scalable solutions. Within months, I received multiple job offers."
+    name: "Vishakha Deshmukh",
+    role: "Software Engineer, Kognito AI",
+    content:
+      "Working with the Trizen team and mentors was an enriching and rewarding experience. The hands-on projects, along with continuous support and insightful guidance, helped me strengthen my skills in machine learning and deep learning. The supportive environment played a key role in boosting my confidence and preparing me to take on real-world AI challenges with clarity and conviction.",
   },
-  {
-    id: 3,
-    name: "Sarah Williams",
-    role: "Data Analyst, DataInsights",
-    image: "https://randomuser.me/api/portraits/women/68.jpg",
-    content: "Trizen's data science course was exactly what I needed to pivot my career. The instructors are experts who provided valuable industry insights."
-  }
 ];
 
 const TestimonialsCarousel = () => {
@@ -44,54 +35,45 @@ const TestimonialsCarousel = () => {
   };
 
   return (
-    <section className="py-16">
+    <section className="py-12">
       <div className="container max-w-7xl mx-auto px-4">
-        <div className="text-center mb-10">
-          <h2 className="text-3xl font-bold mb-4">What Our Students Say</h2>
+        <div className="text-center mb-8">
+          <h2 className="text-2xl font-bold mb-3">What Our Students Say</h2>
         </div>
 
         <div className="relative max-w-4xl mx-auto px-4">
           {/* Navigation Buttons */}
-          <button 
-            onClick={goToPrev} 
+          <button
+            onClick={goToPrev}
             className="absolute top-1/2 -left-4 -translate-y-1/2 bg-white rounded-full p-2 shadow-md hover:bg-gray-100 z-10"
             aria-label="Previous testimonial"
           >
             <ChevronLeft className="h-6 w-6" />
           </button>
-          
-          <button 
-            onClick={goToNext} 
+
+          <button
+            onClick={goToNext}
             className="absolute top-1/2 -right-4 -translate-y-1/2 bg-white rounded-full p-2 shadow-md hover:bg-gray-100 z-10"
             aria-label="Next testimonial"
           >
             <ChevronRight className="h-6 w-6" />
           </button>
 
-          {/* Testimonial Card */}
-          <Card className="border-none shadow-lg">
-            <CardContent className="p-8">
+          <Card className="border-none shadow-md">
+            <CardContent className="p-6">
               <div className="flex flex-col items-center text-center">
-                <div className="mb-6">
-                  <Avatar className="h-20 w-20 border-4 border-primary/20">
-                    <AvatarImage src={testimonials[activeIndex].image} />
-                    <AvatarFallback>{testimonials[activeIndex].name.charAt(0)}</AvatarFallback>
-                  </Avatar>
-                </div>
-                
-                <blockquote className="text-xl italic text-gray-700 mb-6">
+                <blockquote className="text-base italic text-gray-700 mb-4">
                   "{testimonials[activeIndex].content}"
                 </blockquote>
-                
-                <div className="mt-4">
-                  <p className="font-semibold">{testimonials[activeIndex].name}</p>
-                  <p className="text-sm text-gray-500">{testimonials[activeIndex].role}</p>
+
+                <div className="mt-3">
+                  <p className="font-semibold text-sm">{testimonials[activeIndex].name}</p>
+                  <p className="text-xs text-gray-500">{testimonials[activeIndex].role}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
-          
-          {/* Dots Navigation */}
+
           <div className="flex justify-center mt-6 gap-2">
             {testimonials.map((_, index) => (
               <button
@@ -105,9 +87,9 @@ const TestimonialsCarousel = () => {
             ))}
           </div>
         </div>
-        
-        <div className="text-center mt-10">
-          <h3 className="text-xl font-semibold mb-4">Join Our Success Stories</h3>
+
+        <div className="text-center mt-8">
+          <h3 className="text-lg font-semibold mb-3">Join Our Success Stories</h3>
         </div>
       </div>
     </section>
