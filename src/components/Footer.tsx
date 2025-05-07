@@ -1,10 +1,5 @@
+
 import { Link } from "react-router-dom";
-import { 
-  HandHeart, // for Contribute
-  Calendar, // for Events
-  Image, // for Gallery
-  Users // for About Us
-} from "lucide-react";
 
 const Footer = () => {
   return (
@@ -20,39 +15,43 @@ const Footer = () => {
             </p>
           </div>
           
-          <div>
-            <h3 className="font-semibold mb-3">Platform</h3>
-            <ul className="space-y-2 text-sm">
-              <li>
-                <Link to="/contribute" className="text-muted-foreground hover:text-primary flex items-center gap-2">
-                  <HandHeart className="h-4 w-4" />
-                  <span>Contribute</span>
-                </Link>
-              </li>
-              <li>
-                <Link to="/events" className="text-muted-foreground hover:text-primary flex items-center gap-2">
-                  <Calendar className="h-4 w-4" />
-                  <span>Events</span>
-                </Link>
-              </li>
-              <li>
-                <Link to="/gallery" className="text-muted-foreground hover:text-primary flex items-center gap-2">
-                  <Image className="h-4 w-4" />
-                  <span>Gallery</span>
-                </Link>
-              </li>
-              <li>
-                <Link to="/about" className="text-muted-foreground hover:text-primary flex items-center gap-2">
-                  <Users className="h-4 w-4" />
-                  <span>About Us</span>
-                </Link>
-              </li>
-              <li><Link to="/courses" className="text-muted-foreground hover:text-primary">Browse Courses</Link></li>
-              <li><Link to="/live-sessions" className="text-muted-foreground hover:text-primary">Live Sessions</Link></li>
-              <li><Link to="/instructors" className="text-muted-foreground hover:text-primary">Instructors</Link></li>
-              <li><Link to="/pricing" className="text-muted-foreground hover:text-primary">Pricing</Link></li>
-            </ul>
-          </div>
+  <div>
+  <h3 className="font-semibold mb-3">Explore</h3>
+  <ul className="space-y-2 text-sm">
+    <li>
+    <Link to="/contribute" className="text-muted-foreground hover:text-primary flex items-center gap-2">
+      <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M12 2C6.486 2 2 6.486 2 12s4.486 10 10 10 10-4.486 10-10S17.514 2 12 2zm1 17h-2v-2h2v2zm1.071-7.071l-1.414 1.414A1.993 1.993 0 0012 14a2 2 0 10-2-2c0 .265.105.52.293.707l1.414-1.414A1.993 1.993 0 0012 10a2 2 0 102 2c0-.265-.105-.52-.293-.707z" />
+      </svg>
+      Contribute
+    </Link>
+    </li>
+    <li>
+    <Link to="/events" className="text-muted-foreground hover:text-primary flex items-center gap-2">
+      <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.103 0-2 .897-2 2v14c0 1.103.897 2 2 2h14c1.103 0 2-.897 2-2V6c0-1.103-.897-2-2-2zM5 20V9h14l.002 11H5zM7 11h5v5H7v-5z" />
+      </svg>
+      Events
+    </Link>
+    </li>
+    <li>
+    <Link to="/gallery" className="text-muted-foreground hover:text-primary flex items-center gap-2">
+      <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M21 5H3C1.897 5 1 5.897 1 7v10c0 1.103.897 2 2 2h18c1.103 0 2-.897 2-2V7c0-1.103-.897-2-2-2zM3 17V7h18l.002 10H3zM8 9c1.103 0 2-.897 2-2s-.897-2-2-2-2 .897-2 2 .897 2 2 2zm0-2c.552 0 1 .449 1 1s-.448 1-1 1-1-.449-1-1 .448-1 1-1zm8 6l-3 4h8l-5-6z" />
+      </svg>
+      Gallery
+    </Link>
+    </li>
+    <li>
+    <Link to="/about" className="text-muted-foreground hover:text-primary flex items-center gap-2">
+      <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M12 2C6.486 2 2 6.486 2 12s4.486 10 10 10 10-4.486 10-10S17.514 2 12 2zm0 18c-4.411 0-8-3.589-8-8s3.589-8 8-8 8 3.589 8 8-3.589 8-8 8zm-1-13h2v2h-2zm0 4h2v6h-2z" />
+      </svg>
+      About Us
+    </Link>
+    </li>
+  </ul>
+  </div>
           
           <div>
             <h3 className="font-semibold mb-3">Company</h3>
