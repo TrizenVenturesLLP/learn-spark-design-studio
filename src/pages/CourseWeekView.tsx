@@ -1,5 +1,3 @@
-
-
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -33,6 +31,7 @@ const VideoPlayer = ({
 }) => {
   const [isVideoCompleted, setIsVideoCompleted] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
+  const [lastValidTime, setLastValidTime] = useState(0);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const getDriveFileId = (url: string) => {
@@ -50,7 +49,6 @@ const VideoPlayer = ({
   
   useEffect(() => {
     let timer: NodeJS.Timeout;
-    let lastValidTime = 0;
 
     const checkVideoProgress = () => {
       if (iframeRef.current) {
@@ -64,7 +62,7 @@ const VideoPlayer = ({
       }
     };
 
-    timer = setInterval(checkVideoProgress, 1000);
+    timer = setInterval(checkVideoProgress, 500);
 
     const handleMessage = (event: MessageEvent) => {
       if (event.origin === 'https://drive.google.com') {
@@ -74,8 +72,10 @@ const VideoPlayer = ({
           // Handle video time updates
           if (data.currentTime) {
             const newTime = parseFloat(data.currentTime);
-            // If user tries to skip forward more than 2 seconds
-            if (newTime > lastValidTime + 2) {
+            
+            // If user tries to skip forward more than 1 second
+            if (newTime > lastValidTime + 1 && newTime - lastValidTime < 10) {
+              console.log('User tried to skip forward', newTime, lastValidTime);
               // Send message to iframe to seek back
               iframeRef.current?.contentWindow?.postMessage(
                 JSON.stringify({
@@ -85,8 +85,11 @@ const VideoPlayer = ({
                 }),
                 '*'
               );
+              // Keep the current time at the last valid point
+              setCurrentTime(lastValidTime);
             } else {
-              lastValidTime = newTime;
+              // If it's a normal progression or a small jump (like buffering)
+              setLastValidTime(newTime);
               setCurrentTime(newTime);
             }
           }
@@ -109,7 +112,7 @@ const VideoPlayer = ({
       clearInterval(timer);
       window.removeEventListener('message', handleMessage);
     };
-  }, [onVideoComplete, isVideoCompleted]);
+  }, [onVideoComplete, isVideoCompleted, lastValidTime]);
 
   if (!fileId) {
     return (
@@ -130,6 +133,7 @@ const VideoPlayer = ({
     );
   }
 
+  // Add parameters to disable player controls and keyboard controls
   const driveEmbedUrl = `https://drive.google.com/file/d/${fileId}/preview?controls=0&disablekb=1&modestbranding=1&rel=0&showinfo=0`;
 
   return (
