@@ -1,68 +1,63 @@
-
 import { Link } from "react-router-dom";
+import { HeartHandshake, Calendar, Image, Users } from "lucide-react";
 
 const Footer = () => {
   return (
     <footer className="bg-gray-50 border-t">
       <div className="max-w-7xl mx-auto px-4 py-12 md:py-16">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-          <div className="col-span-1 md:col-span-1">
-          <Link to="/" className="flex items-center gap-2 mb-2">
-          <img src="/public/logo_footer.png" alt="Trizen Logo" className="h-8 w-auto" />
-          </Link>
-            <p className="text-sm text-muted-foreground">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-8">
+          {/* Logo and Description */}
+          <div className="col-span-1 md:col-span-2">
+            <Link to="/" className="flex items-center gap-2 mb-2">
+              <img src="/public/logo_footer.png" alt="Trizen Logo" className="h-8 w-auto" />
+            </Link>
+            <p className="text-sm text-muted-foreground max-w-sm">
               High-quality recorded and live online training for professionals and beginners.
             </p>
           </div>
-          
-  <div>
-  <h3 className="font-semibold mb-3">Explore</h3>
-  <ul className="space-y-2 text-sm">
-    <li>
-    <Link to="/contribute" className="text-muted-foreground hover:text-primary flex items-center gap-2">
-      <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M12 2C6.486 2 2 6.486 2 12s4.486 10 10 10 10-4.486 10-10S17.514 2 12 2zm1 17h-2v-2h2v2zm1.071-7.071l-1.414 1.414A1.993 1.993 0 0012 14a2 2 0 10-2-2c0 .265.105.52.293.707l1.414-1.414A1.993 1.993 0 0012 10a2 2 0 102 2c0-.265-.105-.52-.293-.707z" />
-      </svg>
-      Contribute
-    </Link>
-    </li>
-    <li>
-    <Link to="/events" className="text-muted-foreground hover:text-primary flex items-center gap-2">
-      <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.103 0-2 .897-2 2v14c0 1.103.897 2 2 2h14c1.103 0 2-.897 2-2V6c0-1.103-.897-2-2-2zM5 20V9h14l.002 11H5zM7 11h5v5H7v-5z" />
-      </svg>
-      Events
-    </Link>
-    </li>
-    <li>
-    <Link to="/gallery" className="text-muted-foreground hover:text-primary flex items-center gap-2">
-      <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M21 5H3C1.897 5 1 5.897 1 7v10c0 1.103.897 2 2 2h18c1.103 0 2-.897 2-2V7c0-1.103-.897-2-2-2zM3 17V7h18l.002 10H3zM8 9c1.103 0 2-.897 2-2s-.897-2-2-2-2 .897-2 2 .897 2 2 2zm0-2c.552 0 1 .449 1 1s-.448 1-1 1-1-.449-1-1 .448-1 1-1zm8 6l-3 4h8l-5-6z" />
-      </svg>
-      Gallery
-    </Link>
-    </li>
-    <li>
-    <Link to="/about" className="text-muted-foreground hover:text-primary flex items-center gap-2">
-      <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M12 2C6.486 2 2 6.486 2 12s4.486 10 10 10 10-4.486 10-10S17.514 2 12 2zm0 18c-4.411 0-8-3.589-8-8s3.589-8 8-8 8 3.589 8 8-3.589 8-8 8zm-1-13h2v2h-2zm0 4h2v6h-2z" />
-      </svg>
-      About Us
-    </Link>
-    </li>
-  </ul>
-  </div>
-          
+
+          {/* Quick Links */}
+          <div>
+            <h3 className="font-semibold mb-3">Quick Links</h3>
+            <ul className="space-y-2 text-sm">
+              <li>
+                <Link to="/contribute" className="text-muted-foreground hover:text-primary flex items-center gap-2">
+                  <HeartHandshake className="h-4 w-4" />
+                  <span>Contribute</span>
+                </Link>
+              </li>
+              <li>
+                <Link to="/events" className="text-muted-foreground hover:text-primary flex items-center gap-2">
+                  <Calendar className="h-4 w-4" />
+                  <span>Events</span>
+                </Link>
+              </li>
+              <li>
+                <Link to="/gallery" className="text-muted-foreground hover:text-primary flex items-center gap-2">
+                  <Image className="h-4 w-4" />
+                  <span>Gallery</span>
+                </Link>
+              </li>
+              <li>
+                <Link to="/about" className="text-muted-foreground hover:text-primary flex items-center gap-2">
+                  <Users className="h-4 w-4" />
+                  <span>About Us</span>
+                </Link>
+              </li>
+            </ul>
+          </div>
+
+          {/* Company Links */}
           <div>
             <h3 className="font-semibold mb-3">Company</h3>
             <ul className="space-y-2 text-sm">
-              <li><Link to="/about" className="text-muted-foreground hover:text-primary">About Us</Link></li>
               <li><Link to="/careers" className="text-muted-foreground hover:text-primary">Careers</Link></li>
               <li><Link to="/contact" className="text-muted-foreground hover:text-primary">Contact</Link></li>
               <li><Link to="/blog" className="text-muted-foreground hover:text-primary">Blog</Link></li>
             </ul>
           </div>
-          
+
+          {/* Legal Links */}
           <div>
             <h3 className="font-semibold mb-3">Legal</h3>
             <ul className="space-y-2 text-sm">
@@ -72,12 +67,14 @@ const Footer = () => {
             </ul>
           </div>
         </div>
-        
+
+        {/* Bottom Section */}
         <div className="mt-12 pt-6 border-t border-gray-200 flex flex-col md:flex-row justify-between items-center">
           <p className="text-sm text-muted-foreground">
             &copy; {new Date().getFullYear()} Trizen. All rights reserved.
           </p>
           
+          {/* Social Links */}
           <div className="mt-4 md:mt-0 flex space-x-6">
             <a href="#" className="text-gray-500 hover:text-primary">
               <span className="sr-only">Twitter</span>
