@@ -1,229 +1,223 @@
 
-import React, { useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { useAuth } from './contexts/AuthContext';
-import './App.css';
-
-// Pages
-import Index from './pages/Index';
-import Login from './pages/Login';
-import Signup from './pages/Signup';
-import Dashboard from './pages/Dashboard';
-import Courses from './pages/Courses';
-import ExploreCourses from './pages/ExploreCourses';
-import CourseEnrollment from './pages/CourseEnrollment';
-import CoursePayment from './pages/CoursePayment';
-import CourseWeekView from './pages/CourseWeekView';
-import Profile from './pages/Profile';
-import Settings from './pages/Settings';
-import Assignments from './pages/Assignments';
-import Discussion from './pages/Discussion';
-import Calendar from './pages/Calendar';
-import Grades from './pages/Grades';
-import NotFound from './pages/NotFound';
-import Careers from './pages/Careers';
-import InternshipApply from './pages/InternshipApply';
+import { Toaster } from "@/components/ui/toaster";
+import { Toaster as Sonner } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import Index from "./pages/Index";
+import Login from "./pages/Login";
+import Signup from "./pages/Signup";
+import Dashboard from "./pages/Dashboard";
+import Courses from "./pages/Courses";
+import ExploreCourses from "./pages/ExploreCourses";
+import CourseEnrollment from "./pages/CourseEnrollment";
+import CourseWeekView from "./pages/CourseWeekView";
+import NotFound from "./pages/NotFound";
+import Profile from "./pages/Profile";
+import Settings from "./pages/Settings";
+import Grades from "./pages/Grades";
+import Assignments from "./pages/Assignments";
+import Calendar from "./pages/Calendar";
+import Discussions from "./pages/Discussion";
+import Careers from "./pages/Careers";
+import InternshipApply from "./pages/InternshipApply";
 
 // Admin Pages
-import AdminDashboard from './pages/admin/AdminDashboard';
-import UserManagement from './pages/admin/UserManagement';
-import CourseManagement from './pages/admin/CourseManagement';
-import Analytics from './pages/admin/Analytics';
-import EnrollmentRequests from './pages/admin/EnrollmentRequests';
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import UserManagement from "./pages/admin/UserManagement";
+import CourseManagement from "./pages/admin/CourseManagement";
+import Analytics from "./pages/admin/Analytics";
 
-// Protected route component
-const ProtectedRoute = ({ children, allowedRoles = ['user', 'admin'] }) => {
-  const { isAuthenticated, loading, user } = useAuth();
-  
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
+
+// Protected Route Component
+const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+  const { isAuthenticated, loading } = useAuth();
+  const location = useLocation();
+
   if (loading) {
-    return <div>Loading...</div>;
+    return <div>Loading...</div>; // Add a proper loading component
   }
-  
+
   if (!isAuthenticated) {
+    // Save the current location so we can redirect back after login
+    localStorage.setItem('redirectPath', location.pathname);
     return <Navigate to="/login" />;
   }
-  
-  // Check if user has the required role
-  if (user?.role && !allowedRoles.includes(user.role)) {
-    return <Navigate to="/dashboard" />;
-  }
-  
+
   return <>{children}</>;
 };
 
-// Admin route component
-const AdminRoute = ({ children }) => {
-  return (
-    <ProtectedRoute allowedRoles={['admin']}>
-      {children}
-    </ProtectedRoute>
-  );
+// Admin Route Component (protected + requires admin role)
+const AdminRoute = ({ children }: { children: React.ReactNode }) => {
+  const { isAuthenticated, user, loading } = useAuth();
+  const location = useLocation();
+
+  if (loading) {
+    return <div>Loading...</div>; // Add a proper loading component
+  }
+
+  if (!isAuthenticated) {
+    // Save the current location so we can redirect back after login
+    localStorage.setItem('redirectPath', location.pathname);
+    return <Navigate to="/login" />;
+  }
+
+  // Check if the user has admin role
+  if (user?.role !== 'admin') {
+    return <Navigate to="/dashboard" />;
+  }
+
+  return <>{children}</>;
 };
 
-function App() {
-  return (
-    <Router>
-      <Routes>
-        {/* Public Routes */}
-        <Route path="/" element={<Index />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<Signup />} />
-        <Route path="/careers" element={<Careers />} />
-        <Route path="/internship/:id" element={<InternshipApply />} />
-        
-        {/* Protected Routes */}
-        <Route 
-          path="/dashboard" 
-          element={
-            <ProtectedRoute>
-              <Dashboard />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/my-courses" 
-          element={
-            <ProtectedRoute>
-              <Courses />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/explore-courses" 
-          element={
-            <ProtectedRoute>
-              <ExploreCourses />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/course-enrollment" 
-          element={
-            <ProtectedRoute>
-              <CourseEnrollment />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/course-payment" 
-          element={
-            <ProtectedRoute>
-              <CoursePayment />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/course/:courseId/weeks" 
-          element={
-            <ProtectedRoute>
-              <CourseWeekView />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/course/:courseId/weeks/:weekId" 
-          element={
-            <ProtectedRoute>
-              <CourseWeekView />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/profile" 
-          element={
-            <ProtectedRoute>
-              <Profile />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/settings" 
-          element={
-            <ProtectedRoute>
-              <Settings />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/assignments" 
-          element={
-            <ProtectedRoute>
-              <Assignments />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/discussions" 
-          element={
-            <ProtectedRoute>
-              <Discussion />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/calendar" 
-          element={
-            <ProtectedRoute>
-              <Calendar />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/grades" 
-          element={
-            <ProtectedRoute>
-              <Grades />
-            </ProtectedRoute>
-          } 
-        />
-        
-        {/* Admin Routes */}
-        <Route 
-          path="/admin/dashboard" 
-          element={
-            <AdminRoute>
-              <AdminDashboard />
-            </AdminRoute>
-          } 
-        />
-        <Route 
-          path="/admin/users" 
-          element={
-            <AdminRoute>
-              <UserManagement />
-            </AdminRoute>
-          } 
-        />
-        <Route 
-          path="/admin/courses" 
-          element={
-            <AdminRoute>
-              <CourseManagement />
-            </AdminRoute>
-          } 
-        />
-        <Route 
-          path="/admin/analytics" 
-          element={
-            <AdminRoute>
-              <Analytics />
-            </AdminRoute>
-          } 
-        />
-        <Route 
-          path="/admin/enrollment-requests" 
-          element={
-            <AdminRoute>
-              <EnrollmentRequests />
-            </AdminRoute>
-          } 
-        />
-        
-        {/* 404 Route */}
-        <Route path="*" element={<NotFound />} />
-      </Routes>
-    </Router>
-  );
-}
+// Public Route Component (redirects to dashboard if already logged in)
+const PublicRoute = ({ children }: { children: React.ReactNode }) => {
+  const { isAuthenticated } = useAuth();
+
+  if (isAuthenticated) {
+    // Check if there's a stored redirect path
+    const redirectPath = localStorage.getItem('redirectPath');
+    
+    if (redirectPath) {
+      localStorage.removeItem('redirectPath');
+      return <Navigate to={redirectPath} />;
+    }
+    
+    return <Navigate to="/dashboard" />;
+  }
+
+  return <>{children}</>;
+};
+
+const App = () => (
+  <BrowserRouter>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <TooltipProvider>
+          <Routes>
+            {/* Public Routes */}
+            <Route path="/" element={
+              <PublicRoute>
+                <Index />
+              </PublicRoute>
+            } />
+            <Route path="/login" element={
+              <PublicRoute>
+                <Login />
+              </PublicRoute>
+            } />
+            <Route path="/signup" element={
+              <PublicRoute>
+                <Signup />
+              </PublicRoute>
+            } />
+            
+            {/* Careers Routes - accessible without login */}
+            <Route path="/careers" element={<Careers />} />
+            <Route path="/careers/apply/:position" element={<InternshipApply />} />
+
+            {/* Protected Routes */}
+            <Route path="/dashboard" element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            } />
+            <Route path="/my-courses" element={
+              <ProtectedRoute>
+                <Courses />
+              </ProtectedRoute>
+            } />
+            <Route path="/explore-courses" element={
+              <ProtectedRoute>
+                <ExploreCourses />
+              </ProtectedRoute>
+            } />
+            <Route path="/course/:courseId" element={
+              <ProtectedRoute>
+                <CourseEnrollment />
+              </ProtectedRoute>
+            } />
+            <Route path="/course/:courseId/weeks" element={
+              <ProtectedRoute>
+                <CourseWeekView />
+              </ProtectedRoute>
+            } />
+            <Route path="/profile" element={
+              <ProtectedRoute>
+                <Profile />
+              </ProtectedRoute>
+            } />
+            <Route path="/settings" element={
+              <ProtectedRoute>
+                <Settings />
+              </ProtectedRoute>
+            } />
+            <Route path="/grades" element={
+              <ProtectedRoute>
+                <Grades />
+              </ProtectedRoute>
+            } />
+            <Route path="/assignments" element={
+              <ProtectedRoute>
+                <Assignments />
+              </ProtectedRoute>
+            } />
+            <Route path="/calendar" element={
+              <ProtectedRoute>
+                <Calendar />
+              </ProtectedRoute>
+            } />
+            <Route path="/discussions" element={
+              <ProtectedRoute>
+                <Discussions />
+              </ProtectedRoute>
+            } />
+
+            {/* Admin Routes */}
+            <Route path="/admin/dashboard" element={
+              <AdminRoute>
+                <AdminDashboard />
+              </AdminRoute>
+            } />
+            <Route path="/admin/users" element={
+              <AdminRoute>
+                <UserManagement />
+              </AdminRoute>
+            } />
+            <Route path="/admin/courses" element={
+              <AdminRoute>
+                <CourseManagement />
+              </AdminRoute>
+            } />
+            <Route path="/admin/analytics" element={
+              <AdminRoute>
+                <Analytics />
+              </AdminRoute>
+            } />
+
+            {/* Added explicit not-found-page route */}
+            <Route path="/not-found-page" element={<NotFound />} />
+            
+            {/* Catch-all route */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+          
+          {/* Toast Notifications */}
+          <Toaster />
+          <Sonner />
+        </TooltipProvider>
+      </AuthProvider>
+    </QueryClientProvider>
+  </BrowserRouter>
+);
 
 export default App;

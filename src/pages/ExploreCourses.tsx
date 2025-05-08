@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
@@ -33,14 +34,17 @@ const ExploreCourses = () => {
       return;
     }
     
-    // Navigate to payment form with course information
-    const selectedCourse = courses?.find(course => course._id === courseId);
-    if (selectedCourse) {
-      navigate('/course-payment', { state: { course: selectedCourse } });
-    } else {
+    try {
+      await enrollMutation.mutateAsync({ courseId, token: token! });
+      
       toast({
-        title: "Error",
-        description: "Course not found",
+        title: "Enrollment Successful!",
+        description: "You have been enrolled in this course.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Enrollment Failed",
+        description: error.response?.data?.message || "Could not enroll in this course.",
         variant: "destructive",
       });
     }
