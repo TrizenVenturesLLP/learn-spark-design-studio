@@ -156,7 +156,7 @@ const PaymentForm = () => {
               <FormField
                 control={form.control}
                 name="transactionScreenshot"
-                render={({ field: { onChange, ...fieldProps } }) => (
+                render={({ field: { onChange, value, ...fieldProps } }) => (
                   <FormItem>
                     <FormLabel>Transaction Screenshot</FormLabel>
                     <FormControl>

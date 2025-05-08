@@ -35,7 +35,7 @@ const EnrollmentRequests = () => {
   const queryClient = useQueryClient();
 
   // Fetch enrollment requests
-  const { data: requests, isLoading } = useQuery({
+  const { data: requests = [], isLoading } = useQuery({
     queryKey: ['enrollment-requests'],
     queryFn: async (): Promise<EnrollmentRequest[]> => {
       const response = await axios.get('/api/admin/enrollment-requests');
