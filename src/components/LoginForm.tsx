@@ -19,6 +19,7 @@ const LoginForm = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -31,11 +32,19 @@ const LoginForm = () => {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
+    setError(null);
+    
     try {
       await login(values.email, values.password);
-      navigate('/dashboard');  // <-- Changed to redirect to dashboard
+      // Navigation is handled in the login function based on user role
     } catch (error) {
       console.error('Login error:', error);
+      setError('Invalid email or password. Please try again.');
+      toast({
+        title: "Login Failed",
+        description: "Invalid email or password. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
@@ -49,6 +58,12 @@ const LoginForm = () => {
       </div>
       
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        {error && (
+          <div className="p-3 text-sm bg-red-50 border border-red-200 text-red-600 rounded-md">
+            {error}
+          </div>
+        )}
+        
         <div className="space-y-2">
           <Label htmlFor="email">Email</Label>
           <Input

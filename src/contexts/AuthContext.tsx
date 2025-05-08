@@ -8,6 +8,7 @@ interface User {
   id: string;
   name: string;
   email: string;
+  role?: string; // Added role property
 }
 
 interface AuthResponse {
@@ -43,7 +44,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const location = useLocation();
-  const { toast } = useToast(); // Use the toast from useToast hook
+  const { toast } = useToast();
 
   // Check if the user is authenticated
   useEffect(() => {
@@ -78,9 +79,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setToken(authToken);
       setUser(userData);
       
-      // Check if there's a stored redirect path
-      const redirectPath = localStorage.getItem('redirectPath') || '/dashboard';
-      localStorage.removeItem('redirectPath'); // Clear the stored path after use
+      // Determine redirect path based on user role
+      let redirectPath = '/dashboard'; // Default path
+      
+      // If user has admin role, redirect to admin dashboard
+      if (userData.role === 'admin') {
+        redirectPath = '/admin/dashboard';
+        
+        // Show admin login success toast
+        toast({
+          title: "Admin Login Successful",
+          description: "Welcome to the admin dashboard",
+          variant: "default",
+        });
+      } else {
+        // Check if there's a stored redirect path for regular users
+        const storedPath = localStorage.getItem('redirectPath');
+        if (storedPath) {
+          redirectPath = storedPath;
+          localStorage.removeItem('redirectPath'); // Clear the stored path after use
+        }
+        
+        // Show regular login success toast
+        toast({
+          title: "Login Successful",
+          description: "Welcome back!",
+          duration: 3000,
+        });
+      }
       
       navigate(redirectPath);
     } catch (error) {

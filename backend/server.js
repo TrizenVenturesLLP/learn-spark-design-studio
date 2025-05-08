@@ -92,13 +92,14 @@ app.post('/api/auth/login', async (req, res) => {
     // Create token
     const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '1d' });
 
-    // Send response
+    // Send response with role information
     res.json({
       token,
       user: {
         id: user._id,
         name: user.name,
-        email: user.email
+        email: user.email,
+        role: user.role || 'user' // Include role information
       }
     });
 
