@@ -1,7 +1,16 @@
 
 import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
 
 const CertificationSection = () => {
+  // Function to scroll to a specific section by its ID
+  const scrollToSection = (sectionId: string) => {
+    const section = document.getElementById(sectionId);
+    if (section) {
+      section.scrollIntoView({ behavior: "smooth" });
+    }
+  };
+
   return (
     <section className="py-16 bg-blue-50">
       <div className="container max-w-7xl mx-auto px-4">
@@ -13,11 +22,20 @@ const CertificationSection = () => {
         </div>
         
         <div className="flex flex-col md:flex-row justify-center gap-4 mt-8">
-          <Button size="lg" className="px-8">
+          <Button 
+            size="lg" 
+            className="px-8"
+            onClick={() => scrollToSection("courses-section")}
+          >
             Start Learning
           </Button>
           
-          <Button variant="outline" size="lg" className="px-8">
+          <Button 
+            variant="outline" 
+            size="lg" 
+            className="px-8"
+            onClick={() => scrollToSection("events-section")}
+          >
             Join Webinar
           </Button>
         </div>

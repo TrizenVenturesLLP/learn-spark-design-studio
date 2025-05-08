@@ -1,3 +1,4 @@
+
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { CalendarDays, Clock } from "lucide-react";
 
@@ -31,7 +32,7 @@ const events = [
 
 const EventsSection = () => {
   return (
-    <section className="py-16 bg-white">
+    <section id="events-section" className="py-16 bg-white">
       <div className="container max-w-7xl mx-auto px-4">
         <div className="text-center mb-10">
           <h2 className="text-3xl font-bold mb-4">Upcoming Events</h2>
