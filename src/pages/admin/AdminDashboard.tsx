@@ -1,14 +1,17 @@
 
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import AdminLayout from '@/components/layouts/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
 import { 
   Users, 
   BookOpen, 
   UserCheck, 
   UserX, 
-  TrendingUp 
+  TrendingUp,
+  CreditCard 
 } from "lucide-react";
 import {
   ChartContainer,
@@ -24,6 +27,7 @@ const AdminDashboard = () => {
     totalCourses: 42,
     activeUsers: 876,
     inactiveUsers: 369,
+    pendingRequests: 12,
     enrollments: {
       daily: 24,
       weekly: 187,
@@ -34,7 +38,7 @@ const AdminDashboard = () => {
   const [recentActivities] = useState([
     { id: 1, user: "John Doe", action: "Enrolled in React Fundamentals", time: "2 hours ago" },
     { id: 2, user: "Sarah Smith", action: "Completed JavaScript Basics", time: "4 hours ago" },
-    { id: 3, user: "Mike Johnson", action: "Submitted support ticket", time: "5 hours ago" },
+    { id: 3, user: "Mike Johnson", action: "Submitted payment for Node.js course", time: "5 hours ago" },
     { id: 4, user: "Emily Brown", action: "Updated profile", time: "1 day ago" },
     { id: 5, user: "Alex Wilson", action: "Requested course access", time: "1 day ago" },
   ]);
@@ -50,33 +54,55 @@ const AdminDashboard = () => {
   ]);
 
   const statCards = [
-    { title: "Total Learners", value: stats.totalLearners, icon: Users, color: "bg-blue-100 text-blue-600" },
-    { title: "Total Courses", value: stats.totalCourses, icon: BookOpen, color: "bg-green-100 text-green-600" },
-    { title: "Active Users", value: stats.activeUsers, icon: UserCheck, color: "bg-purple-100 text-purple-600" },
-    { title: "Inactive Users", value: stats.inactiveUsers, icon: UserX, color: "bg-orange-100 text-orange-600" },
+    { title: "Total Learners", value: stats.totalLearners, icon: Users, color: "bg-blue-100 text-blue-600", link: "/admin/users" },
+    { title: "Total Courses", value: stats.totalCourses, icon: BookOpen, color: "bg-green-100 text-green-600", link: "/admin/courses" },
+    { title: "Active Users", value: stats.activeUsers, icon: UserCheck, color: "bg-purple-100 text-purple-600", link: "/admin/users" },
+    { title: "Inactive Users", value: stats.inactiveUsers, icon: UserX, color: "bg-orange-100 text-orange-600", link: "/admin/users" },
   ];
 
   return (
     <AdminLayout>
-      <div className="space-y-6">
+      <div className="space-y-6 p-6">
         <h2 className="text-3xl font-bold tracking-tight">Dashboard Overview</h2>
         
         {/* Stats Grid */}
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
           {statCards.map((card, index) => (
-            <Card key={index}>
-              <CardContent className="p-6 flex items-center space-x-4">
-                <div className={`p-2.5 rounded-full ${card.color}`}>
-                  <card.icon className="h-6 w-6" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">{card.title}</p>
-                  <h3 className="text-2xl font-bold">{card.value.toLocaleString()}</h3>
-                </div>
-              </CardContent>
-            </Card>
+            <Link to={card.link} key={index}>
+              <Card className="hover:shadow-md transition-shadow">
+                <CardContent className="p-6 flex items-center space-x-4">
+                  <div className={`p-2.5 rounded-full ${card.color}`}>
+                    <card.icon className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">{card.title}</p>
+                    <h3 className="text-2xl font-bold">{card.value.toLocaleString()}</h3>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
           ))}
         </div>
+
+        {/* Enrollment Requests Alert */}
+        {stats.pendingRequests > 0 && (
+          <Card className="border-2 border-amber-200 bg-amber-50">
+            <CardContent className="p-6 flex items-center justify-between">
+              <div className="flex items-center">
+                <div className="p-2.5 rounded-full bg-amber-100 text-amber-600 mr-4">
+                  <CreditCard className="h-6 w-6" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Pending Enrollment Requests</p>
+                  <h3 className="text-2xl font-bold">{stats.pendingRequests}</h3>
+                </div>
+              </div>
+              <Button asChild>
+                <Link to="/admin/enrollment-requests">View Requests</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
         <div className="grid gap-6 md:grid-cols-2">
           {/* Enrollment Chart */}

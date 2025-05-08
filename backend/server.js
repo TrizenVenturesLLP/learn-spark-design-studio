@@ -24,6 +24,7 @@ mongoose.connect(process.env.MongoDB_URL)
 const User = require('./models/User');
 const Course = require('./models/Course');
 const UserCourse = require('./models/UserCourse');
+const EnrollmentRequest = require('./models/EnrollmentRequest');
 
 // JWT Secret
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
@@ -385,6 +386,199 @@ app.put('/api/my-courses/:courseId/progress', authenticateToken, async (req, res
     
   } catch (error) {
     console.error('Update progress error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Enrollment Request Routes
+
+// Create new enrollment request
+app.post('/api/enrollment-requests', authenticateToken, async (req, res) => {
+  try {
+    const { courseId, courseName, email, utrNumber, transactionNotes } = req.body;
+    
+    // Check if course exists
+    const course = await Course.findById(courseId);
+    if (!course) {
+      return res.status(404).json({ message: 'Course not found' });
+    }
+    
+    // Check if the user has a pending or approved request for this course
+    const existingRequest = await EnrollmentRequest.findOne({
+      userId: req.user.id,
+      courseId,
+      status: { $in: ['pending', 'approved'] }
+    });
+    
+    if (existingRequest) {
+      return res.status(400).json({ 
+        message: existingRequest.status === 'pending' 
+          ? 'You already have a pending request for this course' 
+          : 'You are already enrolled in this course' 
+      });
+    }
+    
+    // Create new enrollment request
+    const enrollmentRequest = new EnrollmentRequest({
+      userId: req.user.id,
+      courseId,
+      courseName,
+      email,
+      utrNumber,
+      transactionNotes
+    });
+    
+    await enrollmentRequest.save();
+    
+    res.status(201).json({
+      message: 'Enrollment request submitted successfully',
+      request: enrollmentRequest
+    });
+    
+  } catch (error) {
+    console.error('Enrollment request error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get enrollment requests (admin only)
+app.get('/api/enrollment-requests', authenticateToken, async (req, res) => {
+  try {
+    // Check if user is admin
+    const user = await User.findById(req.user.id);
+    if (!user || user.role !== 'admin') {
+      return res.status(403).json({ message: 'Not authorized' });
+    }
+    
+    // Get all enrollment requests with user data
+    const requests = await EnrollmentRequest.find()
+      .sort({ requestDate: -1 })
+      .populate('userId', 'name email');
+    
+    res.json(requests.map(request => ({
+      _id: request._id,
+      userId: request.userId._id,
+      courseId: request.courseId,
+      courseName: request.courseName,
+      email: request.email,
+      utrNumber: request.utrNumber,
+      transactionNotes: request.transactionNotes,
+      status: request.status,
+      requestDate: request.requestDate,
+      processedAt: request.processedAt,
+      user: {
+        name: request.userId.name,
+        email: request.userId.email
+      }
+    })));
+    
+  } catch (error) {
+    console.error('Get enrollment requests error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get user's enrollment requests
+app.get('/api/my-enrollment-requests', authenticateToken, async (req, res) => {
+  try {
+    const requests = await EnrollmentRequest.find({ userId: req.user.id })
+      .sort({ requestDate: -1 });
+    
+    res.json(requests);
+    
+  } catch (error) {
+    console.error('Get user enrollment requests error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Approve enrollment request (admin only)
+app.put('/api/enrollment-requests/:requestId/approve', authenticateToken, async (req, res) => {
+  try {
+    // Check if user is admin
+    const user = await User.findById(req.user.id);
+    if (!user || user.role !== 'admin') {
+      return res.status(403).json({ message: 'Not authorized' });
+    }
+    
+    // Find the enrollment request
+    const request = await EnrollmentRequest.findById(req.params.requestId);
+    if (!request) {
+      return res.status(404).json({ message: 'Request not found' });
+    }
+    
+    if (request.status !== 'pending') {
+      return res.status(400).json({ message: 'Request has already been processed' });
+    }
+    
+    // Update request status
+    request.status = 'approved';
+    request.processedAt = new Date();
+    request.processedBy = req.user.id;
+    await request.save();
+    
+    // Create actual enrollment
+    const enrollment = new UserCourse({
+      userId: request.userId,
+      courseId: request.courseId,
+      status: 'enrolled',
+      enrolledAt: new Date()
+    });
+    
+    await enrollment.save();
+    
+    // Increment student count in course
+    const course = await Course.findById(request.courseId);
+    if (course) {
+      course.students += 1;
+      await course.save();
+    }
+    
+    res.json({
+      message: 'Enrollment request approved',
+      request,
+      enrollment
+    });
+    
+  } catch (error) {
+    console.error('Approve enrollment request error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Reject enrollment request (admin only)
+app.put('/api/enrollment-requests/:requestId/reject', authenticateToken, async (req, res) => {
+  try {
+    // Check if user is admin
+    const user = await User.findById(req.user.id);
+    if (!user || user.role !== 'admin') {
+      return res.status(403).json({ message: 'Not authorized' });
+    }
+    
+    // Find the enrollment request
+    const request = await EnrollmentRequest.findById(req.params.requestId);
+    if (!request) {
+      return res.status(404).json({ message: 'Request not found' });
+    }
+    
+    if (request.status !== 'pending') {
+      return res.status(400).json({ message: 'Request has already been processed' });
+    }
+    
+    // Update request status
+    request.status = 'rejected';
+    request.processedAt = new Date();
+    request.processedBy = req.user.id;
+    
+    await request.save();
+    
+    res.json({
+      message: 'Enrollment request rejected',
+      request
+    });
+    
+  } catch (error) {
+    console.error('Reject enrollment request error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
