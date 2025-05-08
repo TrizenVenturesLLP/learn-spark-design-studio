@@ -5,6 +5,10 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { X } from "lucide-react";
+import { useState } from "react";
 
 const faqs = [
   {
@@ -26,34 +30,107 @@ const faqs = [
 ];
 
 const FAQSection = () => {
+  const [showForm, setShowForm] = useState(false);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    // Handle form submission logic here
+    setShowForm(false);
+  };
+
   return (
-    <section className="py-12"> {/* Reduced padding */}
+    <section className="py-16 bg-gray-50">
       <div className="container max-w-7xl mx-auto px-4">
-        <div className="text-center mb-8"> {/* Reduced margin */}
-          <h2 className="text-2xl font-bold mb-3">Frequently Asked Questions</h2> {/* Smaller heading */}
-          <p className="text-base text-gray-600 max-w-2xl mx-auto"> {/* Smaller text */}
-            Find answers to common questions about our training programs and certifications.
+        <div className="text-center mb-10">
+          <h2 className="text-3xl font-bold mb-4">Frequently Asked Questions</h2>
+          <p className="text-gray-600 max-w-2xl mx-auto">
+            Find answers to common questions about our training programs and certifications. 
+            If you can't find what you're looking for, feel free to reach out to our support team.
           </p>
         </div>
-        
-        <div className="max-w-3xl mx-auto">
-          <Accordion type="single" collapsible className="w-full">
-            {faqs.map((faq, index) => (
-              <AccordionItem key={index} value={`item-${index}`}>
-                <AccordionTrigger className="text-left text-base font-medium"> {/* Smaller question text */}
-                  {faq.question}
-                </AccordionTrigger>
-                <AccordionContent className="text-sm text-gray-600"> {/* Smaller answer text */}
-                  {faq.answer}
-                </AccordionContent>
-              </AccordionItem>
-            ))}
-          </Accordion>
-          
-          <div className="text-center mt-8"> {/* Reduced margin */}
-            <p className="text-base font-medium mb-3">Can't find what you're looking for?</p> {/* Smaller text */}
-            <Button size="sm">Contact Support</Button> {/* Smaller button */}
+
+        <div className="grid gap-6 max-w-3xl mx-auto">
+          {/* FAQ Card */}
+          <div className="bg-white rounded-lg shadow-sm p-6">
+            <Accordion type="single" collapsible className="w-full">
+              {faqs.map((faq, index) => (
+                <AccordionItem key={index} value={`item-${index}`}>
+                  <AccordionTrigger className="text-left font-medium py-4 text-gray-800">
+                    {faq.question}
+                  </AccordionTrigger>
+                  <AccordionContent className="text-gray-600 pb-4">
+                    {faq.answer}
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
+
+            <div className="text-center mt-6 pt-6 border-t">
+              <h3 className="text-lg font-medium mb-2">Still have questions?</h3>
+              <p className="text-gray-600 mb-4">Our support team is here to help you</p>
+              {!showForm && (
+                <Button 
+                  onClick={() => setShowForm(true)}
+                  className="bg-primary hover:bg-primary/90"
+                >
+                  Contact Support
+                </Button>
+              )}
+            </div>
           </div>
+
+          {/* Contact Form Card */}
+          {showForm && (
+            <div className="bg-white rounded-lg shadow-sm p-6 relative">
+              <button 
+                onClick={() => setShowForm(false)}
+                className="absolute right-4 top-4 text-gray-500 hover:text-gray-700"
+                aria-label="Close form"
+              >
+                <X className="h-5 w-5" />
+              </button>
+              <div className="max-w-md mx-auto">
+                <h3 className="text-xl font-semibold mb-6 text-center">Contact Support</h3>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div className="space-y-2">
+                    <label htmlFor="name" className="text-sm font-medium text-left block">
+                      Full Name
+                    </label>
+                    <Input
+                      id="name"
+                      placeholder="John Doe"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label htmlFor="email" className="text-sm font-medium text-left block">
+                      Email Address
+                    </label>
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="john@example.com"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label htmlFor="message" className="text-sm font-medium text-left block">
+                      How can we help?
+                    </label>
+                    <Textarea
+                      id="message"
+                      placeholder="Tell us about your question or issue..."
+                      className="h-32 resize-none"
+                      required
+                    />
+                  </div>
+                  <Button type="submit" className="w-full">
+                    Send Message
+                  </Button>
+                </form>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </section>
