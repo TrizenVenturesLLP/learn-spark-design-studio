@@ -157,7 +157,7 @@ const Careers = () => {
                     <SelectValue placeholder="Location" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Locations</SelectItem>
+                    <SelectItem value="all-locations">All Locations</SelectItem>
                     <SelectItem value="Worldwide">Worldwide</SelectItem>
                     <SelectItem value="San Francisco">San Francisco, CA</SelectItem>
                   </SelectContent>
@@ -169,7 +169,7 @@ const Careers = () => {
                     <SelectValue placeholder="Type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Types</SelectItem>
+                    <SelectItem value="all-types">All Types</SelectItem>
                     <SelectItem value="remote">Remote</SelectItem>
                     <SelectItem value="hybrid">Hybrid</SelectItem>
                     <SelectItem value="on-site">On-site</SelectItem>
@@ -201,8 +201,8 @@ const Careers = () => {
                     className="mt-4"
                     onClick={() => {
                       setSearchTerm('');
-                      setLocationFilter('');
-                      setTypeFilter('');
+                      setLocationFilter('all-locations');
+                      setTypeFilter('all-types');
                     }}
                   >
                     Clear Filters
