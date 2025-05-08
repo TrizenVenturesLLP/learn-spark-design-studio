@@ -61,16 +61,16 @@ const internships = [
 
 const Careers = () => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [locationFilter, setLocationFilter] = useState('');
-  const [typeFilter, setTypeFilter] = useState('');
+  const [locationFilter, setLocationFilter] = useState('all-locations');
+  const [typeFilter, setTypeFilter] = useState('all-types');
 
   const filteredInternships = internships.filter(internship => {
     const matchesSearch = internship.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           internship.department.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           internship.description.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesLocation = locationFilter ? internship.location.includes(locationFilter) : true;
-    const matchesType = typeFilter ? internship.type === typeFilter : true;
+    const matchesLocation = locationFilter === 'all-locations' || internship.location.includes(locationFilter);
+    const matchesType = typeFilter === 'all-types' || internship.type === typeFilter;
     
     return matchesSearch && matchesLocation && matchesType;
   });
