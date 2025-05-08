@@ -60,7 +60,7 @@ app.post('/api/auth/signup', async (req, res) => {
     res.status(201).json({
       token,
       user: {
-        _id: user._id,
+        id: user._id,
         name: user.name,
         email: user.email
       }
@@ -96,7 +96,7 @@ app.post('/api/auth/login', async (req, res) => {
     res.json({
       token,
       user: {
-        _id: user._id,
+        id: user._id,
         name: user.name,
         email: user.email
       }

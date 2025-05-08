@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useNavigate } from 'react-router-dom';
+import { useToast } from '@/hooks/use-toast';
 
 const SignupForm = () => {
   const [name, setName] = useState('');
@@ -13,8 +14,10 @@ const SignupForm = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [passwordError, setPasswordError] = useState('');
+  const [signupError, setSignupError] = useState('');
   const { signup } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
 
   const validatePasswords = () => {
     if (password !== confirmPassword) {
@@ -36,12 +39,26 @@ const SignupForm = () => {
       return;
     }
     
+    setSignupError('');
+    setIsLoading(true);
+    
     try {
-      setIsLoading(true);
       await signup(name, email, password);
-      navigate('/'); // Redirect to home page after successful signup
+      toast({
+        title: "Account created",
+        description: "Your account has been successfully created!",
+        duration: 3000,
+      });
+      navigate('/dashboard');
     } catch (error) {
       console.error("Signup error:", error);
+      setSignupError('Failed to create account. Please try again.');
+      toast({
+        title: "Signup failed",
+        description: "There was a problem creating your account. Please try again.",
+        variant: "destructive",
+        duration: 3000,
+      });
     } finally {
       setIsLoading(false);
     }
@@ -53,6 +70,12 @@ const SignupForm = () => {
         <h2 className="text-2xl font-bold">Create an Account</h2>
         <p className="text-muted-foreground mt-1">Join Trizen to access high-quality courses</p>
       </div>
+      
+      {signupError && (
+        <div className="bg-destructive/15 text-destructive p-3 rounded-md text-sm">
+          {signupError}
+        </div>
+      )}
       
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">

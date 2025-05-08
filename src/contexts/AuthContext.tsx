@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import axios from '../lib/axios';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { toast } from '@/components/ui/toast';
 
 interface User {
   id: string;
@@ -88,7 +89,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signup = async (name: string, email: string, password: string) => {
     try {
-      const response = await axios.post('/api/auth/register', { name, email, password });
+      // Fix: Use the correct endpoint for signup (changed from /register to /signup)
+      const response = await axios.post('/api/auth/signup', { name, email, password });
       const { token: authToken, user: userData } = response.data as AuthResponse;
       
       localStorage.setItem('token', authToken);
@@ -97,6 +99,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       navigate('/dashboard');
     } catch (error) {
+      console.error('Signup error details:', error);
       throw new Error('Signup failed');
     }
   };
