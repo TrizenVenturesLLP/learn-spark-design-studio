@@ -9,7 +9,7 @@ const Footer = () => {
           {/* Logo and Description */}
           <div className="col-span-1 md:col-span-2">
             <Link to="/" className="flex items-center gap-2 mb-2">
-              <img src="logo_footer.png" alt="Trizen Logo" className="h-8 w-auto" />
+              <img src="/public/logo_footer.png" alt="Trizen Logo" className="h-8 w-auto" />
             </Link>
             <p className="text-sm text-muted-foreground max-w-sm">
               High-quality recorded and live online training for professionals and beginners.
