@@ -76,7 +76,7 @@ const Footer = () => {
           
           {/* Social Links */}
           <div className="mt-4 md:mt-0 flex space-x-6">
-          <a href="#" className="text-gray-500 hover:text-primary">
+          <a href="https://x.com/TrizenVentures" className="text-gray-500 hover:text-primary">
             <span className="sr-only">X</span>
             <svg
               className="h-6 w-6"
@@ -87,6 +87,19 @@ const Footer = () => {
               <path d="M20.18 3H17.3L12 9.1L6.7 3H3.82L10.6 11L3 21H6.02L12 14.37L17.98 21H21L13.4 11L20.18 3Z" />
             </svg>
           </a>
+            
+             {/* Instagram */}
+            <a href="https://www.instagram.com/trizenventures" className="text-gray-500 hover:text-primary" target="_blank" rel="noopener noreferrer">
+              <span className="sr-only">Instagram</span>
+              <svg
+                className="h-6 w-6"
+                fill="currentColor"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <path d="M7.75 2h8.5A5.75 5.75 0 0 1 22 7.75v8.5A5.75 5.75 0 0 1 16.25 22h-8.5A5.75 5.75 0 0 1 2 16.25v-8.5A5.75 5.75 0 0 1 7.75 2Zm0 1.5A4.25 4.25 0 0 0 3.5 7.75v8.5A4.25 4.25 0 0 0 7.75 20.5h8.5A4.25 4.25 0 0 0 20.5 16.25v-8.5A4.25 4.25 0 0 0 16.25 3.5h-8.5Zm8.75 2.75a.75.75 0 1 1 0 1.5a.75.75 0 0 1 0-1.5Zm-4.5 1A5.25 5.25 0 1 1 7.25 12A5.25 5.25 0 0 1 12 7.25Zm0 1.5a3.75 3.75 0 1 0 3.75 3.75A3.75 3.75 0 0 0 12 8.75Z" />
+              </svg>
+            </a>
             
             <a href="https://www.linkedin.com/company/trizenventuresllp/" className="text-gray-500 hover:text-primary">
               <span className="sr-only">LinkedIn</span>

@@ -107,10 +107,10 @@ const FAQSection = () => {
                     />
                   </svg>
                   <a 
-                    href="mailto:projects.trizen@gmail.com" 
+                    href="mailto:contact@trizenventures.com" 
                     className="text-primary hover:underline font-medium"
                   >
-                    support@trizentraining.com
+                    contact@trizenventures.com
                   </a>
                 </div>
               </div>
