@@ -1,34 +1,32 @@
-
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { CalendarDays, Clock } from "lucide-react";
 
 const events = [
   {
     id: 1,
-    type: "Webinar",
-    title: "Building Scalable Web Apps with the MERN Stack",
+    type: "Bootcamp",
+    title: "MERN Stack Bootcamp",
     date: "June 15, 2025",
     time: "2:00 PM - 4:00 PM",
     isLive: false
   },
   {
     id: 2,
-    type: "Webinar",
-    title: "AI & ML in Real-World Applications",
+    type: "Bootcamp",
+    title: "AI & Machine Learning Bootcamp",
     date: "June 22, 2025",
     time: "1:00 PM - 2:30 PM",
     isLive: false
   },
   {
     id: 3,
-    type: "Webinar",
-    title: "Crafting an Interview-Winning Resume",
+    type: "Bootcamp",
+    title: "Crafting an Interview Winning Resume",
     date: "June 30, 2025",
     time: "10:00 AM - 4:00 PM",
     isLive: false
   }
 ];
-
 
 const EventsSection = () => {
   return (
@@ -37,7 +35,7 @@ const EventsSection = () => {
         <div className="text-center mb-10">
           <h2 className="text-3xl font-bold mb-4">Upcoming Events</h2>
           <p className="text-lg text-gray-600 max-w-3xl mx-auto">
-            Join our live events, workshops, and webinars to gain insights from industry experts and network with peers.
+            Join live webinars and workshops hosted by industry experts to elevate your learning and career growth.
           </p>
         </div>
 
@@ -45,48 +43,36 @@ const EventsSection = () => {
           {events.map((event) => (
             <Card
               key={event.id}
-              className="overflow-hidden rounded-lg shadow-sm border transition hover:shadow-md"
+              className="overflow-hidden rounded-xl shadow-sm border transition hover:shadow-md"
             >
-              <div className="text-white text-sm font-medium text-center py-2" style={{ backgroundColor: 'hsl(243 52% 34%)' }}>
-              {event.type}
+              <div className="text-white text-sm font-semibold text-center py-2 uppercase tracking-wide" style={{ backgroundColor: 'hsl(243 52% 34%)' }}>
+                {event.type}
               </div>
 
               <CardContent className="p-6">
-                <h3 className="text-xl font-semibold text-gray-800 mb-4">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4">
                   {event.title}
                 </h3>
 
                 <div className="flex items-center text-gray-500 mb-2">
                   <CalendarDays className="w-4 h-4 mr-2" />
-                  <span className="blur-sm hover:blur-none transition duration-300">
-                    {event.date}
-                  </span>
-                  <span className="ml-2">🔒</span>
+                  <span className="italic text-sm text-gray-400">Details will be revealed soon</span>
                 </div>
 
                 <div className="flex items-center text-gray-500">
-                  <Clock className="w-4 h-4 mr-2 ml-1" />
-                  <span className="blur-sm hover:blur-none transition duration-300">
-                    {event.time}
-                  </span>
-                  <span className="ml-2">🔒</span>
+                  <Clock className="w-4 h-4 mr-2" />
+                  <span className="italic text-sm text-gray-400">Stay tuned for timing</span>
                 </div>
               </CardContent>
 
               <CardFooter className="border-t bg-gray-50 px-6 py-3">
-                <div className="w-full text-center bg-gray-100 border border-gray-300 text-gray-500 py-2 rounded-md cursor-not-allowed">
+                <div className="w-full text-center bg-indigo-50 text-indigo-600 border border-indigo-200 font-medium py-2 rounded-md">
                   Launching Soon
                 </div>
               </CardFooter>
             </Card>
           ))}
         </div>
-
-        {/* <div className="text-center">
-          <button className="text-indigo-600 border border-indigo-600 hover:bg-indigo-50 font-medium px-6 py-2 rounded-md transition">
-            View All Events
-          </button>
-        </div> */}
       </div>
     </section>
   );
