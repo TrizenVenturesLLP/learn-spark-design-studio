@@ -23,6 +23,12 @@ import Discussions from "./pages/Discussion";
 import Careers from "./pages/Careers";
 import InternshipApply from "./pages/InternshipApply";
 
+// Admin Pages
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import UserManagement from "./pages/admin/UserManagement";
+import CourseManagement from "./pages/admin/CourseManagement";
+import Analytics from "./pages/admin/Analytics";
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -45,6 +51,29 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     // Save the current location so we can redirect back after login
     localStorage.setItem('redirectPath', location.pathname);
     return <Navigate to="/login" />;
+  }
+
+  return <>{children}</>;
+};
+
+// Admin Route Component (protected + requires admin role)
+const AdminRoute = ({ children }: { children: React.ReactNode }) => {
+  const { isAuthenticated, user, loading } = useAuth();
+  const location = useLocation();
+
+  if (loading) {
+    return <div>Loading...</div>; // Add a proper loading component
+  }
+
+  if (!isAuthenticated) {
+    // Save the current location so we can redirect back after login
+    localStorage.setItem('redirectPath', location.pathname);
+    return <Navigate to="/login" />;
+  }
+
+  // Check if the user has admin role
+  if (user?.role !== 'admin') {
+    return <Navigate to="/dashboard" />;
   }
 
   return <>{children}</>;
@@ -151,6 +180,28 @@ const App = () => (
               <ProtectedRoute>
                 <Discussions />
               </ProtectedRoute>
+            } />
+
+            {/* Admin Routes */}
+            <Route path="/admin/dashboard" element={
+              <AdminRoute>
+                <AdminDashboard />
+              </AdminRoute>
+            } />
+            <Route path="/admin/users" element={
+              <AdminRoute>
+                <UserManagement />
+              </AdminRoute>
+            } />
+            <Route path="/admin/courses" element={
+              <AdminRoute>
+                <CourseManagement />
+              </AdminRoute>
+            } />
+            <Route path="/admin/analytics" element={
+              <AdminRoute>
+                <Analytics />
+              </AdminRoute>
             } />
 
             {/* Added explicit not-found-page route */}
