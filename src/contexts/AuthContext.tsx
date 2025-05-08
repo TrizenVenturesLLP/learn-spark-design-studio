@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import axios from '../lib/axios';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { toast } from '@/components/ui/toast';
+import { useToast } from '@/hooks/use-toast';
 
 interface User {
   id: string;
@@ -43,6 +43,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const location = useLocation();
+  const { toast } = useToast(); // Use the toast from useToast hook
 
   // Check if the user is authenticated
   useEffect(() => {
@@ -98,6 +99,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(userData);
       
       navigate('/dashboard');
+      
+      // Show success toast
+      toast({
+        title: "Account created",
+        description: "Your account has been created successfully!",
+        duration: 3000,
+      });
     } catch (error) {
       console.error('Signup error details:', error);
       throw new Error('Signup failed');
