@@ -16,9 +16,7 @@ const CertificationSection = () => {
           <Button size="lg" className="px-8">
             Start Learning
           </Button>
-          <Button variant="outline" size="lg" className="px-8">
-            Download Brochure
-          </Button>
+          
           <Button variant="outline" size="lg" className="px-8">
             Join Webinar
           </Button>
