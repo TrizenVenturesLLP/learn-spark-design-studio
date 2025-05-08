@@ -261,16 +261,17 @@ const Careers = () => {
         
         {/* CTA Section */}
         <section className="py-16 bg-primary/5">
-          <div className="container max-w-4xl mx-auto px-4 text-center">
-            <h2 className="text-2xl md:text-3xl font-bold mb-4">Don't See What You're Looking For?</h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto mb-8">
-              We're always looking for talented individuals. Send us your resume and we'll keep you in mind for future opportunities.
+          <div className="container max-w-5xl mx-auto px-4 text-center">
+            <h2 className="text-2xl md:text-3xl font-bold mb-4">Ready to Shape the Future?</h2>
+            <p className="text-muted-foreground max-w-2xl mx-auto mb-6">
+              Explore open roles and take the first step in your journey with Trizen.
             </p>
-            <Button size="lg" asChild>
-              <a href="mailto:careers@trizen.edu">Contact Our Recruiting Team</a>
+            <Button asChild>
+              <a href="#internships">Explore Internships</a>
             </Button>
           </div>
         </section>
+
       </main>
       
       <Footer />
