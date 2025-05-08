@@ -13,13 +13,30 @@ import FAQSection from "@/components/FAQSection";
 import Footer from "@/components/Footer";
 import { useAllCourses } from "@/services/courseService";
 import { useNavigate } from "react-router-dom";
+import { useToast } from "@/hooks/use-toast";
 
 const Index = () => {
   const { data: courses } = useAllCourses();
   const navigate = useNavigate();
+  const { toast } = useToast();
   
   const handleCourseClick = (courseId: string) => {
     navigate(`/course/${courseId}`);
+  };
+  
+  const handleEnrollClick = (courseId: string) => {
+    // For the index page, we'll redirect to login if needed before enrollment
+    navigate('/login', { state: { from: `/?courseId=${courseId}` } });
+  };
+  
+  // These are placeholder functions since they won't be used on the index page
+  // Courses on the index page will not have started or in-progress status
+  const handleStartClick = (courseId: string) => {
+    navigate('/login', { state: { from: `/course/${courseId}` } });
+  };
+  
+  const handleResumeClick = (courseId: string) => {
+    navigate('/login', { state: { from: `/course/${courseId}` } });
   };
   
   return (
@@ -32,6 +49,9 @@ const Index = () => {
         <FilterableCoursesSection 
           courses={courses || []} 
           onCourseClick={handleCourseClick}
+          onEnrollClick={handleEnrollClick}
+          onStartClick={handleStartClick}
+          onResumeClick={handleResumeClick}
         />
         <WhyChooseUsSection />
         <TestimonialsCarousel />
