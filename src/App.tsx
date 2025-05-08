@@ -20,6 +20,8 @@ import Grades from "./pages/Grades";
 import Assignments from "./pages/Assignments";
 import Calendar from "./pages/Calendar";
 import Discussions from "./pages/Discussion";
+import Careers from "./pages/Careers";
+import InternshipApply from "./pages/InternshipApply";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -89,6 +91,10 @@ const App = () => (
                 <Signup />
               </PublicRoute>
             } />
+            
+            {/* Careers Routes - accessible without login */}
+            <Route path="/careers" element={<Careers />} />
+            <Route path="/careers/apply/:position" element={<InternshipApply />} />
 
             {/* Protected Routes */}
             <Route path="/dashboard" element={
