@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import AdminLayout from '@/components/layouts/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -34,11 +35,11 @@ const EnrollmentRequests = () => {
   const queryClient = useQueryClient();
 
   // Fetch enrollment requests
-  const { data, isLoading } = useQuery<EnrollmentRequest[]>({
+  const { data, isLoading } = useQuery({
     queryKey: ['enrollment-requests'],
     queryFn: async () => {
       const response = await axios.get('/api/admin/enrollment-requests');
-      return response.data;
+      return response.data as EnrollmentRequest[];
     },
   });
   
