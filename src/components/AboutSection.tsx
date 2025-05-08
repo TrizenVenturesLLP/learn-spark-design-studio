@@ -40,8 +40,8 @@ const AboutSection = () => {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 px-2">
-          {features.map((feature, index) => (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-y-10 px-2">
+        {features.map((feature, index) => (
             <div
               key={index}
               className="flex flex-col items-center text-center"
