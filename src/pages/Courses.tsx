@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
@@ -16,7 +17,17 @@ const Courses = () => {
   const updateProgressMutation = useUpdateProgress();
   
   const handleCourseClick = (courseId: string) => {
-    navigate(`/course/${courseId}/weeks`);  // Updated to navigate to week view
+    // Only navigate to course if not in pending status
+    const course = enrolledCourses?.find(c => c._id === courseId);
+    if (course && (course.status === 'pending' || course.enrollmentStatus === 'pending')) {
+      toast({
+        title: "Enrollment Pending",
+        description: "Your enrollment is pending approval. You'll be notified when it's approved.",
+      });
+      return;
+    }
+    
+    navigate(`/course/${courseId}/weeks`);
   };
   
   const handleExploreCoursesClick = () => {
@@ -34,7 +45,7 @@ const Courses = () => {
         token 
       });
       
-      navigate(`/course/${courseId}/weeks`);  // Updated to navigate to week view
+      navigate(`/course/${courseId}/weeks`);
     } catch (error) {
       toast({
         title: "Error",
@@ -45,8 +56,17 @@ const Courses = () => {
   };
   
   const handleResumeClick = (courseId: string) => {
-    navigate(`/course/${courseId}/weeks`);  // Updated to navigate to week view
+    navigate(`/course/${courseId}/weeks`);
   };
+  
+  // Group courses by status
+  const pendingCourses = enrolledCourses?.filter(course => 
+    course.status === 'pending' || course.enrollmentStatus === 'pending'
+  ) || [];
+  
+  const activeCourses = enrolledCourses?.filter(course => 
+    course.status !== 'pending' && course.enrollmentStatus !== 'pending'
+  ) || [];
   
   if (isLoading) {
     return (
@@ -75,7 +95,7 @@ const Courses = () => {
           <p className="text-muted-foreground mt-1">Continue your learning journey</p>
         </div>
         
-        {!enrolledCourses || enrolledCourses.length === 0 ? (
+        {(!enrolledCourses || enrolledCourses.length === 0) ? (
           <div className="text-center py-12 border rounded-lg bg-card">
             <h2 className="text-xl font-semibold mb-2">You haven't enrolled in any courses yet</h2>
             <p className="text-muted-foreground mb-6 max-w-md mx-auto">
@@ -87,28 +107,66 @@ const Courses = () => {
           </div>
         ) : (
           <div>
-            <h2 className="text-xl font-semibold mb-4">In Progress</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
-              {enrolledCourses.map((course) => (
-                <CourseCard
-                  key={course._id}
-                  id={course._id}
-                  image={course.image}
-                  title={course.title}
-                  description={course.description}
-                  duration={course.duration}
-                  rating={course.rating}
-                  students={course.students}
-                  level={course.level}
-                  progress={course.progress}
-                  instructor={course.instructor}
-                  enrollmentStatus={course.status as 'enrolled' | 'started' | 'completed'}
-                  onClick={() => handleCourseClick(course._id)}
-                  onStartClick={course.status === 'enrolled' ? () => handleStartClick(course._id) : undefined}
-                  onResumeClick={course.status === 'started' ? () => handleResumeClick(course._id) : undefined}
-                />
-              ))}
-            </div>
+            {pendingCourses.length > 0 && (
+              <div className="mb-10">
+                <h2 className="text-xl font-semibold mb-4">Pending Enrollments</h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {pendingCourses.map((course) => (
+                    <CourseCard
+                      key={course._id}
+                      id={course._id}
+                      image={course.image}
+                      title={course.title}
+                      description={course.description}
+                      duration={course.duration}
+                      rating={course.rating}
+                      students={course.students}
+                      level={course.level}
+                      progress={course.progress}
+                      instructor={course.instructor}
+                      enrollmentStatus="pending"
+                      onClick={() => {}} // Disabled click for pending courses
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {activeCourses.length > 0 ? (
+              <div>
+                <h2 className="text-xl font-semibold mb-4">My Courses</h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+                  {activeCourses.map((course) => (
+                    <CourseCard
+                      key={course._id}
+                      id={course._id}
+                      image={course.image}
+                      title={course.title}
+                      description={course.description}
+                      duration={course.duration}
+                      rating={course.rating}
+                      students={course.students}
+                      level={course.level}
+                      progress={course.progress}
+                      instructor={course.instructor}
+                      enrollmentStatus={course.status as 'enrolled' | 'started' | 'completed'}
+                      onClick={() => handleCourseClick(course._id)}
+                      onStartClick={course.status === 'enrolled' ? () => handleStartClick(course._id) : undefined}
+                      onResumeClick={course.status === 'started' ? () => handleResumeClick(course._id) : undefined}
+                    />
+                  ))}
+                </div>
+              </div>
+            ) : pendingCourses.length > 0 && (
+              <div className="text-center py-8 border rounded-lg bg-card mt-8">
+                <p className="text-muted-foreground mb-4">
+                  You don't have any active courses yet. Your enrollments are pending approval.
+                </p>
+                <Button onClick={handleExploreCoursesClick} variant="outline">
+                  Explore More Courses
+                </Button>
+              </div>
+            )}
             
             <div className="text-center mt-8">
               <Button variant="outline" onClick={handleExploreCoursesClick}>

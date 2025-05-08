@@ -1,3 +1,4 @@
+
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,7 +15,7 @@ interface CourseCardProps {
   level: "Beginner" | "Intermediate" | "Advanced";
   onClick?: () => void;
   progress?: number;
-  enrollmentStatus?: 'enrolled' | 'started' | 'completed';
+  enrollmentStatus?: 'enrolled' | 'started' | 'completed' | 'pending';
   onEnrollClick?: (e: React.MouseEvent) => void;
   onStartClick?: (e: React.MouseEvent) => void;
   onResumeClick?: (e: React.MouseEvent) => void;
@@ -176,6 +177,13 @@ const CourseCard = ({
                 <Badge className="px-3 py-1 rounded-full bg-green-600 text-white flex items-center gap-1">
                   <Check className="h-3 w-3" />
                   Completed
+                </Badge>
+              )}
+              
+              {enrollmentStatus === 'pending' && (
+                <Badge className="px-3 py-1 rounded-full bg-yellow-600 text-white flex items-center gap-1">
+                  <span className="h-2 w-2 bg-white rounded-full animate-pulse mr-1"></span>
+                  Pending
                 </Badge>
               )}
             </div>

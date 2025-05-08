@@ -27,8 +27,8 @@ export interface Course {
   }[];
   progress?: number; // Added for enrolled courses
   enrolledAt?: string; // Added for enrolled courses
-  enrollmentStatus?: 'enrolled' | 'started' | 'completed'; // Added for enrollment status
-  status?: 'enrolled' | 'started' | 'completed'; // Added for enrollment status
+  enrollmentStatus?: 'enrolled' | 'started' | 'completed' | 'pending'; // Added for enrollment status
+  status?: 'enrolled' | 'started' | 'completed' | 'pending'; // Added for enrollment status
   lastAccessedAt?: string; // Added for tracking last access
   roadmap?: RoadmapDay[]; // Added for course weekly content
 }
@@ -125,7 +125,7 @@ export const useUpdateProgress = () => {
     }: { 
       courseId: string, 
       progress: number,
-      status?: 'enrolled' | 'started' | 'completed',
+      status?: 'enrolled' | 'started' | 'completed' | 'pending',
       token: string 
     }) => {
       const response = await axios.put(
@@ -139,6 +139,72 @@ export const useUpdateProgress = () => {
       queryClient.invalidateQueries({ queryKey: ['enrolledCourses'] });
       queryClient.invalidateQueries({ queryKey: ['courses'] });
       queryClient.invalidateQueries({ queryKey: ['course', variables.courseId] });
+    },
+  });
+};
+
+// Submit enrollment request
+export const useSubmitEnrollmentRequest = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (formData: FormData) => {
+      const response = await axios.post(
+        `/api/enrollment-requests`, 
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        }
+      );
+      return response.data;
+    },
+    onSuccess: () => {
+      // Invalidate relevant queries to refetch data
+      queryClient.invalidateQueries({ queryKey: ['enrolledCourses'] });
+      queryClient.invalidateQueries({ queryKey: ['courses'] });
+    },
+  });
+};
+
+// Admin: Get all enrollment requests
+export const useEnrollmentRequests = () => {
+  return useQuery({
+    queryKey: ['enrollment-requests'],
+    queryFn: async () => {
+      const response = await axios.get('/api/admin/enrollment-requests');
+      return response.data;
+    },
+  });
+};
+
+// Admin: Approve enrollment request
+export const useApproveEnrollmentRequest = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (requestId: string) => {
+      const response = await axios.put(`/api/admin/enrollment-requests/${requestId}/approve`);
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['enrollment-requests'] });
+    },
+  });
+};
+
+// Admin: Reject enrollment request
+export const useRejectEnrollmentRequest = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (requestId: string) => {
+      const response = await axios.put(`/api/admin/enrollment-requests/${requestId}/reject`);
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['enrollment-requests'] });
     },
   });
 };

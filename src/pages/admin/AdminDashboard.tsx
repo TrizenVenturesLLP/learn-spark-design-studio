@@ -1,14 +1,17 @@
 
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import AdminLayout from '@/components/layouts/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
 import { 
   Users, 
   BookOpen, 
   UserCheck, 
   UserX, 
-  TrendingUp 
+  TrendingUp,
+  Bell 
 } from "lucide-react";
 import {
   ChartContainer,
@@ -18,12 +21,15 @@ import {
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts';
 
 const AdminDashboard = () => {
+  const navigate = useNavigate();
+  
   // Mock data - in a real app this would come from API calls
   const [stats] = useState({
     totalLearners: 1245,
     totalCourses: 42,
     activeUsers: 876,
     inactiveUsers: 369,
+    pendingEnrollments: 8,
     enrollments: {
       daily: 24,
       weekly: 187,
@@ -60,6 +66,29 @@ const AdminDashboard = () => {
     <AdminLayout>
       <div className="space-y-6">
         <h2 className="text-3xl font-bold tracking-tight">Dashboard Overview</h2>
+        
+        {/* Pending Enrollments Alert */}
+        {stats.pendingEnrollments > 0 && (
+          <Card className="bg-yellow-50 border-yellow-200">
+            <CardContent className="p-4 flex items-center justify-between">
+              <div className="flex items-center">
+                <div className="p-2 rounded-full bg-yellow-100 text-yellow-600 mr-3">
+                  <Bell className="h-5 w-5" />
+                </div>
+                <span className="font-medium">
+                  {stats.pendingEnrollments} pending enrollment {stats.pendingEnrollments === 1 ? 'request' : 'requests'} to review
+                </span>
+              </div>
+              <Button 
+                onClick={() => navigate('/admin/enrollment-requests')}
+                variant="outline" 
+                className="border-yellow-300 text-yellow-700 hover:bg-yellow-100"
+              >
+                Review Requests
+              </Button>
+            </CardContent>
+          </Card>
+        )}
         
         {/* Stats Grid */}
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">

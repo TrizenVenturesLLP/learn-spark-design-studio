@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -13,6 +12,7 @@ import Courses from "./pages/Courses";
 import ExploreCourses from "./pages/ExploreCourses";
 import CourseEnrollment from "./pages/CourseEnrollment";
 import CourseWeekView from "./pages/CourseWeekView";
+import CoursePayment from "./pages/CoursePayment";
 import NotFound from "./pages/NotFound";
 import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
@@ -28,6 +28,7 @@ import AdminDashboard from "./pages/admin/AdminDashboard";
 import UserManagement from "./pages/admin/UserManagement";
 import CourseManagement from "./pages/admin/CourseManagement";
 import Analytics from "./pages/admin/Analytics";
+import EnrollmentRequests from "./pages/admin/EnrollmentRequests";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -146,6 +147,11 @@ const App = () => (
                 <CourseEnrollment />
               </ProtectedRoute>
             } />
+            <Route path="/course/:courseId/payment" element={
+              <ProtectedRoute>
+                <CoursePayment />
+              </ProtectedRoute>
+            } />
             <Route path="/course/:courseId/weeks" element={
               <ProtectedRoute>
                 <CourseWeekView />
@@ -201,6 +207,11 @@ const App = () => (
             <Route path="/admin/analytics" element={
               <AdminRoute>
                 <Analytics />
+              </AdminRoute>
+            } />
+            <Route path="/admin/enrollment-requests" element={
+              <AdminRoute>
+                <EnrollmentRequests />
               </AdminRoute>
             } />
 

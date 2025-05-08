@@ -4,6 +4,9 @@ const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const dotenv = require('dotenv');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 
 // Load environment variables
 dotenv.config();
@@ -15,6 +18,29 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
+// Create uploads directory if it doesn't exist
+const uploadsDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadsDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(file.originalname);
+    cb(null, file.fieldname + '-' + uniqueSuffix + ext);
+  }
+});
+
+const upload = multer({ storage });
+
+// Serve static files from uploads directory
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 // Connect to MongoDB
 mongoose.connect(process.env.MongoDB_URL)
   .then(() => console.log('Connected to MongoDB'))
@@ -24,6 +50,41 @@ mongoose.connect(process.env.MongoDB_URL)
 const User = require('./models/User');
 const Course = require('./models/Course');
 const UserCourse = require('./models/UserCourse');
+
+// Create EnrollmentRequest model
+const enrollmentRequestSchema = new mongoose.Schema({
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+  },
+  courseId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Course',
+  },
+  email: {
+    type: String,
+    required: true,
+  },
+  courseName: {
+    type: String,
+    required: true,
+  },
+  utrNumber: {
+    type: String,
+    required: true,
+  },
+  transactionScreenshot: {
+    type: String,
+    required: true,
+  },
+  status: {
+    type: String,
+    enum: ['pending', 'approved', 'rejected'],
+    default: 'pending',
+  },
+}, { timestamps: true });
+
+const EnrollmentRequest = mongoose.model('EnrollmentRequest', enrollmentRequestSchema);
 
 // JWT Secret
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
@@ -385,6 +446,174 @@ app.put('/api/my-courses/:courseId/progress', authenticateToken, async (req, res
     
   } catch (error) {
     console.error('Update progress error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Admin middleware
+const adminMiddleware = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user || user.role !== 'admin') {
+      return res.status(403).json({ message: 'Access denied: Admin privileges required' });
+    }
+    next();
+  } catch (error) {
+    console.error('Admin middleware error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Enrollment Requests Routes
+
+// Submit enrollment request
+app.post('/api/enrollment-requests', authenticateToken, upload.single('transactionScreenshot'), async (req, res) => {
+  try {
+    const { email, utrNumber, courseName, courseId } = req.body;
+    
+    if (!email || !utrNumber || !courseName || !courseId || !req.file) {
+      return res.status(400).json({ message: 'All fields and file are required' });
+    }
+    
+    const enrollmentRequest = new EnrollmentRequest({
+      userId: req.user.id,
+      courseId,
+      email,
+      courseName,
+      utrNumber,
+      transactionScreenshot: `/uploads/${req.file.filename}`,
+      status: 'pending',
+    });
+    
+    await enrollmentRequest.save();
+    
+    // Mark course as pending in UserCourse collection (if not already enrolled)
+    const existingEnrollment = await UserCourse.findOne({ 
+      userId: req.user.id,
+      courseId
+    });
+    
+    if (!existingEnrollment) {
+      const enrollment = new UserCourse({
+        userId: req.user.id,
+        courseId,
+        status: 'pending',
+        progress: 0
+      });
+      
+      await enrollment.save();
+    } else if (existingEnrollment.status !== 'enrolled' && 
+              existingEnrollment.status !== 'started' && 
+              existingEnrollment.status !== 'completed') {
+      existingEnrollment.status = 'pending';
+      await existingEnrollment.save();
+    }
+    
+    res.status(201).json({ 
+      message: 'Enrollment request submitted successfully',
+      enrollmentRequest
+    });
+    
+  } catch (error) {
+    console.error('Enrollment request error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Admin: Get all enrollment requests
+app.get('/api/admin/enrollment-requests', authenticateToken, adminMiddleware, async (req, res) => {
+  try {
+    const enrollmentRequests = await EnrollmentRequest.find().sort({ createdAt: -1 });
+    res.json(enrollmentRequests);
+  } catch (error) {
+    console.error('Get enrollment requests error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Admin: Approve enrollment request
+app.put('/api/admin/enrollment-requests/:id/approve', authenticateToken, adminMiddleware, async (req, res) => {
+  try {
+    const enrollmentRequest = await EnrollmentRequest.findById(req.params.id);
+    
+    if (!enrollmentRequest) {
+      return res.status(404).json({ message: 'Enrollment request not found' });
+    }
+    
+    // Update request status
+    enrollmentRequest.status = 'approved';
+    await enrollmentRequest.save();
+    
+    // Update user course enrollment
+    const existingEnrollment = await UserCourse.findOne({ 
+      userId: enrollmentRequest.userId,
+      courseId: enrollmentRequest.courseId
+    });
+    
+    if (existingEnrollment) {
+      existingEnrollment.status = 'enrolled';
+      await existingEnrollment.save();
+    } else {
+      const enrollment = new UserCourse({
+        userId: enrollmentRequest.userId,
+        courseId: enrollmentRequest.courseId,
+        status: 'enrolled',
+        progress: 0
+      });
+      
+      await enrollment.save();
+    }
+    
+    // Increment student count in course
+    const course = await Course.findById(enrollmentRequest.courseId);
+    if (course) {
+      course.students += 1;
+      await course.save();
+    }
+    
+    res.json({ 
+      message: 'Enrollment request approved',
+      enrollmentRequest
+    });
+    
+  } catch (error) {
+    console.error('Approve enrollment error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Admin: Reject enrollment request
+app.put('/api/admin/enrollment-requests/:id/reject', authenticateToken, adminMiddleware, async (req, res) => {
+  try {
+    const enrollmentRequest = await EnrollmentRequest.findById(req.params.id);
+    
+    if (!enrollmentRequest) {
+      return res.status(404).json({ message: 'Enrollment request not found' });
+    }
+    
+    // Update request status
+    enrollmentRequest.status = 'rejected';
+    await enrollmentRequest.save();
+    
+    // Update user course enrollment status if it's pending
+    const existingEnrollment = await UserCourse.findOne({ 
+      userId: enrollmentRequest.userId,
+      courseId: enrollmentRequest.courseId,
+      status: 'pending'
+    });
+    
+    if (existingEnrollment) {
+      // Remove the enrollment record if it was pending
+      await UserCourse.deleteOne({ _id: existingEnrollment._id });
+    }
+    
+    res.json({ 
+      message: 'Enrollment request rejected',
+      enrollmentRequest
+    });
+    
+  } catch (error) {
+    console.error('Reject enrollment error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
