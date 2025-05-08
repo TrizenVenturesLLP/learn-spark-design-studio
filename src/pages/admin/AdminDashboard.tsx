@@ -15,7 +15,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts';
 
 const AdminDashboard = () => {
   // Mock data - in a real app this would come from API calls
@@ -103,9 +103,7 @@ const AdminDashboard = () => {
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="name" />
                       <YAxis />
-                      <ChartTooltip>
-                        <ChartTooltipContent />
-                      </ChartTooltip>
+                      <ChartTooltip content={<ChartTooltipContent />} />
                       <Area 
                         type="monotone" 
                         dataKey="enrollments" 

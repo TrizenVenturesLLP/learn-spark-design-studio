@@ -8,7 +8,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 const Analytics = () => {
   // Mock data for charts
@@ -89,9 +89,7 @@ const Analytics = () => {
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="name" />
                         <YAxis />
-                        <ChartTooltip>
-                          <ChartTooltipContent />
-                        </ChartTooltip>
+                        <ChartTooltip content={<ChartTooltipContent />} />
                         <Legend />
                         <Line 
                           type="monotone" 
@@ -129,9 +127,7 @@ const Analytics = () => {
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="name" />
                         <YAxis />
-                        <ChartTooltip>
-                          <ChartTooltipContent />
-                        </ChartTooltip>
+                        <ChartTooltip content={<ChartTooltipContent />} />
                         <Legend />
                         <Bar dataKey="completed" stackId="a" fill="var(--color-completed)" name="Completed" />
                         <Bar dataKey="inProgress" stackId="a" fill="var(--color-inProgress)" name="In Progress" />
@@ -163,9 +159,7 @@ const Analytics = () => {
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="name" />
                         <YAxis />
-                        <ChartTooltip>
-                          <ChartTooltipContent />
-                        </ChartTooltip>
+                        <ChartTooltip content={<ChartTooltipContent />} />
                         <Legend />
                         <Bar dataKey="hours" fill="var(--color-hours)" name="Hours Spent" />
                       </BarChart>
@@ -195,9 +189,7 @@ const Analytics = () => {
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="name" />
                         <YAxis domain={[0, 100]} />
-                        <ChartTooltip>
-                          <ChartTooltipContent />
-                        </ChartTooltip>
+                        <ChartTooltip content={<ChartTooltipContent />} />
                         <Legend />
                         <Line 
                           type="monotone" 
@@ -238,7 +230,7 @@ const Analytics = () => {
                           <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                         ))}
                       </Pie>
-                      <Tooltip formatter={(value) => `${value}%`} />
+                      <ChartTooltip formatter={(value) => `${value}%`} />
                       <Legend />
                     </PieChart>
                   </ResponsiveContainer>
