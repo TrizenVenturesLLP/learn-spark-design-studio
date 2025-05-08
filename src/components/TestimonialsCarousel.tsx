@@ -6,14 +6,16 @@ const testimonials = [
   {
     id: 1,
     name: "Spoorthi Sameera Varada",
-    role: "",
+    education: "B.Tech Final Year",
+    role: "AI Intern at Cognitbotz Solutions",
     content:
       "The ML course from Trizen Learning provides a strong foundation in machine learning with clear and practical explanations. The hands-on projects helped me overcome my fear of ML and boosted my confidence. The instructors were knowledgeable and supportive throughout the course. I highly recommend it to anyone starting their ML journey.",
   },
   {
     id: 2,
     name: "Vishakha Deshmukh",
-    role: "Software Engineer, Kognito AI",
+    education: "MBA",
+    role: "Software Engineer at Kognito AI",
     content:
       "Working with the Trizen team and mentors was an enriching and rewarding experience. The hands-on projects, along with continuous support and insightful guidance, helped me strengthen my skills in machine learning and deep learning. The supportive environment played a key role in boosting my confidence and preparing me to take on real-world AI challenges with clarity and conviction.",
   },
@@ -68,6 +70,7 @@ const TestimonialsCarousel = () => {
 
                 <div className="mt-3">
                   <p className="font-semibold text-sm">{testimonials[activeIndex].name}</p>
+                  <p className="text-xs text-gray-500">{testimonials[activeIndex].education}</p>
                   <p className="text-xs text-gray-500">{testimonials[activeIndex].role}</p>
                 </div>
               </div>
