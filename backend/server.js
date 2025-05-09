@@ -41,6 +41,14 @@ const upload = multer({ storage });
 // Serve static files from uploads directory
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+// Enable CORS for image requests
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  next();
+});
+
 // Connect to MongoDB
 mongoose.connect(process.env.MongoDB_URL)
   .then(() => console.log('Connected to MongoDB'))
@@ -62,6 +70,10 @@ const enrollmentRequestSchema = new mongoose.Schema({
     ref: 'Course',
   },
   email: {
+    type: String,
+    required: true,
+  },
+  mobile: {
     type: String,
     required: true,
   },
@@ -469,9 +481,9 @@ const adminMiddleware = async (req, res, next) => {
 // Submit enrollment request
 app.post('/api/enrollment-requests', authenticateToken, upload.single('transactionScreenshot'), async (req, res) => {
   try {
-    const { email, utrNumber, courseName, courseId } = req.body;
+    const { email, mobile, utrNumber, courseName, courseId } = req.body;
     
-    if (!email || !utrNumber || !courseName || !courseId || !req.file) {
+    if (!email || !mobile || !utrNumber || !courseName || !courseId || !req.file) {
       return res.status(400).json({ message: 'All fields and file are required' });
     }
     
@@ -479,6 +491,7 @@ app.post('/api/enrollment-requests', authenticateToken, upload.single('transacti
       userId: req.user.id,
       courseId,
       email,
+      mobile,
       courseName,
       utrNumber,
       transactionScreenshot: `/uploads/${req.file.filename}`,

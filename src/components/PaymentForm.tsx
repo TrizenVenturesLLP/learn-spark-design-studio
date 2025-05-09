@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
@@ -17,6 +16,10 @@ import { useToast } from "@/hooks/use-toast";
 // Define form schema
 const formSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address" }),
+  mobile: z.string()
+    .min(10, { message: "Mobile number must be at least 10 digits" })
+    .max(15, { message: "Mobile number can't be longer than 15 digits" })
+    .regex(/^[0-9]+$/, { message: "Mobile number can only contain digits" }),
   utrNumber: z.string().min(1, { message: "UTR number is required" }),
   transactionScreenshot: z.instanceof(FileList).refine(
     (files) => files.length === 1,
@@ -39,6 +42,7 @@ const PaymentForm = () => {
     resolver: zodResolver(formSchema),
     defaultValues: {
       email: user?.email || "",
+      mobile: "",
       utrNumber: "",
     },
   });
@@ -62,6 +66,7 @@ const PaymentForm = () => {
     try {
       const formData = new FormData();
       formData.append("email", data.email);
+      formData.append("mobile", data.mobile);
       formData.append("utrNumber", data.utrNumber);
       formData.append("courseName", course.title);
       formData.append("courseId", courseId);
@@ -112,12 +117,11 @@ const PaymentForm = () => {
           <div className="mb-6 border p-4 rounded-md bg-slate-50">
             <h3 className="text-sm font-medium mb-2">Scan QR code to make payment</h3>
             <div className="flex justify-center">
-              <img 
-                src="/lovable-uploads/payment-qr.png" 
-                alt="Payment QR Code" 
-                className="max-w-[200px] mb-2" 
-              />
+            
+            <iframe src="https://drive.google.com/file/d/1tMSWcxYAypJ0IzKTslgwLepTSIOT3MvD/preview" width="300" height="300" ></iframe>
+
             </div>
+            <p className="text-base text-center font-semibold text-black">Payment details: ₹399</p>
             <p className="text-xs text-center text-muted-foreground">
               After payment, fill the form below with your payment details
             </p>
@@ -133,6 +137,24 @@ const PaymentForm = () => {
                     <FormLabel>Email</FormLabel>
                     <FormControl>
                       <Input {...field} disabled={!!user?.email} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="mobile"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Mobile Number</FormLabel>
+                    <FormControl>
+                      <Input 
+                        {...field} 
+                        placeholder="Enter your mobile number" 
+                        type="tel"
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

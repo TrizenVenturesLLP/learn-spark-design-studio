@@ -1,21 +1,25 @@
-
 import axios from 'axios';
 
+const baseURL = 'http://localhost:5001';
+
 const instance = axios.create({
-  baseURL: 'http://localhost:5001', // Update this with your API base URL
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  baseURL,
+  withCredentials: false,
 });
 
-// Add request interceptor to include auth token
-instance.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+// Add a request interceptor to add the token
+instance.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
   }
-  return config;
-});
+);
 
 // Add response interceptor to handle common errors
 instance.interceptors.response.use(
@@ -30,5 +34,11 @@ instance.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+export const getImageUrl = (path: string) => {
+  if (!path) return '';
+  if (path.startsWith('http')) return path;
+  return `${baseURL}${path}`;
+};
 
 export default instance;

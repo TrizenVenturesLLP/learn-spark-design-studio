@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import AdminLayout from '@/components/layouts/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,13 +13,14 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import axios from '@/lib/axios';
+import axios, { getImageUrl } from '@/lib/axios';
 
 interface EnrollmentRequest {
   _id: string;
   userId: string;
   courseId: string;
   email: string;
+  mobile: string;
   courseName: string;
   utrNumber: string;
   transactionScreenshot: string;
@@ -144,6 +144,7 @@ const EnrollmentRequests = () => {
                   <TableRow>
                     <TableHead>Date</TableHead>
                     <TableHead>Email</TableHead>
+                    <TableHead>Mobile</TableHead>
                     <TableHead>Course</TableHead>
                     <TableHead>UTR Number</TableHead>
                     <TableHead>Status</TableHead>
@@ -158,6 +159,7 @@ const EnrollmentRequests = () => {
                         {formatDate(request.createdAt)}
                       </TableCell>
                       <TableCell>{request.email}</TableCell>
+                      <TableCell>{request.mobile}</TableCell>
                       <TableCell>{request.courseName}</TableCell>
                       <TableCell>{request.utrNumber}</TableCell>
                       <TableCell>{getStatusBadge(request.status)}</TableCell>
@@ -212,7 +214,7 @@ const EnrollmentRequests = () => {
             {selectedRequest && (
               <div className="mt-4 flex justify-center">
                 <img 
-                  src={selectedRequest.transactionScreenshot} 
+                  src={getImageUrl(selectedRequest.transactionScreenshot)}
                   alt="Transaction Screenshot" 
                   className="max-h-[70vh] max-w-full object-contain rounded" 
                 />

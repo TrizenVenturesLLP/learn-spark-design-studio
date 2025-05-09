@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
@@ -31,25 +30,8 @@ const EnrollForm: React.FC<EnrollFormProps> = ({ courseId }) => {
       return;
     }
     
-    try {
-      await enrollMutation.mutateAsync({ courseId: courseId!, token: token! });
-      
-      toast({
-        title: "Enrollment Successful!",
-        description: `You have successfully enrolled in ${course?.title || 'this course'}.`,
-      });
-      
-      // Redirect to my courses after successful enrollment
-      setTimeout(() => {
-        navigate('/my-courses');
-      }, 2000);
-    } catch (error: any) {
-      toast({
-        title: "Enrollment Failed",
-        description: error.response?.data?.message || "Could not enroll in this course. Please try again.",
-        variant: "destructive",
-      });
-    }
+    // Redirect to payment form with correct path
+    navigate(`/course/${courseId}/payment`);
   };
 
   const handleStartCourse = async () => {

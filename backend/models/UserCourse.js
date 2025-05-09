@@ -1,4 +1,3 @@
-
 const mongoose = require('mongoose');
 
 const userCourseSchema = new mongoose.Schema({
@@ -20,7 +19,7 @@ const userCourseSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['enrolled', 'started', 'completed'],
+    enum: ['pending', 'enrolled', 'started', 'completed'],
     default: 'enrolled'
   },
   enrolledAt: { 
