@@ -98,6 +98,33 @@ const enrollmentRequestSchema = new mongoose.Schema({
 
 const EnrollmentRequest = mongoose.model('EnrollmentRequest', enrollmentRequestSchema);
 
+// Create ContactRequest model
+const contactRequestSchema = new mongoose.Schema({
+  name: {
+    type: String,
+    required: true,
+  },
+  email: {
+    type: String,
+    required: true,
+  },
+  message: {
+    type: String,
+    required: true,
+  },
+  subject: {
+    type: String,
+    required: true,
+  },
+  status: {
+    type: String,
+    enum: ['new', 'read', 'replied'],
+    default: 'new',
+  },
+}, { timestamps: true });
+
+const ContactRequest = mongoose.model('ContactRequest', contactRequestSchema);
+
 // JWT Secret
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
@@ -627,6 +654,73 @@ app.put('/api/admin/enrollment-requests/:id/reject', authenticateToken, adminMid
     
   } catch (error) {
     console.error('Reject enrollment error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Contact Request Routes
+
+// Submit contact request
+app.post('/api/contact-requests', async (req, res) => {
+  try {
+    const { name, email, subject, message } = req.body;
+    
+    if (!name || !email || !subject || !message) {
+      return res.status(400).json({ message: 'All fields are required' });
+    }
+    
+    const contactRequest = new ContactRequest({
+      name,
+      email,
+      subject,
+      message,
+      status: 'new'
+    });
+    
+    await contactRequest.save();
+    
+    res.status(201).json({ 
+      message: 'Contact request submitted successfully',
+      contactRequest
+    });
+    
+  } catch (error) {
+    console.error('Contact request error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Admin: Get all contact requests
+app.get('/api/admin/contact-requests', authenticateToken, adminMiddleware, async (req, res) => {
+  try {
+    const contactRequests = await ContactRequest.find().sort({ createdAt: -1 });
+    res.json(contactRequests);
+  } catch (error) {
+    console.error('Get contact requests error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Admin: Update contact request status
+app.put('/api/admin/contact-requests/:id/status', authenticateToken, adminMiddleware, async (req, res) => {
+  try {
+    const { status } = req.body;
+    const contactRequest = await ContactRequest.findById(req.params.id);
+    
+    if (!contactRequest) {
+      return res.status(404).json({ message: 'Contact request not found' });
+    }
+    
+    contactRequest.status = status;
+    await contactRequest.save();
+    
+    res.json({ 
+      message: 'Contact request status updated',
+      contactRequest
+    });
+    
+  } catch (error) {
+    console.error('Update contact request status error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });

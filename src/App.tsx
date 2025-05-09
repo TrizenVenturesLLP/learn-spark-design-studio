@@ -29,6 +29,7 @@ import UserManagement from "./pages/admin/UserManagement";
 import CourseManagement from "./pages/admin/CourseManagement";
 import Analytics from "./pages/admin/Analytics";
 import EnrollmentRequests from "./pages/admin/EnrollmentRequests";
+import ContactRequests from "./pages/admin/ContactRequests";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -212,6 +213,11 @@ const App = () => (
             <Route path="/admin/enrollment-requests" element={
               <AdminRoute>
                 <EnrollmentRequests />
+              </AdminRoute>
+            } />
+            <Route path="/admin/contact-requests" element={
+              <AdminRoute>
+                <ContactRequests />
               </AdminRoute>
             } />
 

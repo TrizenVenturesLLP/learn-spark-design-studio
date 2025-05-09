@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import {
@@ -9,7 +8,8 @@ import {
   Menu,
   ChevronLeft,
   BarChart3,
-  Receipt
+  Receipt,
+  MessageSquare
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
@@ -35,6 +35,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
     { icon: Users, name: 'Users', path: '/admin/users' },
     { icon: BookOpen, name: 'Courses', path: '/admin/courses' },
     { icon: Receipt, name: 'Enrollment Requests', path: '/admin/enrollment-requests' },
+    { icon: MessageSquare, name: 'Contact Requests', path: '/admin/contact-requests' },
     { icon: BarChart3, name: 'Analytics', path: '/admin/analytics' },
   ];
 

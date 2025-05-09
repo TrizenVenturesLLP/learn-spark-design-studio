@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -13,6 +12,9 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { useUpdateProgress, Course, RoadmapDay } from '@/services/courseService';
+
+// Import your logo image
+import companyLogo from '/logo_footer.png'; // Adjust path as needed
 
 interface CourseData extends Course {
   _id: string;
@@ -70,14 +72,11 @@ const VideoPlayer = ({
         try {
           const data = JSON.parse(event.data);
           
-          // Handle video time updates
           if (data.currentTime) {
             const newTime = parseFloat(data.currentTime);
             
-            // If user tries to skip forward more than 1 second
             if (newTime > lastValidTime + 1 && newTime - lastValidTime < 10) {
               console.log('User tried to skip forward', newTime, lastValidTime);
-              // Send message to iframe to seek back
               iframeRef.current?.contentWindow?.postMessage(
                 JSON.stringify({
                   event: 'command',
@@ -86,16 +85,13 @@ const VideoPlayer = ({
                 }),
                 '*'
               );
-              // Keep the current time at the last valid point
               setCurrentTime(lastValidTime);
             } else {
-              // If it's a normal progression or a small jump (like buffering)
               setLastValidTime(newTime);
               setCurrentTime(newTime);
             }
           }
 
-          // Handle video completion
           if (data.percentPlayed >= 95 && !isVideoCompleted) {
             setIsVideoCompleted(true);
             onVideoComplete();
@@ -134,11 +130,10 @@ const VideoPlayer = ({
     );
   }
 
-  // Add parameters to disable player controls, seekbar, keyboard controls, and hide timeline
   const driveEmbedUrl = `https://drive.google.com/file/d/${fileId}/preview?controls=0&disablekb=1&modestbranding=1&rel=0&showinfo=0&enablejsapi=1&widgetid=1&fs=0&iv_load_policy=3&playsinline=1&autohide=1&html5=1&cc_load_policy=0`;
 
   return (
-    <div className="aspect-video w-full rounded-lg overflow-hidden bg-black">
+    <div className="aspect-video w-full rounded-lg overflow-hidden bg-black relative">
       <iframe
         ref={iframeRef}
         title="Course Video"
@@ -149,6 +144,20 @@ const VideoPlayer = ({
         allowFullScreen
         className="w-full h-full"
       />
+      
+      {/* Logo with overlay background */}
+      <div className="absolute top-4 z-5 flex items-center" style={{ right: '-3px' }}>
+      {/* Semi-transparent overlay background with subtle shadow */}
+        <div className="absolute inset-0 bg-black/0 rounded-lg  -z-5 " />
+        {/* Logo container with padding */}
+        <div className="px-3 py-2">
+          <img 
+            src={companyLogo}
+            alt="Company Logo"
+            className="h-7 w-auto" // Adjust size as needed
+          />
+        </div>
+      </div>
     </div>
   );
 };
@@ -403,7 +412,8 @@ const CourseWeekView = () => {
                 {completedDays.includes(currentDay.day)
                   ? "Mark as Incomplete"
                   : "Mark as Complete"}
-              </Button>    </div>
+              </Button>
+            </div>
           )}
         </div>
       </div>

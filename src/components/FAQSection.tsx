@@ -9,6 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { X } from "lucide-react";
 import { useState } from "react";
+import axios from '@/lib/axios';
+import { useToast } from "@/hooks/use-toast";
 
 const faqs = [
   {
@@ -31,11 +33,47 @@ const faqs = [
 
 const FAQSection = () => {
   const [showForm, setShowForm] = useState(false);
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    subject: '',
+    message: ''
+  });
+  const { toast } = useToast();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { id, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [id]: value
+    }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle form submission logic here
-    setShowForm(false);
+    
+    try {
+      await axios.post('/api/contact-requests', formData);
+      
+      toast({
+        title: "Message sent successfully",
+        description: "We'll get back to you as soon as possible.",
+      });
+      
+      setFormData({
+        name: '',
+        email: '',
+        subject: '',
+        message: ''
+      });
+      setShowForm(false);
+    } catch (error) {
+      toast({
+        title: "Error sending message",
+        description: "Please try again later.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -148,6 +186,8 @@ const FAQSection = () => {
                       id="name"
                       placeholder="John Doe"
                       required
+                      value={formData.name}
+                      onChange={handleInputChange}
                     />
                   </div>
                   <div className="space-y-2">
@@ -159,6 +199,20 @@ const FAQSection = () => {
                       type="email"
                       placeholder="john@example.com"
                       required
+                      value={formData.email}
+                      onChange={handleInputChange}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label htmlFor="subject" className="text-sm font-medium text-left block">
+                      Subject
+                    </label>
+                    <Input
+                      id="subject"
+                      placeholder="What is your question about?"
+                      required
+                      value={formData.subject}
+                      onChange={handleInputChange}
                     />
                   </div>
                   <div className="space-y-2">
@@ -170,6 +224,8 @@ const FAQSection = () => {
                       placeholder="Tell us about your question or issue..."
                       className="h-32 resize-none"
                       required
+                      value={formData.message}
+                      onChange={handleInputChange}
                     />
                   </div>
                   <Button type="submit" className="w-full">
