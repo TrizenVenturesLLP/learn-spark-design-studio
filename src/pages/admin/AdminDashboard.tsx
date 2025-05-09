@@ -29,7 +29,7 @@ const AdminDashboard = () => {
     totalCourses: 42,
     activeUsers: 876,
     inactiveUsers: 369,
-    pendingEnrollments: 8,
+    pendingEnrollments: 1,
     enrollments: {
       daily: 24,
       weekly: 187,
@@ -76,7 +76,7 @@ const AdminDashboard = () => {
                   <Bell className="h-5 w-5" />
                 </div>
                 <span className="font-medium">
-                  {stats.pendingEnrollments} pending enrollment {stats.pendingEnrollments === 1 ? 'request' : 'requests'} to review
+                   pending enrollment {stats.pendingEnrollments === 1 ? 'request' : 'requests'} to review
                 </span>
               </div>
               <Button 
