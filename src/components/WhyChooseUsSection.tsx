@@ -1,5 +1,5 @@
 
-import { Award, BookOpen, Users } from "lucide-react";
+import { Users, Code, BookOpen } from "lucide-react";
 
 const WhyChooseUsSection = () => {
   const features = [
@@ -9,12 +9,12 @@ const WhyChooseUsSection = () => {
       description: "Learn from experts with real-world experience in their fields."
     },
     {
-      icon: BookOpen,
+      icon: Code,
       title: "Hands-on projects",
       description: "Apply your knowledge with real-world projects to build your portfolio."
     },
     {
-      icon: Award,
+      icon: BookOpen,
       title: "Job-oriented curriculum",
       description: "Courses designed with input from hiring managers and industry leaders."
     }
@@ -30,14 +30,16 @@ const WhyChooseUsSection = () => {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="flex flex-col space-y-10 md:space-y-14">
           {features.map((feature, index) => (
-            <div key={index} className="bg-white p-8 rounded-lg shadow-md text-center flex flex-col items-center">
-              <div className="bg-lms-purple/10 p-3 rounded-full mb-5">
+            <div key={index} className="flex flex-col md:flex-row md:items-center">
+              <div className="bg-purple-50 p-4 rounded-lg mb-4 md:mb-0 md:mr-8 flex items-center justify-center" style={{ width: '72px', height: '72px' }}>
                 <feature.icon className="h-8 w-8 text-lms-purple" />
               </div>
-              <h3 className="text-xl font-semibold mb-3">{feature.title}</h3>
-              <p className="text-gray-600">{feature.description}</p>
+              <div>
+                <h3 className="text-2xl font-semibold mb-2">{feature.title}</h3>
+                <p className="text-gray-600">{feature.description}</p>
+              </div>
             </div>
           ))}
         </div>
