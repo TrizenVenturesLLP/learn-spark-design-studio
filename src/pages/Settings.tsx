@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -9,17 +10,186 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useToast } from "@/hooks/use-toast";
 import { 
   User, Bell, Shield, Globe, Mail, Phone, 
-  Facebook, Twitter, Github, Linkedin 
+  Lock, Smartphone, Laptop, Fingerprint
 } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { 
+  useUserSettings, 
+  useUpdateProfile, 
+  useUpdatePassword,
+  useUpdateNotifications,
+  useConnectedDevices,
+  useRemoveDevice,
+  type UserSettings
+} from '@/services/userService';
+
+interface ConnectedDevice {
+  id: string;
+  name: string;
+  type: 'desktop' | 'mobile';
+  browser: string;
+  lastActive: string;
+}
 
 const Settings = () => {
-  const handleSubmit = (e: React.FormEvent) => {
+  const { toast } = useToast();
+  const { data: userSettings, isLoading } = useUserSettings();
+  const updateProfile = useUpdateProfile();
+  const updatePassword = useUpdatePassword();
+  const updateNotifications = useUpdateNotifications();
+  const { data: connectedDevices } = useConnectedDevices();
+  const removeDevice = useRemoveDevice();
+
+  // Form states
+  const [profileData, setProfileData] = useState({
+    name: '',
+    displayName: '',
+    bio: '',
+    email: '',
+    timezone: 'UTC'
+  });
+
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+
+  const [notificationPrefs, setNotificationPrefs] = useState({
+    courseUpdates: true,
+    assignmentReminders: true,
+    discussionReplies: true
+  });
+
+  // Update form data when user settings load
+  useEffect(() => {
+    if (userSettings) {
+      const settings = userSettings as UserSettings;
+      setProfileData({
+        name: settings?.name || '',
+        displayName: settings?.displayName || '',
+        bio: settings?.bio || '',
+        email: settings?.email || '',
+        timezone: settings?.timezone || 'UTC'
+      });
+      
+      setNotificationPrefs({
+        courseUpdates: settings?.notificationPreferences?.courseUpdates ?? true,
+        assignmentReminders: settings?.notificationPreferences?.assignmentReminders ?? true,
+        discussionReplies: settings?.notificationPreferences?.discussionReplies ?? true
+      });
+    }
+  }, [userSettings]);
+
+  // Update profile form handler
+  const handleProfileSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Static implementation - no actual submission
-    console.log('Settings updated');
+    try {
+      await updateProfile.mutateAsync(profileData);
+      toast({
+        title: "Profile Updated",
+        description: "Your profile has been updated successfully.",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update profile. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
+
+  // Update password form handler
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (passwordData.newPassword.length < 6) {
+      toast({
+        title: "Error",
+        description: "New password must be at least 6 characters long.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      toast({
+        title: "Error",
+        description: "New passwords don't match.",
+        variant: "destructive",
+      });
+      return;
+    }
+    try {
+      await updatePassword.mutateAsync({
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword
+      });
+      toast({
+        title: "Success",
+        description: "Your password has been updated successfully.",
+      });
+      setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update password. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Handle notification preference changes
+  const handleNotificationChange = async (key: keyof typeof notificationPrefs) => {
+    const newPrefs = {
+      ...notificationPrefs,
+      [key]: !notificationPrefs[key]
+    };
+    setNotificationPrefs(newPrefs);
+    try {
+      await updateNotifications.mutateAsync(newPrefs);
+    } catch (error) {
+      // Revert on error
+      setNotificationPrefs(notificationPrefs);
+      toast({
+        title: "Error",
+        description: "Failed to update notification preferences.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Handle device removal
+  const handleRemoveDevice = async (deviceId: string) => {
+    try {
+      await removeDevice.mutateAsync(deviceId);
+      toast({
+        title: "Device Removed",
+        description: "The device has been removed from your account.",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to remove device. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <div className="flex-1 p-6">
+          <div className="max-w-4xl mx-auto space-y-6">
+            <div className="h-8 bg-muted animate-pulse rounded" />
+            <div className="h-[200px] bg-muted animate-pulse rounded" />
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
@@ -65,33 +235,50 @@ const Settings = () => {
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <form onSubmit={handleSubmit} className="space-y-4">
+                    <form onSubmit={handleProfileSubmit} className="space-y-4">
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <Label htmlFor="name">Full Name</Label>
-                          <Input id="name" defaultValue="John Doe" />
+                          <Input 
+                            id="name" 
+                            value={profileData.name}
+                            onChange={e => setProfileData({...profileData, name: e.target.value})}
+                            />
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="display-name">Display Name</Label>
-                          <Input id="display-name" defaultValue="johndoe" />
+                          <Input 
+                            id="display-name" 
+                            value={profileData.displayName}
+                            onChange={e => setProfileData({...profileData, displayName: e.target.value})}
+                          />
                         </div>
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="bio">Bio</Label>
                         <Textarea 
                           id="bio" 
-                          defaultValue="Full-stack developer passionate about web technologies and continuous learning."
+                          value={profileData.bio}
+                          onChange={e => setProfileData({...profileData, bio: e.target.value})}
                           className="min-h-[100px]"
                         />
                       </div>
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <Label htmlFor="email">Email</Label>
-                          <Input id="email" type="email" defaultValue="john.doe@example.com" />
+                          <Input 
+                            id="email" 
+                            type="email" 
+                            value={profileData.email}
+                            onChange={e => setProfileData({...profileData, email: e.target.value})}
+                          />
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="timezone">Timezone</Label>
-                          <Select defaultValue="UTC">
+                          <Select 
+                            value={profileData.timezone}
+                            onValueChange={value => setProfileData({...profileData, timezone: value})}
+                          >
                             <SelectTrigger>
                               <SelectValue placeholder="Select timezone" />
                             </SelectTrigger>
@@ -103,34 +290,10 @@ const Settings = () => {
                           </Select>
                         </div>
                       </div>
-                      <Button type="submit">Save Changes</Button>
+                      <Button type="submit" disabled={updateProfile.isPending}>
+                        {updateProfile.isPending ? "Saving..." : "Save Changes"}
+                      </Button>
                     </form>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Social Profiles</CardTitle>
-                    <CardDescription>
-                      Connect your social media accounts
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Github className="h-5 w-5" />
-                        <span>GitHub</span>
-                      </div>
-                      <Button variant="outline">Connect</Button>
-                    </div>
-                    <Separator />
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Linkedin className="h-5 w-5" />
-                        <span>LinkedIn</span>
-                      </div>
-                      <Button variant="outline">Connect</Button>
-                    </div>
                   </CardContent>
                 </Card>
               </div>
@@ -152,7 +315,10 @@ const Settings = () => {
                         Receive notifications about course content updates
                       </p>
                     </div>
-                    <Switch defaultChecked />
+                    <Switch
+                      checked={notificationPrefs.courseUpdates}
+                      onCheckedChange={() => handleNotificationChange('courseUpdates')}
+                      />
                   </div>
                   <Separator />
                   <div className="flex items-center justify-between">
@@ -162,7 +328,10 @@ const Settings = () => {
                         Get notified about upcoming assignments
                       </p>
                     </div>
-                    <Switch defaultChecked />
+                    <Switch
+                      checked={notificationPrefs.assignmentReminders}
+                      onCheckedChange={() => handleNotificationChange('assignmentReminders')}
+                      />
                   </div>
                   <Separator />
                   <div className="flex items-center justify-between">
@@ -172,7 +341,10 @@ const Settings = () => {
                         Receive notifications when someone replies to your discussions
                       </p>
                     </div>
-                    <Switch defaultChecked />
+                    <Switch
+                      checked={notificationPrefs.discussionReplies}
+                      onCheckedChange={() => handleNotificationChange('discussionReplies')}
+                    />
                   </div>
                 </CardContent>
               </Card>
@@ -188,38 +360,158 @@ const Settings = () => {
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <form onSubmit={handleSubmit} className="space-y-4">
+                    <form onSubmit={handlePasswordSubmit} className="space-y-4">
                       <div className="space-y-2">
                         <Label htmlFor="current-password">Current Password</Label>
-                        <Input id="current-password" type="password" />
+                        <Input 
+                          id="current-password" 
+                          type="password"
+                          value={passwordData.currentPassword}
+                          onChange={e => setPasswordData({...passwordData, currentPassword: e.target.value})}
+                        />
                       </div>
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <Label htmlFor="new-password">New Password</Label>
-                          <Input id="new-password" type="password" />
+                          <Input 
+                            id="new-password" 
+                            type="password"
+                            value={passwordData.newPassword}
+                            onChange={e => setPasswordData({...passwordData, newPassword: e.target.value})}
+                          />
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="confirm-password">Confirm New Password</Label>
-                          <Input id="confirm-password" type="password" />
+                          <Input 
+                            id="confirm-password" 
+                            type="password"
+                            value={passwordData.confirmPassword}
+                            onChange={e => setPasswordData({...passwordData, confirmPassword: e.target.value})}
+                          />
                         </div>
                       </div>
-                      <Button type="submit">Update Password</Button>
+                      <Button type="submit" disabled={updatePassword.isPending}>
+                        {updatePassword.isPending ? "Updating..." : "Update Password"}
+                      </Button>
                     </form>
                   </CardContent>
                 </Card>
 
                 <Card>
                   <CardHeader>
-                    <CardTitle>Two-Factor Authentication</CardTitle>
+                    <CardTitle>Two-Step Verification</CardTitle>
                     <CardDescription>
-                      Add an extra layer of security to your account
+                      Secure your account with two-step verification
                     </CardDescription>
                   </CardHeader>
-                  <CardContent>
-                    <Button variant="outline">Enable 2FA</Button>
+                  <CardContent className="space-y-4">
+                    <Alert>
+                      <Fingerprint className="h-4 w-4" />
+                      <AlertTitle>Not Enabled</AlertTitle>
+                      <AlertDescription>
+                        Protect your account with an additional layer of security. Once configured, you'll be required to enter both your password and an authentication code to sign in.
+                      </AlertDescription>
+                    </Alert>
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-4">
+                        <Smartphone className="h-5 w-5 text-muted-foreground" />
+                        <div className="flex-1">
+                          <p className="font-medium">Authenticator App</p>
+                          <p className="text-sm text-muted-foreground">Use an authentication app like Google Authenticator</p>
+                        </div>
+                        <Button variant="outline" disabled>Coming Soon</Button>
+                      </div>
+                      <Separator />
+                      <div className="flex items-center gap-4">
+                        <Phone className="h-5 w-5 text-muted-foreground" />
+                        <div className="flex-1">
+                          <p className="font-medium">SMS Recovery</p>
+                          <p className="text-sm text-muted-foreground">Use your phone number as a backup</p>
+                        </div>
+                        <Button variant="outline" disabled>Coming Soon</Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Login Sessions</CardTitle>
+                    <CardDescription>
+                      Manage your active sessions and devices
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {(connectedDevices as ConnectedDevice[] || []).map(device => (
+                      <div key={device.id} className="flex items-center gap-4">
+                        <Laptop className="h-5 w-5 text-muted-foreground" />
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium">{device.name}</p>
+                            {device.id === 'current' && (
+                              <Badge variant="secondary">Current</Badge>
+                            )}
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            {device.browser} • Last active: {new Date(device.lastActive).toLocaleString()}
+                          </p>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={device.id === 'current'}
+                          onClick={() => handleRemoveDevice(device.id)}
+                        >
+                          <Lock className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
                   </CardContent>
                 </Card>
               </div>
+            </TabsContent>
+
+            <TabsContent value="connected">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Connected Devices</CardTitle>
+                  <CardDescription>
+                    Manage your connected devices and applications
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-4">
+                    {(connectedDevices as ConnectedDevice[] || []).map(device => (
+                      <div key={device.id}>
+                        <div className="flex items-center gap-4">
+                          {device.type === 'desktop' ? (
+                            <Laptop className="h-5 w-5 text-muted-foreground" />
+                          ) : (
+                            <Smartphone className="h-5 w-5 text-muted-foreground" />
+                          )}
+                          <div className="flex-1">
+                            <p className="font-medium">{device.name}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {device.browser} • Last active: {new Date(device.lastActive).toLocaleString()}
+                            </p>
+                          </div>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            disabled={device.id === 'current'}
+                            onClick={() => handleRemoveDevice(device.id)}
+                          >
+                            Remove
+                          </Button>
+                        </div>
+                        {device.id !== (connectedDevices as ConnectedDevice[])[
+                          (connectedDevices as ConnectedDevice[]).length - 1
+                        ].id && <Separator className="my-4" />}
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
             </TabsContent>
           </Tabs>
         </div>

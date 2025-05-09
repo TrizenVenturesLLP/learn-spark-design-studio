@@ -6,46 +6,62 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useAuth } from "@/contexts/AuthContext";
+import { useEnrolledCourses } from "@/services/courseService";
+import { useUserProfile } from '@/services/userService';
 import { 
   BookOpen, Trophy, Star, Clock, GraduationCap, 
   Calendar, MessageSquare 
 } from "lucide-react";
 
-const Profile = () => {
-  // Get user data from auth context
-  const { user, isAuthenticated } = useAuth();
+export type LocalUserSettings = {
+  name?: string;
+  email?: string;
+  bio?: string;
+  displayName?: string;
+  createdAt?: string; // Added createdAt property
+};
 
-  // Ensure we have some data to display even if user is not loaded
-  const displayName = user?.name || user?.email?.split('@')[0] || "Anonymous User";
+const Profile = () => {
+  // Get user data from auth context and profile data
+  const { token, isAuthenticated } = useAuth();
+  const { data: userProfile } = useUserProfile() as { data: LocalUserSettings | undefined };
+  const { data: enrolledCourses = [] } = useEnrolledCourses(token);
+
+  // Use profile data or fallback
+  const displayName = userProfile?.name || userProfile?.email?.split('@')[0] || "Anonymous User";
+
+  // Calculate actual stats from enrolled courses
+  const completedCourses = enrolledCourses.filter(course => course.status === 'completed' && course.progress === 100);
+  const coursesInProgress = enrolledCourses.filter(course => course.status === 'started' || (course.status === 'enrolled' && course.progress > 0));
   
   const userData = {
-    name: displayName,
-    email: user?.email || "No email provided",
+    name: userProfile?.displayName || displayName,
+    email: userProfile?.email || "No email provided",
     avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${displayName}`,
-    bio: "Learning and growing with every course",
+    bio: userProfile?.bio || "Learning and growing with every course",
     role: "Student",
-    joinDate: new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+    joinDate: new Date(userProfile?.createdAt || Date.now()).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
     stats: {
-      coursesCompleted: 5,
-      coursesInProgress: 2,
-      assignmentsSubmitted: 28,
-      averageGrade: 92
+      coursesCompleted: completedCourses.length,
+      coursesInProgress: coursesInProgress.length,
+      assignmentsSubmitted: 0,
+      averageGrade: 0
     },
     achievements: [
-      { id: 1, title: "Course Master", description: "Completed 5 courses", icon: Trophy },
-      { id: 2, title: "Top Performer", description: "Maintained 90%+ average", icon: Star },
-      { id: 3, title: "Active Learner", description: "30 days study streak", icon: Clock }
+      { id: 1, title: "Achievements", description: "Not Available", icon: Trophy },
+      { id: 2, title: "Performance", description: "Not Available", icon: Star },
+      { id: 3, title: "Activity", description: "Not Available", icon: Clock }
     ],
-    recentActivity: [
-      { id: 1, type: 'course', title: "Completed React Fundamentals", date: "2 days ago", icon: BookOpen },
-      { id: 2, type: 'assignment', title: "Submitted Final Project", date: "5 days ago", icon: GraduationCap },
-      { id: 3, type: 'discussion', title: "Posted in React Hooks thread", date: "1 week ago", icon: MessageSquare }
-    ]
+    recentActivity: enrolledCourses.slice(0, 3).map((course, index) => ({
+      id: index + 1,
+      type: course.status === 'completed' ? 'course' : 'progress',
+      title: course.status === 'completed' 
+        ? `Completed ${course.title}` 
+        : `Progress in ${course.title}: ${course.progress}%`,
+      date: "Recently",
+      icon: course.status === 'completed' ? BookOpen : Clock
+    }))
   };
-
-  // Debug logging
-  console.log('Auth User:', user);
-  console.log('Display Name:', displayName);
 
   return (
     <DashboardLayout>

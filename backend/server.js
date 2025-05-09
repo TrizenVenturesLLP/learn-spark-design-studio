@@ -58,6 +58,7 @@ mongoose.connect(process.env.MongoDB_URL)
 const User = require('./models/User');
 const Course = require('./models/Course');
 const UserCourse = require('./models/UserCourse');
+const Discussion = require('./models/Discussion');
 
 // Create EnrollmentRequest model
 const enrollmentRequestSchema = new mongoose.Schema({
@@ -242,6 +243,144 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
     res.json(user);
   } catch (error) {
     console.error('Get user error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Update user profile settings
+app.put('/api/user/profile', authenticateToken, async (req, res) => {
+  try {
+    const { name, displayName, bio, email, timezone } = req.body;
+    
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    // If email is being changed, check if it's already in use
+    if (email && email !== user.email) {
+      const existingUser = await User.findOne({ email });
+      if (existingUser) {
+        return res.status(400).json({ message: 'Email already in use' });
+      }
+      user.email = email;
+    }
+    
+    if (name) user.name = name;
+    if (displayName) user.displayName = displayName;
+    if (bio) user.bio = bio;
+    if (timezone) user.timezone = timezone;
+    
+    await user.save();
+    
+    res.json({
+      message: 'Profile updated successfully',
+      user: {
+        id: user._id,
+        name: user.name,
+        displayName: user.displayName,
+        email: user.email,
+        bio: user.bio,
+        timezone: user.timezone
+      }
+    });
+  } catch (error) {
+    console.error('Update profile error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Update user password
+app.put('/api/user/password', authenticateToken, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    // Verify current password
+    const isPasswordValid = await bcrypt.compare(currentPassword, user.password);
+    if (!isPasswordValid) {
+      return res.status(400).json({ message: 'Current password is incorrect' });
+    }
+    
+    // Hash new password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+    user.password = hashedPassword;
+    
+    await user.save();
+    
+    res.json({ message: 'Password updated successfully' });
+  } catch (error) {
+    console.error('Update password error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Update user notification preferences
+app.put('/api/user/notifications', authenticateToken, async (req, res) => {
+  try {
+    const { courseUpdates, assignmentReminders, discussionReplies } = req.body;
+    
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    // Update notification preferences
+    user.notificationPreferences = {
+      courseUpdates,
+      assignmentReminders,
+      discussionReplies
+    };
+    
+    await user.save();
+    
+    res.json({
+      message: 'Notification preferences updated successfully',
+      preferences: user.notificationPreferences
+    });
+  } catch (error) {
+    console.error('Update notification preferences error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get user's connected devices
+app.get('/api/user/devices', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    res.json(user.connectedDevices || []);
+  } catch (error) {
+    console.error('Get devices error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Remove connected device
+app.delete('/api/user/devices/:deviceId', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    user.connectedDevices = user.connectedDevices.filter(
+      device => device.id !== req.params.deviceId
+    );
+    
+    await user.save();
+    
+    res.json({ message: 'Device removed successfully' });
+  } catch (error) {
+    console.error('Remove device error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -721,6 +860,169 @@ app.put('/api/admin/contact-requests/:id/status', authenticateToken, adminMiddle
     
   } catch (error) {
     console.error('Update contact request status error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Discussion Routes
+
+// Get discussions for a course
+app.get('/api/courses/:courseId/discussions', authenticateToken, async (req, res) => {
+  try {
+    const { courseId } = req.params;
+
+    // Check if user is enrolled in the course
+    const enrollment = await UserCourse.findOne({
+      userId: req.user.id,
+      courseId,
+      status: { $in: ['enrolled', 'started', 'completed'] }
+    });
+
+    if (!enrollment) {
+      return res.status(403).json({ message: 'You must be enrolled in this course to view discussions' });
+    }
+
+    // Get discussions with user and course info
+    const discussions = await Discussion.find({ courseId })
+      .populate('userId', 'name displayName')
+      .populate('replies.userId', 'name displayName')
+      .sort({ createdAt: -1 });
+
+    res.json(discussions);
+  } catch (error) {
+    console.error('Get discussions error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Create new discussion
+app.post('/api/courses/:courseId/discussions', authenticateToken, async (req, res) => {
+  try {
+    const { courseId } = req.params;
+    const { title, content, tags } = req.body;
+
+    // Check if user is enrolled in the course
+    const enrollment = await UserCourse.findOne({
+      userId: req.user.id,
+      courseId,
+      status: { $in: ['enrolled', 'started', 'completed'] }
+    });
+
+    if (!enrollment) {
+      return res.status(403).json({ message: 'You must be enrolled in this course to create discussions' });
+    }
+
+    const discussion = new Discussion({
+      courseId,
+      userId: req.user.id,
+      title,
+      content,
+      tags
+    });
+
+    await discussion.save();
+
+    // Populate user info before sending response
+    await discussion.populate('userId', 'name displayName');
+
+    res.status(201).json(discussion);
+  } catch (error) {
+    console.error('Create discussion error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Add reply to discussion
+app.post('/api/discussions/:discussionId/replies', authenticateToken, async (req, res) => {
+  try {
+    const { discussionId } = req.params;
+    const { content } = req.body;
+
+    const discussion = await Discussion.findById(discussionId);
+    if (!discussion) {
+      return res.status(404).json({ message: 'Discussion not found' });
+    }
+
+    // Check if user is enrolled in the course
+    const enrollment = await UserCourse.findOne({
+      userId: req.user.id,
+      courseId: discussion.courseId,
+      status: { $in: ['enrolled', 'started', 'completed'] }
+    });
+
+    if (!enrollment) {
+      return res.status(403).json({ message: 'You must be enrolled in this course to reply' });
+    }
+
+    discussion.replies.push({
+      userId: req.user.id,
+      content
+    });
+
+    await discussion.save();
+    await discussion.populate('replies.userId', 'name displayName');
+
+    res.status(201).json(discussion.replies[discussion.replies.length - 1]);
+  } catch (error) {
+    console.error('Add reply error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Toggle like on discussion
+app.post('/api/discussions/:discussionId/like', authenticateToken, async (req, res) => {
+  try {
+    const { discussionId } = req.params;
+
+    const discussion = await Discussion.findById(discussionId);
+    if (!discussion) {
+      return res.status(404).json({ message: 'Discussion not found' });
+    }
+
+    // Check if user is enrolled in the course
+    const enrollment = await UserCourse.findOne({
+      userId: req.user.id,
+      courseId: discussion.courseId,
+      status: { $in: ['enrolled', 'started', 'completed'] }
+    });
+
+    if (!enrollment) {
+      return res.status(403).json({ message: 'You must be enrolled in this course to like discussions' });
+    }
+
+    const userLikeIndex = discussion.likes.indexOf(req.user.id);
+    if (userLikeIndex === -1) {
+      discussion.likes.push(req.user.id);
+    } else {
+      discussion.likes.splice(userLikeIndex, 1);
+    }
+
+    await discussion.save();
+    res.json({ likes: discussion.likes.length });
+  } catch (error) {
+    console.error('Toggle like error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Delete discussion
+app.delete('/api/discussions/:discussionId', authenticateToken, async (req, res) => {
+  try {
+    const { discussionId } = req.params;
+
+    const discussion = await Discussion.findById(discussionId);
+    if (!discussion) {
+      return res.status(404).json({ message: 'Discussion not found' });
+    }
+
+    if (discussion.userId.toString() !== req.user.id.toString()) {
+      return res.status(403).json({ message: 'Not authorized to delete this discussion' });
+    }
+
+    await Discussion.deleteOne({ _id: discussionId });
+    res.json({ message: 'Discussion deleted successfully' });
+  } catch (error) {
+    console.error('Delete discussion error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
