@@ -1,17 +1,20 @@
 
-import { Check } from "lucide-react";
+import { Award, BookOpen, Users } from "lucide-react";
 
 const WhyChooseUsSection = () => {
   const features = [
     {
+      icon: Users,
       title: "Industry-certified instructors",
       description: "Learn from experts with real-world experience in their fields."
     },
     {
+      icon: BookOpen,
       title: "Hands-on projects",
       description: "Apply your knowledge with real-world projects to build your portfolio."
     },
     {
+      icon: Award,
       title: "Job-oriented curriculum",
       description: "Courses designed with input from hiring managers and industry leaders."
     }
@@ -29,13 +32,11 @@ const WhyChooseUsSection = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {features.map((feature, index) => (
-            <div key={index} className="bg-white p-6 rounded-lg shadow-md">
-              <div className="flex items-start mb-4">
-                <div className="bg-blue-100 p-1 rounded-full mr-4">
-                  <Check className="h-6 w-6 text-blue-600" />
-                </div>
-                <h3 className="text-xl font-semibold">{feature.title}</h3>
+            <div key={index} className="bg-white p-8 rounded-lg shadow-md text-center flex flex-col items-center">
+              <div className="bg-lms-purple/10 p-3 rounded-full mb-5">
+                <feature.icon className="h-8 w-8 text-lms-purple" />
               </div>
+              <h3 className="text-xl font-semibold mb-3">{feature.title}</h3>
               <p className="text-gray-600">{feature.description}</p>
             </div>
           ))}
