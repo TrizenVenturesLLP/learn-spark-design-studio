@@ -10,8 +10,8 @@ const testimonials = [
     role: "AI Intern at Cognitbotz Solutions",
     content:
       "The ML course from Trizen Learning provides a strong foundation in machine learning with clear and practical explanations. The hands-on projects helped me overcome my fear of ML and boosted my confidence. The instructors were knowledgeable and supportive throughout the course. I highly recommend it to anyone starting their ML journey.",
-    image: "/images/spoorthi.jpg", // Replace with actual image path
-    linkedin: "https://www.linkedin.com/in/spoorthi-placeholder", // Replace with actual URL
+    image: "/spoorthi.jpeg", // Replace with actual image path
+    linkedin: "https://www.linkedin.com/in/spoorthi-sameera-209721257/", // Replace with actual URL
   },
   {
     id: 2,
@@ -20,8 +20,8 @@ const testimonials = [
     role: "Software Engineer at Kognito AI",
     content:
       "Working with the Trizen team and mentors was an enriching and rewarding experience. The hands-on projects, along with continuous support and insightful guidance, helped me strengthen my skills in machine learning and deep learning. The supportive environment played a key role in boosting my confidence and preparing me to take on real-world AI challenges with clarity and conviction.",
-    image: "/images/vishakha.jpg", // Replace with actual image path
-    linkedin: "https://www.linkedin.com/in/vishakha-placeholder", // Replace with actual URL
+    image: "/vishaka.jpeg", // Replace with actual image path
+    linkedin: "https://www.linkedin.com/in/vishakha-deshmukh-a97261264/", // Replace with actual URL
   },
 ];
 
