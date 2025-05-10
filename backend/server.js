@@ -7,6 +7,7 @@ const dotenv = require('dotenv');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const nodemailer = require('nodemailer');
 
 // Load environment variables
 dotenv.config();
@@ -128,6 +129,58 @@ const ContactRequest = mongoose.model('ContactRequest', contactRequestSchema);
 
 // JWT Secret
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+
+// Configure nodemailer
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASSWORD
+  }
+});
+
+// Add this after the transporter configuration
+const sendEnrollmentApprovalEmail = async (enrollmentRequest) => {
+  const mailOptions = {
+    from: `"Trizen Ventures LLP" <${process.env.EMAIL_USER}>`,
+    to: enrollmentRequest.userId.email,
+    subject: '🎉 Your Enrollment Has Been Approved – Welcome to the Course!',
+    html: `
+      <div style="font-family: Arial, sans-serif; color: #333;">
+        <div style="max-width: 600px; margin: auto; border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px;">
+          <h2 style="color: #007BFF;">Enrollment Confirmation</h2>
+          <p>Dear ${enrollmentRequest.userId.name || 'Student'},</p>
+
+          <p>We are pleased to inform you that your enrollment in the course <strong>"${enrollmentRequest.courseId.title}"</strong> has been officially approved.</p>
+
+          <p>You now have full access to all course materials, resources, and support. We encourage you to dive in and begin your learning journey with us.</p>
+
+          <p>At <strong>Trizen Ventures LLP</strong>, we're committed to delivering world-class education and helping professionals like you unlock their full potential.</p>
+
+          <p>If you have any questions or require assistance, our support team is always here to help.</p>
+
+          <p style="margin-top: 30px;">Welcome aboard, and happy learning!</p>
+
+          <p>Warm regards,<br>
+          <strong>Student Success Team</strong><br>
+          Trizen Ventures LLP</p>
+
+          <hr style="margin-top: 30px;">
+          <p style="font-size: 12px; color: #999;">This is an automated message. Please do not reply to this email.</p>
+        </div>
+      </div>
+    `
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    console.log('Enrollment approval email sent successfully');
+  } catch (error) {
+    console.error('Error sending enrollment approval email:', error);
+    // Do not throw error to avoid interrupting the approval process
+  }
+};
+
 
 // Authentication Routes
 // Signup
@@ -710,10 +763,12 @@ app.get('/api/admin/enrollment-requests', authenticateToken, adminMiddleware, as
   }
 });
 
-// Admin: Approve enrollment request
+// Replace the existing approval endpoint with this updated version
 app.put('/api/admin/enrollment-requests/:id/approve', authenticateToken, adminMiddleware, async (req, res) => {
   try {
-    const enrollmentRequest = await EnrollmentRequest.findById(req.params.id);
+    const enrollmentRequest = await EnrollmentRequest.findById(req.params.id)
+      .populate('userId', 'email')
+      .populate('courseId', 'title');
     
     if (!enrollmentRequest) {
       return res.status(404).json({ message: 'Enrollment request not found' });
@@ -725,8 +780,8 @@ app.put('/api/admin/enrollment-requests/:id/approve', authenticateToken, adminMi
     
     // Update user course enrollment
     const existingEnrollment = await UserCourse.findOne({ 
-      userId: enrollmentRequest.userId,
-      courseId: enrollmentRequest.courseId
+      userId: enrollmentRequest.userId._id,
+      courseId: enrollmentRequest.courseId._id
     });
     
     if (existingEnrollment) {
@@ -734,8 +789,8 @@ app.put('/api/admin/enrollment-requests/:id/approve', authenticateToken, adminMi
       await existingEnrollment.save();
     } else {
       const enrollment = new UserCourse({
-        userId: enrollmentRequest.userId,
-        courseId: enrollmentRequest.courseId,
+        userId: enrollmentRequest.userId._id,
+        courseId: enrollmentRequest.courseId._id,
         status: 'enrolled',
         progress: 0
       });
@@ -744,14 +799,17 @@ app.put('/api/admin/enrollment-requests/:id/approve', authenticateToken, adminMi
     }
     
     // Increment student count in course
-    const course = await Course.findById(enrollmentRequest.courseId);
+    const course = await Course.findById(enrollmentRequest.courseId._id);
     if (course) {
       course.students += 1;
       await course.save();
     }
+
+    // Send approval email
+    await sendEnrollmentApprovalEmail(enrollmentRequest);
     
     res.json({ 
-      message: 'Enrollment request approved',
+      message: 'Enrollment request approved and notification email sent',
       enrollmentRequest
     });
     
