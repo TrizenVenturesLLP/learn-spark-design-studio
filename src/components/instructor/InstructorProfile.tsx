@@ -29,20 +29,8 @@ import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 import axios from '@/lib/axios';
 
-// Define the User type for the auth context
-interface AuthUser {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-  [key: string]: any; // For any additional properties
-}
-
-// Define the AuthContextType with the correct user type
-interface TypedAuthContext {
-  user: AuthUser | null;
-  [key: string]: any; // For other properties in the auth context
-}
+// Import AuthContextType directly from AuthContext to ensure consistent types
+import type { AuthContextType } from '@/contexts/AuthContext';
 
 // Mock data as fallback if API fails
 const mockProfileData = {
@@ -141,7 +129,8 @@ const profileFormSchema = z.object({
 });
 
 const InstructorProfile: React.FC = () => {
-  const { user } = useAuth() as TypedAuthContext;
+  // Get the auth context with proper typing directly from our useAuth hook
+  const auth = useAuth();
   const { toast } = useToast();
   const [profileData, setProfileData] = useState(mockProfileData);
   const [isLoading, setIsLoading] = useState(false);
@@ -204,11 +193,11 @@ const InstructorProfile: React.FC = () => {
         console.error('Error fetching profile data:', error);
         
         // Fallback to using user data from auth context if available
-        if (user && 'name' in user && 'email' in user) {
+        if (auth.user && 'name' in auth.user && 'email' in auth.user) {
           setProfileData({
             ...mockProfileData,
-            name: user.name || mockProfileData.name,
-            email: user.email || mockProfileData.email,
+            name: auth.user.name || mockProfileData.name,
+            email: auth.user.email || mockProfileData.email,
           });
         }
         
@@ -223,7 +212,7 @@ const InstructorProfile: React.FC = () => {
     };
 
     fetchProfile();
-  }, [user, toast]);
+  }, [auth, toast]);
 
   // Update form values when profile data changes
   useEffect(() => {
