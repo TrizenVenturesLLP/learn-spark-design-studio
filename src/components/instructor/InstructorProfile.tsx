@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -37,6 +36,12 @@ interface AuthUser {
   email: string;
   role: string;
   [key: string]: any; // For any additional properties
+}
+
+// Define the AuthContextType with the correct user type
+interface TypedAuthContext {
+  user: AuthUser | null;
+  [key: string]: any; // For other properties in the auth context
 }
 
 // Mock data as fallback if API fails
@@ -136,7 +141,7 @@ const profileFormSchema = z.object({
 });
 
 const InstructorProfile: React.FC = () => {
-  const { user } = useAuth() as { user: AuthUser | null };
+  const { user } = useAuth() as TypedAuthContext;
   const { toast } = useToast();
   const [profileData, setProfileData] = useState(mockProfileData);
   const [isLoading, setIsLoading] = useState(false);
