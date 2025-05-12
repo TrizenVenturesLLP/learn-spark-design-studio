@@ -1,6 +1,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { useNavigate } from 'react-router-dom';
 import { 
   Users, 
   BookOpen, 
@@ -18,6 +19,7 @@ import InstructorProfile from '@/components/instructor/InstructorProfile';
 import { useDashboardOverview } from '@/services/instructorService';
 
 const Dashboard = () => {
+  const navigate = useNavigate();
   const { data: dashboardData, isLoading, isError } = useDashboardOverview();
 
   // Stats for the overview cards
@@ -90,7 +92,7 @@ const Dashboard = () => {
             <Calendar className="w-4 h-4 mr-2" />
             Schedule Session
           </Button>
-          <Button>
+          <Button onClick={() => navigate('/instructor/courses/new')}>
             <BookOpen className="w-4 h-4 mr-2" />
             Create Course
           </Button>
