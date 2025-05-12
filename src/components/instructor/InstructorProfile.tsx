@@ -189,7 +189,7 @@ const InstructorProfile: React.FC = () => {
         console.error('Error fetching profile data:', error);
         
         // Fallback to using user data from auth context if available
-        if (user) {
+        if (user && 'name' in user && 'email' in user) {
           setProfileData({
             ...mockProfileData,
             name: user.name || mockProfileData.name,

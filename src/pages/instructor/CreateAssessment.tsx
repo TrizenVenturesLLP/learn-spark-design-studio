@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useForm, useFieldArray } from 'react-hook-form';
@@ -29,10 +28,10 @@ import {
   useCreateAssessment, 
   useUploadAssessmentPDF, 
   useUpdateAssessment,
+  Assessment,
   AssessmentType,
   MCQQuestion,
   CodingQuestion,
-  Assessment,
   Question,
 } from '@/services/assessmentService';
 import { MultiSelect } from '@/components/ui/multi-select';
@@ -110,7 +109,7 @@ const CreateAssessment = ({ isEditing = false, existingAssessment }: CreateAsses
       : {
           title: '',
           description: '',
-          type: 'MCQ',
+          type: 'MCQ' as AssessmentType,
           questions: [],
           assignedDays: [],
           dueDate: new Date().toISOString().split('.')[0],

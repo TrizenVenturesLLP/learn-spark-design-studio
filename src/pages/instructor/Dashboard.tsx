@@ -65,7 +65,7 @@ const Dashboard = () => {
     { title: 'Data Science Workshop', time: 'Tomorrow, 10:00 AM', students: 32 },
   ];
 
-  // New mock data for pending assessments
+  // Get pending assessments from dashboard data or use fallback
   const pendingAssessments = dashboardData?.pendingAssessments || [
     { title: 'JavaScript Fundamentals Quiz', dueDate: '2025-05-20', submissions: 12, total: 30 },
     { title: 'React Component Challenge', dueDate: '2025-05-25', submissions: 5, total: 25 },

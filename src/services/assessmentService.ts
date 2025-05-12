@@ -30,13 +30,14 @@ export interface CodingQuestion {
 }
 
 export type Question = MCQQuestion | CodingQuestion;
+export type AssessmentType = 'MCQ' | 'CODING';
 
 export interface Assessment {
   _id: string;
   courseId: string;
   title: string;
   description: string;
-  type: string;
+  type: AssessmentType;
   questions: Question[];
   assignedDays: number[];
   dueDate: string;
@@ -44,6 +45,79 @@ export interface Assessment {
   createdAt?: string;
   updatedAt?: string;
   status?: string;
+}
+
+// Interface for assessment submissions
+export interface AssessmentSubmission {
+  _id: string;
+  studentId: string;
+  studentName: string;
+  assessmentId: string;
+  submittedAt: string;
+  score: number;
+  answers: Array<{
+    questionId: string;
+    type: AssessmentType;
+    selectedAnswer?: string;
+    code?: string;
+    language?: string;
+    isCorrect?: boolean;
+    score?: number;
+  }>;
+  feedback?: string;
+  status: 'pending' | 'graded';
+}
+
+// Interface for assessment results overview
+export interface AssessmentResults {
+  submissions: AssessmentSubmission[];
+  totalStudents: number;
+  averageScore: number;
+  highestScore: number;
+  lowestScore: number;
+  submissionRate: number;
+  completionRate: number;
+}
+
+// For instructor dashboard
+export interface DashboardOverview {
+  totalCourses: number;
+  activeCourses: number;
+  totalStudents: number;
+  averageRating: number;
+  totalReviews: number;
+  teachingHours: number;
+  profileCompletion: number;
+  pendingAssessments?: Array<{
+    title: string;
+    dueDate: string;
+    submissions: number;
+    total: number;
+  }>;
+  completionRates: Array<{
+    courseId: string;
+    courseTitle: string;
+    totalEnrollments: number;
+    completions: number;
+    completionRate: number;
+  }>;
+  recentActivity: Array<{
+    type: 'enrollment' | 'review' | 'completion';
+    date: string;
+    studentName: string;
+    studentId?: string;
+    courseTitle: string;
+    courseId?: string;
+    rating?: number;
+    comment?: string;
+  }>;
+  courseBreakdown: Array<{
+    id: string;
+    title: string;
+    students: number;
+    rating: number;
+    created: string;
+  }>;
 }
 
 // Hooks
@@ -72,7 +146,7 @@ export const useAssessmentDetails = (assessmentId: string) => {
   });
 };
 
-export const useAssessmentResults = <T = unknown>(assessmentId: string) => {
+export const useAssessmentResults = <T = AssessmentResults>(assessmentId: string) => {
   return useQuery({
     queryKey: ['assessmentResults', assessmentId],
     queryFn: async () => {
@@ -163,7 +237,7 @@ export const useSubmitAssessment = () => {
     }: {
       assessmentId: string;
       answers: Array<{
-        type: 'MCQ' | 'CODING';
+        type: AssessmentType;
         questionId: string;
         selectedAnswer?: string;
         code?: string;
@@ -177,6 +251,36 @@ export const useSubmitAssessment = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['studentAssessments'] });
+    },
+  });
+};
+
+// Add missing useUploadAssessmentPDF hook
+export const useUploadAssessmentPDF = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async ({
+      file,
+      courseId,
+      assignedDays,
+    }: {
+      file: File;
+      courseId: string;
+      assignedDays: number[];
+    }) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('courseId', courseId);
+      formData.append('assignedDays', JSON.stringify(assignedDays));
+      
+      const { data } = await axios.post('/api/instructor/assessments/upload-pdf', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return data;
+    },
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['assessments', variables.courseId] });
     },
   });
 };
