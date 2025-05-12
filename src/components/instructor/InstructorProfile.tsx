@@ -58,37 +58,50 @@ const mockProfileData = {
 };
 
 // Define proper types for API response
+interface ProfileUser {
+  id: string;
+  name: string;
+  email: string;
+  displayName?: string;
+}
+
+interface InstructorProfileData {
+  phone?: string;
+  location?: string;
+  specialty?: string;
+  experience?: number;
+  bio?: string;
+  avatar?: string;
+  socialLinks?: {
+    linkedin?: string;
+    twitter?: string;
+    website?: string;
+  };
+}
+
+interface ProfileStats {
+  totalStudents: number;
+  totalCourses: number;
+  averageRating: number;
+  teachingHours: number;
+}
+
+interface ReviewData {
+  student: string;
+  rating: number;
+  comment: string;
+  date: string;
+}
+
 interface InstructorProfileResponse {
   id: string;
   name: string;
   displayName?: string;
   email: string;
-  instructorProfile: {
-    phone?: string;
-    location?: string;
-    specialty?: string;
-    experience?: number;
-    bio?: string;
-    avatar?: string;
-    socialLinks?: {
-      linkedin?: string;
-      twitter?: string;
-      website?: string;
-    };
-  };
+  instructorProfile: InstructorProfileData;
   profileCompletion: number;
-  stats?: {
-    totalStudents: number;
-    totalCourses: number;
-    averageRating: number;
-    teachingHours: number;
-  };
-  recentReviews?: Array<{
-    student: string;
-    rating: number;
-    comment: string;
-    date: string;
-  }>;
+  stats?: ProfileStats;
+  recentReviews?: ReviewData[];
 }
 
 // Form schema
@@ -143,8 +156,8 @@ const InstructorProfile: React.FC = () => {
       setIsLoading(true);
       try {
         // Use the new API endpoint to fetch profile data
-        const response = await axios.get('/api/instructor/profile');
-        const data = response.data as InstructorProfileResponse;
+        const response = await axios.get<InstructorProfileResponse>('/api/instructor/profile');
+        const data = response.data;
 
         // Transform the API response to match our component's data structure
         const transformedData = {
@@ -152,22 +165,22 @@ const InstructorProfile: React.FC = () => {
           name: data.name,
           role: data.displayName || 'Instructor',
           email: data.email,
-          phone: data.instructorProfile.phone || '',
-          location: data.instructorProfile.location || '',
-          specialty: data.instructorProfile.specialty || '',
-          experience: data.instructorProfile.experience || 0,
-          bio: data.instructorProfile.bio || '',
+          phone: data.instructorProfile?.phone || '',
+          location: data.instructorProfile?.location || '',
+          specialty: data.instructorProfile?.specialty || '',
+          experience: data.instructorProfile?.experience || 0,
+          bio: data.instructorProfile?.bio || '',
           profileCompletion: data.profileCompletion || 0,
           totalStudents: data.stats?.totalStudents || 0,
           totalCourses: data.stats?.totalCourses || 0,
           averageRating: data.stats?.averageRating || 0,
           teachingHours: data.stats?.teachingHours || 0,
           recentReviews: data.recentReviews || [],
-          avatar: data.instructorProfile.avatar || null,
+          avatar: data.instructorProfile?.avatar || null,
           socialLinks: {
-            linkedin: data.instructorProfile.socialLinks?.linkedin || '',
-            twitter: data.instructorProfile.socialLinks?.twitter || '',
-            website: data.instructorProfile.socialLinks?.website || ''
+            linkedin: data.instructorProfile?.socialLinks?.linkedin || '',
+            twitter: data.instructorProfile?.socialLinks?.twitter || '',
+            website: data.instructorProfile?.socialLinks?.website || ''
           }
         };
 
@@ -250,39 +263,8 @@ const InstructorProfile: React.FC = () => {
         if (response.data?.user) {
           try {
             // Refetch profile to get latest data
-            const profileResponse = await axios.get('/api/instructor/profile');
-            const data = profileResponse.data as {
-              id: string;
-              name: string;
-              displayName?: string;
-              email: string;
-              instructorProfile: {
-                specialty: string;
-                experience: number;
-                bio?: string;
-                phone?: string;
-                location?: string;
-                avatar?: string;
-                socialLinks?: {
-                  linkedin?: string;
-                  twitter?: string;
-                  website?: string;
-                };
-              };
-              profileCompletion: number;
-              stats?: {
-                totalStudents: number;
-                totalCourses: number;
-                averageRating: number;
-                teachingHours: number;
-              };
-              recentReviews?: Array<{
-                student: string;
-                rating: number;
-                comment: string;
-                date: string;
-              }>;
-            };
+            const profileResponse = await axios.get<InstructorProfileResponse>('/api/instructor/profile');
+            const data = profileResponse.data;
             
             // Transform the API response to match our component's data structure
             const transformedData = {
@@ -290,22 +272,22 @@ const InstructorProfile: React.FC = () => {
               name: data.name,
               role: data.displayName || 'Instructor',
               email: data.email,
-              phone: data.instructorProfile.phone || '',
-              location: data.instructorProfile.location || '',
-              specialty: data.instructorProfile.specialty || '',
-              experience: data.instructorProfile.experience || 0,
-              bio: data.instructorProfile.bio || '',
+              phone: data.instructorProfile?.phone || '',
+              location: data.instructorProfile?.location || '',
+              specialty: data.instructorProfile?.specialty || '',
+              experience: data.instructorProfile?.experience || 0,
+              bio: data.instructorProfile?.bio || '',
               profileCompletion: data.profileCompletion || 0,
               totalStudents: data.stats?.totalStudents || 0,
               totalCourses: data.stats?.totalCourses || 0,
               averageRating: data.stats?.averageRating || 0,
               teachingHours: data.stats?.teachingHours || 0,
               recentReviews: data.recentReviews || [],
-              avatar: data.instructorProfile.avatar || null,
+              avatar: data.instructorProfile?.avatar || null,
               socialLinks: {
-                linkedin: data.instructorProfile.socialLinks?.linkedin || '',
-                twitter: data.instructorProfile.socialLinks?.twitter || '',
-                website: data.instructorProfile.socialLinks?.website || ''
+                linkedin: data.instructorProfile?.socialLinks?.linkedin || '',
+                twitter: data.instructorProfile?.socialLinks?.twitter || '',
+                website: data.instructorProfile?.socialLinks?.website || ''
               }
             };
 

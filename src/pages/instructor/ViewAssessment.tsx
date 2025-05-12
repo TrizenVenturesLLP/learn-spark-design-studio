@@ -14,6 +14,20 @@ import {
 import { FileQuestion, Edit, ArrowLeft, User } from 'lucide-react';
 import { useAssessmentDetails, useAssessmentResults } from '@/services/assessmentService';
 
+// Define types for assessment results
+interface AssessmentSubmission {
+  studentId: string;
+  studentName: string;
+  submissionDate: string;
+  totalMarks: number;
+  answers: any[];
+}
+
+interface AssessmentResults {
+  submissions: AssessmentSubmission[];
+  totalStudents: number;
+}
+
 const ViewAssessment = () => {
   const { assessmentId } = useParams<{ assessmentId: string }>();
   const navigate = useNavigate();
@@ -28,7 +42,7 @@ const ViewAssessment = () => {
     data: results,
     isLoading: isLoadingResults,
     isError: isResultsError
-  } = useAssessmentResults(assessmentId || '');
+  } = useAssessmentResults<AssessmentResults>(assessmentId || '');
 
   if (isLoadingAssessment || isLoadingResults) {
     return (

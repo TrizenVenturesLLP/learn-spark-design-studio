@@ -117,7 +117,7 @@ const InstructorApprovals = () => {
                       <Badge
                         variant={
                           application.status === 'approved'
-                            ? 'success'
+                            ? 'secondary'
                             : application.status === 'rejected'
                             ? 'destructive'
                             : 'default'
