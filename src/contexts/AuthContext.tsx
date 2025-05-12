@@ -1,14 +1,13 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import axios from '../lib/axios';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 
-export interface User {
+interface User {
   id: string;
   name: string;
   email: string;
-  role?: string;
+  role?: string; // Added role property
   status?: 'pending' | 'approved' | 'rejected';
 }
 
@@ -27,7 +26,7 @@ interface SignupData {
   experience?: number;
 }
 
-export interface AuthContextType {
+interface AuthContextType {
   isAuthenticated: boolean;
   user: User | null;
   token: string | null;

@@ -1,11 +1,10 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { useAuth, AuthContextType } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { Edit, Star, Mail, Phone, MapPin, BookOpen, Users, Clock, FileCheck, Upload } from 'lucide-react';
 import {
@@ -58,53 +57,6 @@ const mockProfileData = {
   }
 };
 
-// Define proper types for API response
-interface ProfileUser {
-  id: string;
-  name: string;
-  email: string;
-  displayName?: string;
-}
-
-interface InstructorProfileData {
-  phone?: string;
-  location?: string;
-  specialty?: string;
-  experience?: number;
-  bio?: string;
-  avatar?: string;
-  socialLinks?: {
-    linkedin?: string;
-    twitter?: string;
-    website?: string;
-  };
-}
-
-interface ProfileStats {
-  totalStudents: number;
-  totalCourses: number;
-  averageRating: number;
-  teachingHours: number;
-}
-
-interface ReviewData {
-  student: string;
-  rating: number;
-  comment: string;
-  date: string;
-}
-
-interface InstructorProfileResponse {
-  id: string;
-  name: string;
-  displayName?: string;
-  email: string;
-  instructorProfile: InstructorProfileData;
-  profileCompletion: number;
-  stats?: ProfileStats;
-  recentReviews?: ReviewData[];
-}
-
 // Form schema
 const profileFormSchema = z.object({
   name: z.string().min(2, {
@@ -127,8 +79,7 @@ const profileFormSchema = z.object({
 });
 
 const InstructorProfile: React.FC = () => {
-  // Explicitly type auth as AuthContextType
-  const auth = useAuth() as AuthContextType;
+  const { user } = useAuth();
   const { toast } = useToast();
   const [profileData, setProfileData] = useState(mockProfileData);
   const [isLoading, setIsLoading] = useState(false);
@@ -158,7 +109,7 @@ const InstructorProfile: React.FC = () => {
       setIsLoading(true);
       try {
         // Use the new API endpoint to fetch profile data
-        const response = await axios.get<InstructorProfileResponse>('/api/instructor/profile');
+        const response = await axios.get('/api/instructor/profile');
         const data = response.data;
 
         // Transform the API response to match our component's data structure
@@ -167,22 +118,22 @@ const InstructorProfile: React.FC = () => {
           name: data.name,
           role: data.displayName || 'Instructor',
           email: data.email,
-          phone: data.instructorProfile?.phone || '',
-          location: data.instructorProfile?.location || '',
-          specialty: data.instructorProfile?.specialty || '',
-          experience: data.instructorProfile?.experience || 0,
-          bio: data.instructorProfile?.bio || '',
+          phone: data.instructorProfile.phone || '',
+          location: data.instructorProfile.location || '',
+          specialty: data.instructorProfile.specialty || '',
+          experience: data.instructorProfile.experience || 0,
+          bio: data.instructorProfile.bio || '',
           profileCompletion: data.profileCompletion || 0,
           totalStudents: data.stats?.totalStudents || 0,
           totalCourses: data.stats?.totalCourses || 0,
           averageRating: data.stats?.averageRating || 0,
           teachingHours: data.stats?.teachingHours || 0,
           recentReviews: data.recentReviews || [],
-          avatar: data.instructorProfile?.avatar || null,
+          avatar: data.instructorProfile.avatar || null,
           socialLinks: {
-            linkedin: data.instructorProfile?.socialLinks?.linkedin || '',
-            twitter: data.instructorProfile?.socialLinks?.twitter || '',
-            website: data.instructorProfile?.socialLinks?.website || ''
+            linkedin: data.instructorProfile.socialLinks?.linkedin || '',
+            twitter: data.instructorProfile.socialLinks?.twitter || '',
+            website: data.instructorProfile.socialLinks?.website || ''
           }
         };
 
@@ -191,11 +142,11 @@ const InstructorProfile: React.FC = () => {
         console.error('Error fetching profile data:', error);
         
         // Fallback to using user data from auth context if available
-        if (auth.user && typeof auth.user.name === 'string' && typeof auth.user.email === 'string') {
+        if (user) {
           setProfileData({
             ...mockProfileData,
-            name: auth.user.name || mockProfileData.name,
-            email: auth.user.email || mockProfileData.email,
+            name: user.name || mockProfileData.name,
+            email: user.email || mockProfileData.email,
           });
         }
         
@@ -210,7 +161,7 @@ const InstructorProfile: React.FC = () => {
     };
 
     fetchProfile();
-  }, [auth, toast]);
+  }, [user, toast]);
 
   // Update form values when profile data changes
   useEffect(() => {
@@ -265,8 +216,39 @@ const InstructorProfile: React.FC = () => {
         if (response.data?.user) {
           try {
             // Refetch profile to get latest data
-            const profileResponse = await axios.get<InstructorProfileResponse>('/api/instructor/profile');
-            const data = profileResponse.data;
+            const profileResponse = await axios.get('/api/instructor/profile');
+            const data = profileResponse.data as {
+              id: string;
+              name: string;
+              displayName?: string;
+              email: string;
+              instructorProfile: {
+                specialty: string;
+                experience: number;
+                bio?: string;
+                phone?: string;
+                location?: string;
+                avatar?: string;
+                socialLinks?: {
+                  linkedin?: string;
+                  twitter?: string;
+                  website?: string;
+                };
+              };
+              profileCompletion: number;
+              stats?: {
+                totalStudents: number;
+                totalCourses: number;
+                averageRating: number;
+                teachingHours: number;
+              };
+              recentReviews?: Array<{
+                student: string;
+                rating: number;
+                comment: string;
+                date: string;
+              }>;
+            };
             
             // Transform the API response to match our component's data structure
             const transformedData = {
@@ -274,22 +256,22 @@ const InstructorProfile: React.FC = () => {
               name: data.name,
               role: data.displayName || 'Instructor',
               email: data.email,
-              phone: data.instructorProfile?.phone || '',
-              location: data.instructorProfile?.location || '',
-              specialty: data.instructorProfile?.specialty || '',
-              experience: data.instructorProfile?.experience || 0,
-              bio: data.instructorProfile?.bio || '',
+              phone: data.instructorProfile.phone || '',
+              location: data.instructorProfile.location || '',
+              specialty: data.instructorProfile.specialty || '',
+              experience: data.instructorProfile.experience || 0,
+              bio: data.instructorProfile.bio || '',
               profileCompletion: data.profileCompletion || 0,
               totalStudents: data.stats?.totalStudents || 0,
               totalCourses: data.stats?.totalCourses || 0,
               averageRating: data.stats?.averageRating || 0,
               teachingHours: data.stats?.teachingHours || 0,
               recentReviews: data.recentReviews || [],
-              avatar: data.instructorProfile?.avatar || null,
+              avatar: data.instructorProfile.avatar || null,
               socialLinks: {
-                linkedin: data.instructorProfile?.socialLinks?.linkedin || '',
-                twitter: data.instructorProfile?.socialLinks?.twitter || '',
-                website: data.instructorProfile?.socialLinks?.website || ''
+                linkedin: data.instructorProfile.socialLinks?.linkedin || '',
+                twitter: data.instructorProfile.socialLinks?.twitter || '',
+                website: data.instructorProfile.socialLinks?.website || ''
               }
             };
 
@@ -754,25 +736,8 @@ const InstructorProfile: React.FC = () => {
           </Form>
         </DialogContent>
       </Dialog>
-      
-      <div className="p-4 border-t">
-        <div className="flex items-center mb-4">
-          <div
-            className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center"
-            aria-label="Profile"
-          >
-            <span className="text-sm font-medium">
-              {auth.user ? getInitials(auth.user.name) : "IN"}
-            </span>
-          </div>
-          <div className="ml-3">
-            <p className="text-sm font-medium text-gray-700">{auth.user?.name || "Instructor"}</p>
-            <p className="text-xs text-gray-500">Instructor</p>
-          </div>
-        </div>
-      </div>
     </>
   );
 };
 
-export default InstructorProfile;
+export default InstructorProfile; 

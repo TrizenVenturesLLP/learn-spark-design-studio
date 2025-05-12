@@ -1,13 +1,7 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from '@/lib/axios';
 
-// Types
-export interface TestCase {
-  input: string;
-  expectedOutput: string;
-  isHidden: boolean;
-}
+export type AssessmentType = 'MCQ' | 'CODING';
 
 export interface MCQQuestion {
   _id: string;
@@ -24,181 +18,58 @@ export interface CodingQuestion {
   problemStatement: string;
   inputFormat: string;
   outputFormat: string;
-  testCases: TestCase[];
+  testCases: {
+    input: string;
+    expectedOutput: string;
+    isHidden?: boolean;
+  }[];
   marks: number;
   sampleCode?: string;
 }
 
 export type Question = MCQQuestion | CodingQuestion;
-export type AssessmentType = 'MCQ' | 'CODING';
 
 export interface Assessment {
   _id: string;
-  courseId: string;
   title: string;
   description: string;
   type: AssessmentType;
   questions: Question[];
-  assignedDays: number[];
+  courseId: string;
+  assignedDays: number[]; // Array of day numbers this assessment is assigned to
   dueDate: string;
   totalMarks: number;
-  createdAt?: string;
-  updatedAt?: string;
-  status?: string;
+  status: 'pending' | 'completed';
+  submissionDate?: string;
+  score?: number;
 }
 
-// Interface for assessment submissions
+export interface MCQSubmission {
+  type: 'MCQ';
+  questionId: string;
+  selectedAnswer: string;
+}
+
+export interface CodingSubmission {
+  type: 'CODING';
+  questionId: string;
+  code: string;
+  language: string;
+}
+
 export interface AssessmentSubmission {
-  _id: string;
-  studentId: string;
-  studentName: string;
   assessmentId: string;
-  submittedAt: string;
-  score: number;
-  answers: Array<{
-    questionId: string;
-    type: AssessmentType;
-    selectedAnswer?: string;
-    code?: string;
-    language?: string;
-    isCorrect?: boolean;
-    score?: number;
-  }>;
-  feedback?: string;
-  status: 'pending' | 'graded';
+  answers: (MCQSubmission | CodingSubmission)[];
 }
 
-// Interface for assessment results overview
-export interface AssessmentResults {
-  submissions: AssessmentSubmission[];
-  totalStudents: number;
-  averageScore: number;
-  highestScore: number;
-  lowestScore: number;
-  submissionRate: number;
-  completionRate: number;
-}
-
-// For instructor dashboard
-export interface DashboardOverview {
-  totalCourses: number;
-  activeCourses: number;
-  totalStudents: number;
-  averageRating: number;
-  totalReviews: number;
-  teachingHours: number;
-  profileCompletion: number;
-  pendingAssessments?: Array<{
-    title: string;
-    dueDate: string;
-    submissions: number;
-    total: number;
-  }>;
-  completionRates: Array<{
-    courseId: string;
-    courseTitle: string;
-    totalEnrollments: number;
-    completions: number;
-    completionRate: number;
-  }>;
-  recentActivity: Array<{
-    type: 'enrollment' | 'review' | 'completion';
-    date: string;
-    studentName: string;
-    studentId?: string;
-    courseTitle: string;
-    courseId?: string;
-    rating?: number;
-    comment?: string;
-  }>;
-  courseBreakdown: Array<{
-    id: string;
-    title: string;
-    students: number;
-    rating: number;
-    created: string;
-  }>;
-}
-
-// Hooks
-export const useInstructorAssessments = (courseId: string) => {
-  return useQuery({
-    queryKey: ['assessments', courseId],
-    queryFn: async () => {
-      if (!courseId) {
-        return [];
-      }
-      const { data } = await axios.get(`/api/instructor/courses/${courseId}/assessments`);
-      return data as Assessment[];
-    },
-    enabled: !!courseId,
-  });
-};
-
-export const useAssessmentDetails = (assessmentId: string) => {
-  return useQuery({
-    queryKey: ['assessment', assessmentId],
-    queryFn: async () => {
-      const { data } = await axios.get(`/api/instructor/assessments/${assessmentId}`);
-      return data as Assessment;
-    },
-    enabled: !!assessmentId,
-  });
-};
-
-export const useAssessmentResults = <T = AssessmentResults>(assessmentId: string) => {
-  return useQuery({
-    queryKey: ['assessmentResults', assessmentId],
-    queryFn: async () => {
-      const { data } = await axios.get(`/api/instructor/assessments/${assessmentId}/results`);
-      return data as T;
-    },
-    enabled: !!assessmentId,
-  });
-};
-
+// Instructor Functions
 export const useCreateAssessment = () => {
   const queryClient = useQueryClient();
-  
-  return useMutation({
-    mutationFn: async (assessmentData: Partial<Assessment>) => {
-      const { data } = await axios.post('/api/instructor/assessments', assessmentData);
-      return data;
-    },
-    onSuccess: (data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['assessments', variables.courseId] });
-    },
-  });
-};
 
-export const useUpdateAssessment = () => {
-  const queryClient = useQueryClient();
-  
   return useMutation({
-    mutationFn: async ({
-      id,
-      assessmentData
-    }: {
-      id: string;
-      assessmentData: Partial<Assessment>;
-    }) => {
-      const { data } = await axios.put(`/api/instructor/assessments/${id}`, assessmentData);
+    mutationFn: async (assessmentData: Omit<Assessment, '_id'>) => {
+      const { data } = await axios.post('/api/assessments', assessmentData);
       return data;
-    },
-    onSuccess: (data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['assessments'] });
-      queryClient.invalidateQueries({ queryKey: ['assessment', variables.id] });
-    },
-  });
-};
-
-export const useDeleteAssessment = () => {
-  const queryClient = useQueryClient();
-  
-  return useMutation({
-    mutationFn: async (id: string) => {
-      await axios.delete(`/api/instructor/assessments/${id}`);
-      return id;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['assessments'] });
@@ -206,21 +77,91 @@ export const useDeleteAssessment = () => {
   });
 };
 
-export const useStudentAssessments = (courseId?: string, day?: number | null) => {
+export const useUploadAssessmentPDF = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ file, courseId, assignedDays }: { 
+      file: File; 
+      courseId: string;
+      assignedDays: number[];
+    }) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('courseId', courseId);
+      formData.append('assignedDays', JSON.stringify(assignedDays));
+
+      const { data } = await axios.post('/api/assessments/upload-pdf', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['assessments'] });
+    },
+  });
+};
+
+export const useUpdateAssessment = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, assessmentData }: { 
+      id: string; 
+      assessmentData: Partial<Assessment>;
+    }) => {
+      const { data } = await axios.put(`/api/assessments/${id}`, assessmentData);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['assessments'] });
+    },
+  });
+};
+
+export const useDeleteAssessment = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { data } = await axios.delete(`/api/assessments/${id}`);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['assessments'] });
+    },
+  });
+};
+
+export const useInstructorAssessments = (courseId?: string) => {
   return useQuery({
-    queryKey: ['studentAssessments', courseId, day],
+    queryKey: ['instructor-assessments', courseId],
     queryFn: async () => {
-      let url = '/api/student/assessments';
-      
+      const endpoint = courseId 
+        ? `/api/assessments/instructor?courseId=${courseId}`
+        : '/api/assessments/instructor';
+      const { data } = await axios.get(endpoint);
+      return data as Assessment[];
+    },
+    enabled: !!courseId,
+  });
+};
+
+// Student Functions
+export const useStudentAssessments = (courseId?: string, day?: number) => {
+  return useQuery({
+    queryKey: ['student-assessments', courseId, day],
+    queryFn: async () => {
+      let endpoint = '/api/assessments/student';
       if (courseId) {
-        url = `/api/student/courses/${courseId}/assessments`;
+        endpoint += `?courseId=${courseId}`;
+        if (day) {
+          endpoint += `&day=${day}`;
+        }
       }
-      
-      if (day !== null && day !== undefined) {
-        url += `?day=${day}`;
-      }
-      
-      const { data } = await axios.get(url);
+      const { data } = await axios.get(endpoint);
       return data as Assessment[];
     },
     enabled: !!courseId,
@@ -229,58 +170,68 @@ export const useStudentAssessments = (courseId?: string, day?: number | null) =>
 
 export const useSubmitAssessment = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: async ({
-      assessmentId,
-      answers,
-    }: {
-      assessmentId: string;
-      answers: Array<{
-        type: AssessmentType;
-        questionId: string;
-        selectedAnswer?: string;
-        code?: string;
-        language?: string;
-      }>;
-    }) => {
-      const { data } = await axios.post(`/api/student/assessments/${assessmentId}/submit`, {
-        answers,
-      });
+    mutationFn: async (submission: AssessmentSubmission) => {
+      const { data } = await axios.post(
+        `/api/assessments/${submission.assessmentId}/submit`, 
+        submission
+      );
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['studentAssessments'] });
+      queryClient.invalidateQueries({ queryKey: ['student-assessments'] });
     },
   });
 };
 
-// Add missing useUploadAssessmentPDF hook
-export const useUploadAssessmentPDF = () => {
-  const queryClient = useQueryClient();
-  
+export const useTestCodingSubmission = () => {
   return useMutation({
-    mutationFn: async ({
-      file,
-      courseId,
-      assignedDays,
-    }: {
-      file: File;
-      courseId: string;
-      assignedDays: number[];
+    mutationFn: async ({ 
+      questionId, 
+      code, 
+      language 
+    }: { 
+      questionId: string; 
+      code: string; 
+      language: string;
     }) => {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('courseId', courseId);
-      formData.append('assignedDays', JSON.stringify(assignedDays));
-      
-      const { data } = await axios.post('/api/instructor/assessments/upload-pdf', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+      const { data } = await axios.post(`/api/assessments/test-code`, {
+        questionId,
+        code,
+        language,
       });
-      return data;
-    },
-    onSuccess: (data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['assessments', variables.courseId] });
+      return data as {
+        success: boolean;
+        results: {
+          testCase: number;
+          passed: boolean;
+          output?: string;
+          error?: string;
+        }[];
+      };
     },
   });
 };
+
+export const useAssessmentDetails = (assessmentId: string) => {
+  return useQuery({
+    queryKey: ['assessment', assessmentId],
+    queryFn: async () => {
+      const { data } = await axios.get(`/api/assessments/${assessmentId}`);
+      return data as Assessment;
+    },
+    enabled: !!assessmentId,
+  });
+};
+
+export const useAssessmentResults = (assessmentId: string) => {
+  return useQuery({
+    queryKey: ['assessment-results', assessmentId],
+    queryFn: async () => {
+      const { data } = await axios.get(`/api/assessments/${assessmentId}/results`);
+      return data;
+    },
+    enabled: !!assessmentId,
+  });
+}; 

@@ -12,61 +12,15 @@ import {
   Calendar,
   AlertCircle,
   CheckCircle,
-  Loader2,
-  FileQuestion
+  Loader2
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import InstructorProfile from '@/components/instructor/InstructorProfile';
 import { useDashboardOverview } from '@/services/instructorService';
 
-// Define the extended DashboardOverview interface with pendingAssessments
-interface ExtendedDashboardOverview {
-  totalCourses: number;
-  activeCourses: number;
-  totalStudents: number;
-  averageRating: number;
-  totalReviews: number;
-  teachingHours: number;
-  profileCompletion: number;
-  pendingAssessments?: Array<{
-    title: string;
-    dueDate: string;
-    submissions: number;
-    total: number;
-  }>;
-  completionRates: Array<{
-    courseId: string;
-    courseTitle: string;
-    totalEnrollments: number;
-    completions: number;
-    completionRate: number;
-  }>;
-  recentActivity: Array<{
-    type: 'enrollment' | 'review' | 'completion';
-    date: string;
-    studentName: string;
-    studentId?: string;
-    courseTitle: string;
-    courseId?: string;
-    rating?: number;
-    comment?: string;
-  }>;
-  courseBreakdown: Array<{
-    id: string;
-    title: string;
-    students: number;
-    rating: number;
-    created: string;
-  }>;
-}
-
 const Dashboard = () => {
   const navigate = useNavigate();
-  const { data: dashboardData, isLoading, isError } = useDashboardOverview() as { 
-    data: ExtendedDashboardOverview | undefined; 
-    isLoading: boolean; 
-    isError: boolean 
-  };
+  const { data: dashboardData, isLoading, isError } = useDashboardOverview();
 
   // Stats for the overview cards
   const stats = [
@@ -110,12 +64,6 @@ const Dashboard = () => {
     { title: 'Data Science Workshop', time: 'Tomorrow, 10:00 AM', students: 32 },
   ];
 
-  // Get pending assessments from dashboard data or use fallback
-  const pendingAssessments = dashboardData?.pendingAssessments || [
-    { title: 'JavaScript Fundamentals Quiz', dueDate: '2025-05-20', submissions: 12, total: 30 },
-    { title: 'React Component Challenge', dueDate: '2025-05-25', submissions: 5, total: 25 },
-  ];
-
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -144,10 +92,6 @@ const Dashboard = () => {
             <Calendar className="w-4 h-4 mr-2" />
             Schedule Session
           </Button>
-          <Button variant="outline" onClick={() => navigate('/instructor/assessments')}>
-            <FileQuestion className="w-4 h-4 mr-2" />
-            Create Assessment
-          </Button>
           <Button onClick={() => navigate('/instructor/courses/new')}>
             <BookOpen className="w-4 h-4 mr-2" />
             Create Course
@@ -160,7 +104,7 @@ const Dashboard = () => {
       
       <h2 className="text-xl font-semibold mt-6">Overview</h2>
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">
@@ -186,41 +130,6 @@ const Dashboard = () => {
               </div>
             ) : (
               <p className="text-muted-foreground py-4">No active courses</p>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* New Card for Pending Assessments */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">
-              Pending Assessments
-            </CardTitle>
-            <FileQuestion className="w-4 h-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            {pendingAssessments && pendingAssessments.length > 0 ? (
-              <div className="space-y-3">
-                {pendingAssessments.map((assessment, idx) => (
-                  <div key={idx} className="flex items-center justify-between p-3 border rounded-lg">
-                    <div>
-                      <h3 className="font-medium">{assessment.title}</h3>
-                      <div className="flex items-center mt-1 text-sm text-muted-foreground">
-                        <Calendar className="w-3 h-3 mr-1" />
-                        <span>Due {new Date(assessment.dueDate).toLocaleDateString()}</span>
-                        <span className="mx-2">•</span>
-                        <Users className="w-3 h-3 mr-1" />
-                        <span>{assessment.submissions}/{assessment.total} submissions</span>
-                      </div>
-                    </div>
-                    <Button variant="outline" size="sm" onClick={() => navigate('/instructor/assessments')}>
-                      View
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-muted-foreground py-4">No pending assessments</p>
             )}
           </CardContent>
         </Card>
@@ -347,4 +256,4 @@ const Dashboard = () => {
   );
 };
 
-export default Dashboard;
+export default Dashboard; 
