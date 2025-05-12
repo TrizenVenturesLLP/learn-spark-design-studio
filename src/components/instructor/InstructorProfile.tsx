@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -28,6 +29,15 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 import axios from '@/lib/axios';
+
+// Define the User type for the auth context
+interface AuthUser {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  [key: string]: any; // For any additional properties
+}
 
 // Mock data as fallback if API fails
 const mockProfileData = {
@@ -126,7 +136,7 @@ const profileFormSchema = z.object({
 });
 
 const InstructorProfile: React.FC = () => {
-  const { user } = useAuth();
+  const { user } = useAuth() as { user: AuthUser | null };
   const { toast } = useToast();
   const [profileData, setProfileData] = useState(mockProfileData);
   const [isLoading, setIsLoading] = useState(false);

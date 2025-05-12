@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from '@/lib/axios';
 
@@ -27,6 +28,12 @@ export interface DashboardOverview {
   totalReviews: number;
   teachingHours: number;
   profileCompletion: number;
+  pendingAssessments?: Array<{
+    title: string;
+    dueDate: string;
+    submissions: number;
+    total: number;
+  }>;
   completionRates: Array<{
     courseId: string;
     courseTitle: string;

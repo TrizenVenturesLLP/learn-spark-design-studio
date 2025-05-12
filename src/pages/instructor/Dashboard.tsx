@@ -19,9 +19,54 @@ import { formatDistanceToNow } from 'date-fns';
 import InstructorProfile from '@/components/instructor/InstructorProfile';
 import { useDashboardOverview } from '@/services/instructorService';
 
+// Define the extended DashboardOverview interface with pendingAssessments
+interface ExtendedDashboardOverview {
+  totalCourses: number;
+  activeCourses: number;
+  totalStudents: number;
+  averageRating: number;
+  totalReviews: number;
+  teachingHours: number;
+  profileCompletion: number;
+  pendingAssessments?: Array<{
+    title: string;
+    dueDate: string;
+    submissions: number;
+    total: number;
+  }>;
+  completionRates: Array<{
+    courseId: string;
+    courseTitle: string;
+    totalEnrollments: number;
+    completions: number;
+    completionRate: number;
+  }>;
+  recentActivity: Array<{
+    type: 'enrollment' | 'review' | 'completion';
+    date: string;
+    studentName: string;
+    studentId?: string;
+    courseTitle: string;
+    courseId?: string;
+    rating?: number;
+    comment?: string;
+  }>;
+  courseBreakdown: Array<{
+    id: string;
+    title: string;
+    students: number;
+    rating: number;
+    created: string;
+  }>;
+}
+
 const Dashboard = () => {
   const navigate = useNavigate();
-  const { data: dashboardData, isLoading, isError } = useDashboardOverview();
+  const { data: dashboardData, isLoading, isError } = useDashboardOverview() as { 
+    data: ExtendedDashboardOverview | undefined; 
+    isLoading: boolean; 
+    isError: boolean 
+  };
 
   // Stats for the overview cards
   const stats = [
