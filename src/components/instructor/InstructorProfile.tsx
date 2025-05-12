@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -126,8 +127,8 @@ const profileFormSchema = z.object({
 });
 
 const InstructorProfile: React.FC = () => {
-  // Properly type the auth context
-  const auth = useAuth();
+  // Explicitly type auth as AuthContextType
+  const auth = useAuth() as AuthContextType;
   const { toast } = useToast();
   const [profileData, setProfileData] = useState(mockProfileData);
   const [isLoading, setIsLoading] = useState(false);
