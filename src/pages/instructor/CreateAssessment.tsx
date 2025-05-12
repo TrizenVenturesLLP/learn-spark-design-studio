@@ -1,4 +1,5 @@
-import { useState } from 'react';
+
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -27,6 +28,7 @@ import { useToast } from '@/hooks/use-toast';
 import { 
   useCreateAssessment, 
   useUploadAssessmentPDF, 
+  useUpdateAssessment,
   AssessmentType,
   MCQQuestion,
   CodingQuestion,
@@ -35,6 +37,7 @@ import {
 } from '@/services/assessmentService';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { Editor } from '@/components/Editor';
+import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
 
 // Create a type for the form that doesn't include _id
 type FormQuestion = Omit<MCQQuestion, '_id'> | Omit<CodingQuestion, '_id'>;
@@ -75,24 +78,43 @@ const assessmentSchema = z.object({
 
 type AssessmentFormValues = z.infer<typeof assessmentSchema>;
 
-const CreateAssessment = () => {
+interface CreateAssessmentProps {
+  isEditing?: boolean;
+  existingAssessment?: Assessment;
+}
+
+const CreateAssessment = ({ isEditing = false, existingAssessment }: CreateAssessmentProps) => {
   const { courseId } = useParams<{ courseId: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [assessmentType, setAssessmentType] = useState<AssessmentType>('MCQ');
+  const [assessmentType, setAssessmentType] = useState<AssessmentType>(existingAssessment?.type || 'MCQ');
   const createAssessment = useCreateAssessment();
+  const updateAssessment = useUpdateAssessment();
   const uploadPDF = useUploadAssessmentPDF();
 
   const form = useForm<AssessmentFormValues>({
     resolver: zodResolver(assessmentSchema),
-    defaultValues: {
-    title: '',
-    description: '',
-      type: 'MCQ',
-      questions: [],
-      assignedDays: [],
-      dueDate: new Date().toISOString().split('T')[0] + 'T23:59',
-    },
+    defaultValues: isEditing && existingAssessment 
+      ? {
+          title: existingAssessment.title,
+          description: existingAssessment.description,
+          type: existingAssessment.type,
+          questions: existingAssessment.questions.map(q => ({
+            ...q,
+            // Remove _id since we're updating
+            _id: undefined
+          })) as FormQuestion[],
+          assignedDays: existingAssessment.assignedDays,
+          dueDate: new Date(existingAssessment.dueDate).toISOString().split('.')[0],
+        }
+      : {
+          title: '',
+          description: '',
+          type: 'MCQ',
+          questions: [],
+          assignedDays: [],
+          dueDate: new Date().toISOString().split('.')[0],
+        },
   });
 
   const { fields, append, remove } = useFieldArray({
@@ -100,13 +122,28 @@ const CreateAssessment = () => {
     name: 'questions',
   });
 
+  // Update form type when assessment type changes
+  useEffect(() => {
+    if (form.getValues('type') !== assessmentType) {
+      form.setValue('type', assessmentType);
+      form.setValue('questions', []);
+    }
+  }, [assessmentType, form]);
+
   const handlePDFUpload = async (file: File) => {
-    if (!courseId) return;
+    if (!courseId && !existingAssessment?.courseId) {
+      toast({
+        title: 'Error',
+        description: 'Course ID is required for uploading PDF.',
+        variant: 'destructive',
+      });
+      return;
+    }
     
     try {
       await uploadPDF.mutateAsync({
         file,
-        courseId,
+        courseId: existingAssessment?.courseId || courseId || '',
         assignedDays: form.getValues('assignedDays'),
       });
       
@@ -124,36 +161,75 @@ const CreateAssessment = () => {
   };
 
   const onSubmit = async (data: AssessmentFormValues) => {
-    if (!courseId) return;
+    if (!courseId && !existingAssessment?.courseId) {
+      toast({
+        title: 'Error',
+        description: 'Course ID is required.',
+        variant: 'destructive',
+      });
+      return;
+    }
 
     try {
-      const assessmentData: Omit<Assessment, '_id'> = {
-        courseId,
-        title: data.title,
-        description: data.description,
-        type: data.type,
-        questions: data.questions.map(q => ({
-          ...q,
-          _id: crypto.randomUUID(), // Generate a temporary ID that will be replaced by the server
-        })) as Question[],
-        assignedDays: data.assignedDays,
-        dueDate: data.dueDate,
-        totalMarks: data.questions.reduce((sum, q) => sum + q.marks, 0),
-        status: 'pending',
-      };
+      // Calculate total marks based on questions
+      const totalMarks = data.questions.reduce((sum, q) => sum + q.marks, 0);
+      
+      if (isEditing && existingAssessment) {
+        // Update existing assessment
+        await updateAssessment.mutateAsync({
+          id: existingAssessment._id,
+          assessmentData: {
+            title: data.title,
+            description: data.description,
+            type: data.type,
+            questions: data.questions.map(q => ({
+              ...q,
+              _id: crypto.randomUUID(), // Generate temporary IDs
+            })) as Question[],
+            assignedDays: data.assignedDays,
+            dueDate: data.dueDate,
+            totalMarks,
+          },
+        });
 
-      await createAssessment.mutateAsync(assessmentData);
+        toast({
+          title: 'Success',
+          description: 'Assessment has been updated successfully.',
+        });
 
-      toast({
-        title: 'Success',
-        description: 'Assessment has been created successfully.',
-      });
+        navigate(`/instructor/assessments/${existingAssessment._id}`);
+      } else {
+        // Create new assessment
+        const assessmentData: Omit<Assessment, '_id'> = {
+          courseId: existingAssessment?.courseId || courseId || '',
+          title: data.title,
+          description: data.description,
+          type: data.type,
+          questions: data.questions.map(q => ({
+            ...q,
+            _id: crypto.randomUUID(), // Generate temporary IDs
+          })) as Question[],
+          assignedDays: data.assignedDays,
+          dueDate: data.dueDate,
+          totalMarks,
+          status: 'pending',
+        };
 
-      navigate(`/instructor/courses/${courseId}/assessments`);
+        await createAssessment.mutateAsync(assessmentData);
+
+        toast({
+          title: 'Success',
+          description: 'Assessment has been created successfully.',
+        });
+
+        navigate(`/instructor/courses/${courseId}/assessments`);
+      }
     } catch (error) {
       toast({
         title: 'Error',
-        description: 'Failed to create the assessment.',
+        description: isEditing 
+          ? 'Failed to update the assessment.' 
+          : 'Failed to create the assessment.',
         variant: 'destructive',
       });
     }
@@ -183,9 +259,20 @@ const CreateAssessment = () => {
 
   return (
     <div className="container mx-auto py-6 space-y-6">
+      <div className="flex items-center space-x-2">
+        <Button variant="outline" size="icon" onClick={() => navigate(-1)}>
+          <ArrowLeft className="h-4 w-4" />
+        </Button>
+        <h1 className="text-2xl font-bold">
+          {isEditing ? 'Edit Assessment' : 'Create Assessment'}
+        </h1>
+      </div>
+
       <Card>
         <CardHeader>
-          <CardTitle>Create Assessment</CardTitle>
+          <CardTitle>
+            {isEditing ? 'Edit Assessment Details' : 'Assessment Details'}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -215,27 +302,28 @@ const CreateAssessment = () => {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Assessment Type</FormLabel>
-          <Select
+                      <Select
                         onValueChange={(value: AssessmentType) => {
                           field.onChange(value);
                           setAssessmentType(value);
                           form.setValue('questions', []);
                         }}
                         value={field.value}
-          >
+                        disabled={isEditing} // Can't change type when editing
+                      >
                         <SelectTrigger>
                           <SelectValue placeholder="Select type" />
-            </SelectTrigger>
-            <SelectContent>
+                        </SelectTrigger>
+                        <SelectContent>
                           <SelectItem value="MCQ">Multiple Choice Questions</SelectItem>
                           <SelectItem value="CODING">Coding Questions</SelectItem>
-            </SelectContent>
-          </Select>
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-        </div>
+              </div>
 
               <FormField
                 control={form.control}
@@ -283,10 +371,10 @@ const CreateAssessment = () => {
                   <FormItem>
                     <FormLabel>Due Date</FormLabel>
                     <FormControl>
-          <Input
+                      <Input
                         type="datetime-local" 
                         {...field} 
-                        value={field.value || new Date().toISOString().split('T')[0] + 'T23:59'} 
+                        value={field.value || new Date().toISOString().split('.')[0]} 
                       />
                     </FormControl>
                     <FormMessage />
@@ -318,6 +406,7 @@ const CreateAssessment = () => {
                       </Button>
                     )}
                     <Button type="button" onClick={addQuestion}>
+                      <Plus className="h-4 w-4 mr-2" />
                       Add Question
                     </Button>
                   </div>
@@ -335,6 +424,7 @@ const CreateAssessment = () => {
                         size="sm"
                         onClick={() => remove(index)}
                       >
+                        <Trash2 className="h-4 w-4 mr-2 text-red-500" />
                         Remove
                       </Button>
                     </CardHeader>
@@ -398,8 +488,28 @@ const CreateAssessment = () => {
                                 <FormMessage />
                               </FormItem>
                             )}
-          />
-        </div>
+                          />
+
+                          <FormField
+                            control={form.control}
+                            name={`questions.${index}.marks`}
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Marks</FormLabel>
+                                <FormControl>
+                                  <Input 
+                                    type="number" 
+                                    {...field}
+                                    value={field.value} 
+                                    onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 1)}
+                                    min={1}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
                       ) : (
                         <div className="space-y-4">
                           <FormField
@@ -443,8 +553,28 @@ const CreateAssessment = () => {
                                   <FormMessage />
                                 </FormItem>
                               )}
-          />
-        </div>
+                            />
+                          </div>
+
+                          <FormField
+                            control={form.control}
+                            name={`questions.${index}.marks`}
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Marks</FormLabel>
+                                <FormControl>
+                                  <Input 
+                                    type="number" 
+                                    {...field}
+                                    value={field.value} 
+                                    onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 10)}
+                                    min={1}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
 
                           <FormField
                             control={form.control}
@@ -516,6 +646,7 @@ const CreateAssessment = () => {
                                 );
                               }}
                             >
+                              <Plus className="h-4 w-4 mr-2" />
                               Add Test Case
                             </Button>
                           </div>
@@ -524,12 +655,23 @@ const CreateAssessment = () => {
                     </CardContent>
                   </Card>
                 ))}
-        </div>
+              </div>
 
-              <Button type="submit" className="w-full">
-                Create Assessment
+              <Button 
+                type="submit" 
+                className="w-full"
+                disabled={createAssessment.isPending || updateAssessment.isPending}
+              >
+                {(createAssessment.isPending || updateAssessment.isPending) ? (
+                  <>
+                    <span className="animate-spin mr-2">⟳</span>
+                    {isEditing ? 'Updating...' : 'Creating...'}
+                  </>
+                ) : (
+                  isEditing ? 'Update Assessment' : 'Create Assessment'
+                )}
               </Button>
-      </form>
+            </form>
           </Form>
         </CardContent>
       </Card>
