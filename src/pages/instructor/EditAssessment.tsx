@@ -2,7 +2,7 @@
 import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { useAssessmentDetails, useUpdateAssessment } from '@/services/assessmentService';
+import { useAssessmentDetails } from '@/services/assessmentService';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import CreateAssessment from './CreateAssessment';

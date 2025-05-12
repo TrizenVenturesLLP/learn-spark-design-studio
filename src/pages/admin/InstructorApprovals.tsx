@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from '@/lib/axios';
@@ -39,7 +40,7 @@ const InstructorApprovals = () => {
   const { data: applications, isLoading } = useQuery<InstructorApplication[]>({
     queryKey: ['instructorApplications'],
     queryFn: async () => {
-      const response = await axios.get('/api/admin/instructor-applications');
+      const response = await axios.get<InstructorApplication[]>('/api/admin/instructor-applications');
       return response.data;
     },
   });

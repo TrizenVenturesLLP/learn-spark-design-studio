@@ -57,6 +57,40 @@ const mockProfileData = {
   }
 };
 
+// Define proper types for API response
+interface InstructorProfileResponse {
+  id: string;
+  name: string;
+  displayName?: string;
+  email: string;
+  instructorProfile: {
+    phone?: string;
+    location?: string;
+    specialty?: string;
+    experience?: number;
+    bio?: string;
+    avatar?: string;
+    socialLinks?: {
+      linkedin?: string;
+      twitter?: string;
+      website?: string;
+    };
+  };
+  profileCompletion: number;
+  stats?: {
+    totalStudents: number;
+    totalCourses: number;
+    averageRating: number;
+    teachingHours: number;
+  };
+  recentReviews?: Array<{
+    student: string;
+    rating: number;
+    comment: string;
+    date: string;
+  }>;
+}
+
 // Form schema
 const profileFormSchema = z.object({
   name: z.string().min(2, {
@@ -110,7 +144,7 @@ const InstructorProfile: React.FC = () => {
       try {
         // Use the new API endpoint to fetch profile data
         const response = await axios.get('/api/instructor/profile');
-        const data = response.data;
+        const data = response.data as InstructorProfileResponse;
 
         // Transform the API response to match our component's data structure
         const transformedData = {
@@ -740,4 +774,4 @@ const InstructorProfile: React.FC = () => {
   );
 };
 
-export default InstructorProfile; 
+export default InstructorProfile;
