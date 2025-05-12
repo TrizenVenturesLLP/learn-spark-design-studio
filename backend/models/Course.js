@@ -26,6 +26,13 @@ const moduleSchema = new mongoose.Schema({
   lessons: [lessonSchema]
 });
 
+const roadmapDaySchema = new mongoose.Schema({
+  day: { type: Number, required: true },
+  topics: { type: String, required: true },
+  video: { type: String, required: true },
+  transcript: { type: String }
+});
+
 const courseSchema = new mongoose.Schema({
   image: { type: String, required: true },
   title: { type: String, required: true },
@@ -57,6 +64,8 @@ const courseSchema = new mongoose.Schema({
   }],
   modules: [moduleSchema],
   reviews: [reviewSchema],
+  roadmap: [roadmapDaySchema],
+  courseAccess: { type: Boolean, default: true },
   createdAt: { type: Date, default: Date.now }
 });
 

@@ -7,11 +7,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Video, CheckCircle, AlertCircle } from "lucide-react";
+import { Video, CheckCircle, AlertCircle, Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { useUpdateProgress, Course, RoadmapDay } from '@/services/courseService';
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
 // Import your logo image
 import companyLogo from '/logo_footer.png'; // Adjust path as needed
@@ -145,16 +146,14 @@ const VideoPlayer = ({
         className="w-full h-full"
       />
       
-      {/* Logo with overlay background */}
-      <div className="absolute top-4 z-5 flex items-center" style={{ right: '-3px' }}>
-      {/* Semi-transparent overlay background with subtle shadow */}
-        <div className="absolute inset-0 bg-black/0 rounded-lg  -z-5 " />
-        {/* Logo container with padding */}
-        <div className="px-3 py-2">
+      {/* Logo with overlay background - Updated with responsive classes */}
+      <div className="absolute top-2 md:top-4 z-5 flex items-center" style={{ right: '-3px' }}>
+        <div className="absolute inset-0 bg-black/0 rounded-lg -z-5" />
+        <div className="px-2 py-1 md:px-3 md:py-2">
           <img 
             src={companyLogo}
             alt="Company Logo"
-            className="h-7 w-auto" // Adjust size as needed
+            className="h-5 w-auto md:h-7" // Smaller height on mobile, larger on desktop
           />
         </div>
       </div>
@@ -197,9 +196,10 @@ const TranscriptSection = ({ transcript }: { transcript?: string }) => {
 
 const CourseWeekView = () => {
   const { courseId } = useParams<{ courseId: string }>();
-  const [selectedDay, setSelectedDay] = useState<number>(1);
+  const [selectedDay, setSelectedDay] = useState<number>(0);
   const [completedDays, setCompletedDays] = useState<number[]>([]);
   const [watchedVideos, setWatchedVideos] = useState<number[]>([]);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const { token, isAuthenticated, loading } = useAuth();
   const { toast } = useToast();
   const updateProgressMutation = useUpdateProgress();
@@ -224,7 +224,7 @@ const CourseWeekView = () => {
 
   useEffect(() => {
     if (course && course.roadmap) {
-      if (course.roadmap.length > 0) {
+      if (course.roadmap.length > 0 && selectedDay === 0) {
         setSelectedDay(course.roadmap[0].day);
       }
       
@@ -234,7 +234,7 @@ const CourseWeekView = () => {
         setCompletedDays(newCompletedDays);
       }
     }
-  }, [course]);
+  }, [course, selectedDay]);
 
   const handleDayComplete = async (day: number) => {
     if (!token || !courseId || !course?.roadmap) return;
@@ -293,6 +293,64 @@ const CourseWeekView = () => {
     return watchedVideos.includes(day - 1) || completedDays.includes(day - 1);
   };
 
+  const SidebarContent = () => (
+    <>
+      <div className="p-4 border-b">
+        <h2 className="font-semibold">Course Content</h2>
+        <p className="text-sm text-muted-foreground">{course?.title}</p>
+      </div>
+      <ScrollArea className="h-[calc(100vh-10rem)] md:h-[calc(100vh-10rem)]">
+        <div className="p-4 space-y-2">
+          {course?.roadmap.map((day) => (
+            <button
+              key={day.day}
+              onClick={() => {
+                setSelectedDay(day.day);
+                setIsSidebarOpen(false);
+              }}
+              className={cn(
+                "flex flex-col w-full p-3 rounded-lg text-sm gap-1 transition-colors text-left",
+                selectedDay === day.day
+                  ? "bg-primary text-primary-foreground"
+                  : "hover:bg-muted",
+                completedDays.includes(day.day) && selectedDay !== day.day && "text-green-500"
+              )}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">Day {day.day}</span>
+                  {completedDays.includes(day.day) && (
+                    <CheckCircle className="h-4 w-4" />
+                  )}
+                </div>
+                <span className="text-xs opacity-70">
+                  {completedDays.includes(day.day) ? 'Completed' : 'Not Started'}
+                </span>
+              </div>
+              <p className={cn(
+                "text-xs mt-1 line-clamp-2",
+                selectedDay === day.day 
+                  ? "text-primary-foreground/80"
+                  : "text-muted-foreground"
+              )}>
+                {day.topics}
+              </p>
+            </button>
+          ))}
+        </div>
+      </ScrollArea>
+      <div className="p-4 border-t">
+        <Progress 
+          value={(completedDays.length / (course?.roadmap.length || 1)) * 100} 
+          className="h-2"
+        />
+        <p className="text-sm text-muted-foreground mt-2">
+          {completedDays.length} of {course?.roadmap.length} days completed
+        </p>
+      </div>
+    </>
+  );
+
   if (isLoading || error || !course) {
     return (
       <DashboardLayout>
@@ -315,69 +373,33 @@ const CourseWeekView = () => {
   return (
     <DashboardLayout>
       <div className="flex h-[calc(100vh-4rem)]">
-        <div className="w-80 border-r bg-muted/40">
-          <div className="p-4 border-b">
-            <h2 className="font-semibold">Course Content</h2>
-            <p className="text-sm text-muted-foreground">{course.title}</p>
-          </div>
-          <ScrollArea className="h-[calc(100vh-10rem)]">
-            <div className="p-4 space-y-2">
-              {course.roadmap.map((day) => (
-                <button
-                  key={day.day}
-                  onClick={() => setSelectedDay(day.day)}
-                  className={cn(
-                    "flex flex-col w-full p-3 rounded-lg text-sm gap-1 transition-colors text-left",
-                    selectedDay === day.day
-                      ? "bg-primary text-primary-foreground"
-                      : "hover:bg-muted",
-                    completedDays.includes(day.day) && selectedDay !== day.day && "text-green-500"
-                  )}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium">Day {day.day}</span>
-                      {completedDays.includes(day.day) && (
-                        <CheckCircle className="h-4 w-4" />
-                      )}
-                    </div>
-                    <span className="text-xs opacity-70">
-                      {completedDays.includes(day.day) ? 'Completed' : 'Not Started'}
-                    </span>
-                  </div>
-                  <p className={cn(
-                    "text-xs mt-1 line-clamp-2",
-                    selectedDay === day.day 
-                      ? "text-primary-foreground/80"
-                      : "text-muted-foreground"
-                  )}>
-                    {day.topics}
-                  </p>
-                </button>
-              ))}
-            </div>
-          </ScrollArea>
-          <div className="p-4 border-t">
-            <Progress 
-              value={(completedDays.length / course.roadmap.length) * 100} 
-              className="h-2"
-            />
-            <p className="text-sm text-muted-foreground mt-2">
-              {completedDays.length} of {course.roadmap.length} days completed
-            </p>
-          </div>
+        {/* Desktop Sidebar */}
+        <div className="hidden md:block w-80 border-r bg-muted/40">
+          <SidebarContent />
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6">
+        {/* Mobile Sidebar */}
+        <Sheet open={isSidebarOpen} onOpenChange={setIsSidebarOpen}>
+          <SheetTrigger asChild>
+            <Button variant="ghost" size="icon" className="md:hidden fixed top-4 left-4 z-50">
+              <Menu className="h-6 w-6" />
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="left" className="w-80 p-0">
+            <SidebarContent />
+          </SheetContent>
+        </Sheet>
+
+        <div className="flex-1 overflow-y-auto p-4 md:p-6">
           {currentDay && (
-            <div className="max-w-4xl mx-auto space-y-6">
+            <div className="max-w-4xl mx-auto space-y-6 pt-12 md:pt-0">
               <div>
-                <h1 className="text-2xl font-bold mb-2">Day {currentDay.day}</h1>
-                <p className="text-muted-foreground">{currentDay.topics}</p>
+                <h1 className="text-xl md:text-2xl font-bold mb-2">Day {currentDay.day}</h1>
+                <p className="text-sm md:text-base text-muted-foreground">{currentDay.topics}</p>
               </div>
 
               <Card>
-                <CardContent className="p-6">
+                <CardContent className="p-4 md:p-6">
                   <VideoPlayer 
                     videoUrl={currentDay.video} 
                     onVideoComplete={() => handleVideoComplete(currentDay.day)}
@@ -390,10 +412,10 @@ const CourseWeekView = () => {
 
               <Card>
                 <CardHeader>
-                  <CardTitle>Topics Covered</CardTitle>
+                  <CardTitle className="text-lg md:text-xl">Topics Covered</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-muted-foreground">
+                  <p className="text-sm md:text-base text-muted-foreground">
                     {currentDay.topics}
                   </p>
                 </CardContent>

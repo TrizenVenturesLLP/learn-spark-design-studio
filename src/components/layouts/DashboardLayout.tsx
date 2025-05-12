@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
+import { NotificationBell } from '@/components/NotificationBell';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -122,6 +123,11 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
 
         {/* Main Content Area */}
         <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Top Bar */}
+          <div className="sticky top-0 z-10 flex items-center justify-end h-16 px-6 bg-white shadow">
+            <NotificationBell />
+          </div>
+
           {children}
         </div>
 

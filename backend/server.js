@@ -61,6 +61,7 @@ const Course = require('./models/Course');
 const UserCourse = require('./models/UserCourse');
 const Discussion = require('./models/Discussion');
 const SupportTicket = require('./models/SupportTicket');
+const Notification = require('./models/Notification');
 
 // Create EnrollmentRequest model
 const enrollmentRequestSchema = new mongoose.Schema({
@@ -1181,6 +1182,18 @@ app.post('/api/discussions/:discussionId/replies', authenticateToken, async (req
     await discussion.save();
     await discussion.populate('replies.userId', 'name displayName');
 
+    // Create notification for discussion author
+    if (discussion.userId.toString() !== req.user.id) {
+      await createNotification({
+        userId: discussion.userId,
+        type: 'discussion',
+        title: 'New Reply to Your Discussion',
+        message: `Someone replied to your discussion "${discussion.title}"`,
+        courseId: discussion.courseId,
+        link: `/courses/${discussion.courseId}/discussions`
+      });
+    }
+
     res.status(201).json(discussion.replies[discussion.replies.length - 1]);
   } catch (error) {
     console.error('Add reply error:', error);
@@ -1802,12 +1815,30 @@ app.post('/api/instructor/courses', authenticateToken, async (req, res) => {
       duration,
       level,
       category,
-      skills
+      skills,
+      roadmap,
+      courseAccess
     } = req.body;
 
     // Validate required fields
     if (!title || !description || !image || !duration || !level || !category) {
       return res.status(400).json({ message: 'Missing required fields' });
+    }
+
+    // Validate roadmap if provided
+    if (roadmap) {
+      if (!Array.isArray(roadmap)) {
+        return res.status(400).json({ message: 'Roadmap must be an array' });
+      }
+      
+      for (let i = 0; i < roadmap.length; i++) {
+        const day = roadmap[i];
+        if (!day.topics || !day.video) {
+          return res.status(400).json({ 
+            message: `Day ${i + 1} in roadmap is missing required fields (topics and video)` 
+          });
+        }
+      }
     }
 
     // Create new course
@@ -1824,6 +1855,8 @@ app.post('/api/instructor/courses', authenticateToken, async (req, res) => {
       level,
       category,
       skills: skills || [],
+      roadmap: roadmap || [],
+      courseAccess: courseAccess !== undefined ? courseAccess : true,
       modules: [],
       reviews: []
     });
@@ -1836,6 +1869,21 @@ app.post('/api/instructor/courses', authenticateToken, async (req, res) => {
     }
     req.user.instructorProfile.courses.push(course._id);
     await req.user.save();
+
+    // Create notifications for enrolled students
+    const enrollments = await UserCourse.find({ courseId: course._id });
+    for (const enrollment of enrollments) {
+      if (enrollment.userId.toString() !== req.user.id) {
+        await createNotification({
+          userId: enrollment.userId,
+          type: 'course_update',
+          title: 'New Course Content',
+          message: `New content has been added to ${course.title}`,
+          courseId: course._id,
+          link: `/courses/${course._id}`
+        });
+      }
+    }
 
     res.status(201).json({ 
       message: 'Course created successfully',
@@ -1936,10 +1984,26 @@ app.put('/api/instructor/courses/:courseId', authenticateToken, async (req, res)
       return res.status(403).json({ message: 'Access denied. You can only update your own courses.' });
     }
 
+    // Validate roadmap if provided
+    if (req.body.roadmap) {
+      if (!Array.isArray(req.body.roadmap)) {
+        return res.status(400).json({ message: 'Roadmap must be an array' });
+      }
+      
+      for (let i = 0; i < req.body.roadmap.length; i++) {
+        const day = req.body.roadmap[i];
+        if (!day.topics || !day.video) {
+          return res.status(400).json({ 
+            message: `Day ${i + 1} in roadmap is missing required fields (topics and video)` 
+          });
+        }
+      }
+    }
+
     // Update fields
     const updateableFields = [
       'title', 'description', 'longDescription', 'image', 'duration', 
-      'level', 'category', 'skills', 'modules'
+      'level', 'category', 'skills', 'modules', 'roadmap', 'courseAccess'
     ];
 
     updateableFields.forEach(field => {
@@ -1949,6 +2013,21 @@ app.put('/api/instructor/courses/:courseId', authenticateToken, async (req, res)
     });
 
     await course.save();
+
+    // Create notifications for enrolled students
+    const enrollments = await UserCourse.find({ courseId });
+    for (const enrollment of enrollments) {
+      if (enrollment.userId.toString() !== req.user.id) {
+        await createNotification({
+          userId: enrollment.userId,
+          type: 'course_update',
+          title: 'Course Content Updated',
+          message: `New content has been added to ${course.title}`,
+          courseId: course._id,
+          link: `/courses/${course._id}`
+        });
+      }
+    }
 
     res.json({ 
       message: 'Course updated successfully',
@@ -2858,6 +2937,77 @@ app.put('/api/admin/support/tickets/:id', authenticateToken, adminMiddleware, as
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
+
+// Notification Routes
+
+// Get user's notifications
+app.get('/api/notifications', authenticateToken, async (req, res) => {
+  try {
+    const notifications = await Notification.find({ 
+      userId: req.user.id 
+    })
+    .sort({ createdAt: -1 })
+    .limit(20);
+
+    // Get unread count
+    const unreadCount = await Notification.countDocuments({
+      userId: req.user.id,
+      read: false
+    });
+    
+    res.json({ notifications, unreadCount });
+  } catch (error) {
+    console.error('Get notifications error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Mark notification as read
+app.put('/api/notifications/:id/read', authenticateToken, async (req, res) => {
+  try {
+    const notification = await Notification.findOneAndUpdate(
+      { _id: req.params.id, userId: req.user.id },
+      { read: true },
+      { new: true }
+    );
+    
+    if (!notification) {
+      return res.status(404).json({ message: 'Notification not found' });
+    }
+    
+    res.json(notification);
+  } catch (error) {
+    console.error('Mark notification read error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Mark all notifications as read
+app.put('/api/notifications/read-all', authenticateToken, async (req, res) => {
+  try {
+    await Notification.updateMany(
+      { userId: req.user.id, read: false },
+      { read: true }
+    );
+    
+    res.json({ message: 'All notifications marked as read' });
+  } catch (error) {
+    console.error('Mark all notifications read error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Helper function to create a notification
+const createNotification = async (data) => {
+  try {
+    const notification = new Notification(data);
+    await notification.save();
+    return notification;
+  } catch (error) {
+    console.error('Create notification error:', error);
+    return null;
+  }
+};
 
 // Start server
 const PORT = process.env.PORT || 5001;

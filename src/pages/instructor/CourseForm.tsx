@@ -21,7 +21,8 @@ import {
   Plus, 
   Trash2, 
   Loader2, 
-  AlertTriangle 
+  AlertTriangle,
+  ArrowRight
 } from 'lucide-react';
 import { 
   useCreateCourse, 
@@ -109,19 +110,35 @@ const CourseForm = () => {
     setIsSubmitting(true);
 
     try {
+      // Validate roadmap data
+      const validatedRoadmap = courseData.roadmap.map((day, index) => {
+        if (!day.topics.trim()) {
+          throw new Error(`Topics are required for Day ${index + 1}`);
+        }
+        if (!day.video.trim()) {
+          throw new Error(`Video link is required for Day ${index + 1}`);
+        }
+        return {
+          day: index + 1, // Ensure days are sequential
+          topics: day.topics.trim(),
+          video: day.video.trim(),
+          transcript: day.transcript?.trim() || ''
+        };
+      });
+
       // Format data for API
       const formattedCourseData: Partial<Course> = {
-        title: courseData.title,
-        description: courseData.description,
-        longDescription: courseData.longDescription,
-        duration: courseData.duration,
+        title: courseData.title.trim(),
+        description: courseData.description.trim(),
+        longDescription: courseData.longDescription?.trim(),
+        duration: courseData.duration.trim(),
         level: courseData.level,
         category: courseData.category,
-        image: courseData.image,
+        image: courseData.image.trim(),
         courseAccess: courseData.courseAccess,
         skills: courseData.skills,
-        roadmap: courseData.roadmap,
-        instructor: courseData.instructor,
+        roadmap: validatedRoadmap,
+        instructor: courseData.instructor.trim(),
         students: existingCourse?.students || 0,
         rating: existingCourse?.rating || 0,
       };
@@ -144,9 +161,10 @@ const CourseForm = () => {
       }
       navigate('/instructor/courses');
     } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to save course';
       toast({
         title: "Error",
-        description: `Failed to ${isEditMode ? 'update' : 'create'} course. Please try again.`,
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -180,10 +198,19 @@ const CourseForm = () => {
         {
           day: nextDay,
           topics: '',
-          video: ''
+          video: '',
+          transcript: ''
         }
       ]
     }));
+
+    // Wait for the DOM to update before scrolling
+    setTimeout(() => {
+      const newDayElement = document.getElementById(`day-${nextDay}`);
+      if (newDayElement) {
+        newDayElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 100);
   };
 
   const updateRoadmapDay = (index: number, field: keyof RoadmapDay, value: any) => {
@@ -214,6 +241,20 @@ const CourseForm = () => {
   const handleLevelChange = (value: string) => {
     const validLevel = value as "Beginner" | "Intermediate" | "Advanced";
     setCourseData(prev => ({ ...prev, level: validLevel }));
+  };
+
+  const handleNextTab = () => {
+    switch (activeTab) {
+      case 'basic':
+        setActiveTab('details');
+        break;
+      case 'details':
+        setActiveTab('roadmap');
+        break;
+      case 'roadmap':
+        setActiveTab('media');
+        break;
+    }
   };
 
   if (isLoadingCourse && isEditMode) {
@@ -368,6 +409,12 @@ const CourseForm = () => {
                   <Label htmlFor="courseAccess">Make course available immediately after creation</Label>
                 </div>
               </CardContent>
+              <div className="flex justify-end p-6 pt-0">
+                <Button type="button" onClick={handleNextTab}>
+                  Next
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+              </div>
             </Card>
           </TabsContent>
 
@@ -412,13 +459,24 @@ const CourseForm = () => {
                   </div>
                 </div>
               </CardContent>
+              <div className="flex justify-end p-6 pt-0">
+                <Button type="button" onClick={handleNextTab}>
+                  Next
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+              </div>
             </Card>
           </TabsContent>
 
           <TabsContent value="roadmap">
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle>Course Roadmap</CardTitle>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                <div>
+                  <CardTitle>Course Roadmap</CardTitle>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Add and manage the daily content for your course. Each day should include topics, a video link, and an optional transcript.
+                  </p>
+                </div>
                 <Button type="button" variant="outline" onClick={addRoadmapDay}>
                   <Plus className="w-4 h-4 mr-2" />
                   Add Day
@@ -426,7 +484,7 @@ const CourseForm = () => {
               </CardHeader>
               <CardContent className="space-y-6">
                 {courseData.roadmap.map((day, index) => (
-                  <div key={index} className="space-y-4 pb-4 border-b">
+                  <div key={index} className="space-y-4 pb-4 border-b" id={`day-${day.day}`}>
                     <div className="flex items-center justify-between">
                       <h3 className="font-medium">Day {day.day}</h3>
                       {courseData.roadmap.length > 1 && (
@@ -441,30 +499,58 @@ const CourseForm = () => {
                           Remove
                         </Button>
                       )}
-                </div>
+                    </div>
 
-                <div className="space-y-2">
-                      <Label htmlFor={`topics-${index}`}>Topics</Label>
-                  <Textarea
+                    <div className="space-y-2">
+                      <Label htmlFor={`topics-${index}`}>Topics *</Label>
+                      <Textarea
                         id={`topics-${index}`}
                         value={day.topics}
                         onChange={(e) => updateRoadmapDay(index, 'topics', e.target.value)}
                         placeholder="Topics covered on this day"
-                  />
-                </div>
+                        required
+                      />
+                    </div>
 
-                <div className="space-y-2">
-                      <Label htmlFor={`video-${index}`}>Video Link</Label>
+                    <div className="space-y-2">
+                      <Label htmlFor={`video-${index}`}>Video Link *</Label>
                       <Input
                         id={`video-${index}`}
                         value={day.video}
                         onChange={(e) => updateRoadmapDay(index, 'video', e.target.value)}
                         placeholder="YouTube or Google Drive video link"
-                  />
-                </div>
+                        required
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Supported formats: YouTube or Google Drive video links
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor={`transcript-${index}`}>Transcript (Optional)</Label>
+                      <Textarea
+                        id={`transcript-${index}`}
+                        value={day.transcript || ''}
+                        onChange={(e) => updateRoadmapDay(index, 'transcript', e.target.value)}
+                        placeholder="Video transcript or additional notes"
+                        rows={4}
+                      />
+                    </div>
                   </div>
                 ))}
+                
+                {courseData.roadmap.length === 0 && (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <p>No days added yet. Click the "Add Day" button to start building your course roadmap.</p>
+                  </div>
+                )}
               </CardContent>
+              <div className="flex justify-end p-6 pt-0">
+                <Button type="button" onClick={handleNextTab}>
+                  Next
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+              </div>
             </Card>
           </TabsContent>
 
@@ -476,7 +562,7 @@ const CourseForm = () => {
               <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="imageUrl">Course Image URL</Label>
-                    <Input
+                  <Input
                     id="imageUrl"
                     value={courseData.image}
                     onChange={(e) => setCourseData(prev => ({ ...prev, image: e.target.value }))}
@@ -502,33 +588,32 @@ const CourseForm = () => {
                   )}
                 </div>
               </CardContent>
+              <div className="flex justify-end p-6 pt-0 space-x-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => navigate('/instructor/courses')}
+                  disabled={isSubmitting}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      {isEditMode ? 'Updating...' : 'Creating...'}
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4 mr-2" />
+                      {isEditMode ? 'Update Course' : 'Create Course'}
+                    </>
+                  )}
+                </Button>
+              </div>
             </Card>
           </TabsContent>
         </Tabs>
-
-        <div className="flex justify-end mt-6 space-x-4">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => navigate('/instructor/courses')}
-            disabled={isSubmitting}
-          >
-            Cancel
-          </Button>
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                {isEditMode ? 'Updating...' : 'Creating...'}
-              </>
-            ) : (
-              <>
-            <Save className="w-4 h-4 mr-2" />
-                {isEditMode ? 'Update Course' : 'Create Course'}
-              </>
-            )}
-          </Button>
-        </div>
       </form>
     </div>
   );
