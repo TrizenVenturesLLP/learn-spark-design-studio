@@ -4,7 +4,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth, AuthContextType } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { Edit, Star, Mail, Phone, MapPin, BookOpen, Users, Clock, FileCheck, Upload } from 'lucide-react';
 import {
@@ -28,9 +28,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 import axios from '@/lib/axios';
-
-// Import AuthContextType directly from AuthContext to ensure consistent types
-import type { AuthContextType } from '@/contexts/AuthContext';
 
 // Mock data as fallback if API fails
 const mockProfileData = {
@@ -129,7 +126,7 @@ const profileFormSchema = z.object({
 });
 
 const InstructorProfile: React.FC = () => {
-  // Get the auth context with proper typing directly from our useAuth hook
+  // Properly type the auth context
   const auth = useAuth();
   const { toast } = useToast();
   const [profileData, setProfileData] = useState(mockProfileData);
@@ -193,7 +190,7 @@ const InstructorProfile: React.FC = () => {
         console.error('Error fetching profile data:', error);
         
         // Fallback to using user data from auth context if available
-        if (auth.user && 'name' in auth.user && 'email' in auth.user) {
+        if (auth.user && typeof auth.user.name === 'string' && typeof auth.user.email === 'string') {
           setProfileData({
             ...mockProfileData,
             name: auth.user.name || mockProfileData.name,
@@ -756,6 +753,23 @@ const InstructorProfile: React.FC = () => {
           </Form>
         </DialogContent>
       </Dialog>
+      
+      <div className="p-4 border-t">
+        <div className="flex items-center mb-4">
+          <div
+            className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center"
+            aria-label="Profile"
+          >
+            <span className="text-sm font-medium">
+              {auth.user ? getInitials(auth.user.name) : "IN"}
+            </span>
+          </div>
+          <div className="ml-3">
+            <p className="text-sm font-medium text-gray-700">{auth.user?.name || "Instructor"}</p>
+            <p className="text-xs text-gray-500">Instructor</p>
+          </div>
+        </div>
+      </div>
     </>
   );
 };
