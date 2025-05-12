@@ -22,6 +22,11 @@ import Calendar from "./pages/Calendar";
 import Discussions from "./pages/Discussion";
 import Careers from "./pages/Careers";
 import InternshipApply from "./pages/InternshipApply";
+import PendingApproval from "./pages/PendingApproval";
+import CreateAssessment from "./pages/instructor/CreateAssessment";
+import Assessments from "./pages/student/Assessments";
+import InstructorAssessments from "./pages/instructor/Assessments";
+import LiveSessions from "./pages/instructor/LiveSessions";
 
 // Admin Pages
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -30,6 +35,23 @@ import CourseManagement from "./pages/admin/CourseManagement";
 import Analytics from "./pages/admin/Analytics";
 import EnrollmentRequests from "./pages/admin/EnrollmentRequests";
 import ContactRequests from "./pages/admin/ContactRequests";
+import InstructorManagement from "./pages/admin/InstructorManagement";
+import InstructorApprovals from "./pages/admin/InstructorApprovals";
+
+// Instructor Pages
+import InstructorDashboard from "./pages/instructor/Dashboard";
+import InstructorCourses from "./pages/instructor/Courses";
+import CourseForm from "./pages/instructor/CourseForm";
+import CourseContent from "./pages/instructor/CourseContent";
+import Students from "./pages/instructor/Students";
+import InstructorAnalytics from "./pages/instructor/Analytics";
+import InstructorGuidelinesPage from "./pages/instructor/InstructorGuidelinesPage";
+import Support from "./pages/instructor/Support";
+import FAQ from "./pages/instructor/FAQ";
+import TeachingResources from "./pages/instructor/TeachingResources";
+
+// Layouts
+import InstructorLayout from "./components/layouts/InstructorLayout";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -42,56 +64,66 @@ const queryClient = new QueryClient({
 
 // Protected Route Component
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, user, loading } = useAuth();
   const location = useLocation();
 
   if (loading) {
-    return <div>Loading...</div>; // Add a proper loading component
+    return <div>Loading...</div>;
   }
 
   if (!isAuthenticated) {
-    // Save the current location so we can redirect back after login
     localStorage.setItem('redirectPath', location.pathname);
     return <Navigate to="/login" />;
+  }
+
+  // Handle instructor redirection
+  if (user?.role === 'instructor') {
+    if (user.status === 'pending') {
+      if (location.pathname !== '/pending-approval') {
+      return <Navigate to="/pending-approval" />;
+      }
+    }
+    if (user.status === 'approved' && !location.pathname.startsWith('/instructor')) {
+      return <Navigate to="/instructor/dashboard" />;
+    }
   }
 
   return <>{children}</>;
 };
 
-// Admin Route Component (protected + requires admin role)
+// Admin Route Component
 const AdminRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, user, loading } = useAuth();
   const location = useLocation();
 
   if (loading) {
-    return <div>Loading...</div>; // Add a proper loading component
+    return <div>Loading...</div>;
   }
 
-  if (!isAuthenticated) {
-    // Save the current location so we can redirect back after login
-    localStorage.setItem('redirectPath', location.pathname);
+  if (!isAuthenticated || user?.role !== 'admin') {
     return <Navigate to="/login" />;
-  }
-
-  // Check if the user has admin role
-  if (user?.role !== 'admin') {
-    return <Navigate to="/dashboard" />;
   }
 
   return <>{children}</>;
 };
 
-// Public Route Component (redirects to dashboard if already logged in)
+// Public Route Component
 const PublicRoute = ({ children }: { children: React.ReactNode }) => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
 
   if (isAuthenticated) {
-    // Check if there's a stored redirect path
     const redirectPath = localStorage.getItem('redirectPath');
     
     if (redirectPath) {
       localStorage.removeItem('redirectPath');
       return <Navigate to={redirectPath} />;
+    }
+
+    // Redirect based on user role
+    if (user?.role === 'instructor' && user.status === 'approved') {
+      return <Navigate to="/instructor/dashboard" />;
+    } else if (user?.role === 'admin') {
+      return <Navigate to="/admin/dashboard" />;
     }
     
     return <Navigate to="/dashboard" />;
@@ -100,139 +132,202 @@ const PublicRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
+const AppRoutes = () => (
+  <Routes>
+    {/* Public Routes */}
+    <Route path="/" element={
+      <PublicRoute>
+        <Index />
+      </PublicRoute>
+    } />
+    <Route path="/login" element={
+      <PublicRoute>
+        <Login />
+      </PublicRoute>
+    } />
+    <Route path="/signup" element={
+      <PublicRoute>
+        <Signup />
+      </PublicRoute>
+    } />
+    <Route path="/pending-approval" element={
+      <ProtectedRoute>
+        <PendingApproval />
+      </ProtectedRoute>
+    } />
+    
+    {/* Careers Routes */}
+    <Route path="/careers" element={<Careers />} />
+    <Route path="/careers/apply/:position" element={<InternshipApply />} />
+
+    {/* Student Routes */}
+    <Route path="/dashboard" element={
+      <ProtectedRoute>
+        <Dashboard />
+      </ProtectedRoute>
+    } />
+    <Route path="/my-courses" element={
+      <ProtectedRoute>
+        <Courses />
+      </ProtectedRoute>
+    } />
+    <Route path="/explore-courses" element={
+      <ProtectedRoute>
+        <ExploreCourses />
+      </ProtectedRoute>
+    } />
+    <Route path="/course/:courseId" element={
+      <ProtectedRoute>
+        <CourseEnrollment />
+      </ProtectedRoute>
+    } />
+    <Route path="/course/:courseId/payment" element={
+      <ProtectedRoute>
+        <CoursePayment />
+      </ProtectedRoute>
+    } />
+    <Route path="/course/:courseId/weeks" element={
+      <ProtectedRoute>
+        <CourseWeekView />
+      </ProtectedRoute>
+    } />
+    <Route path="/course/:courseId/assessments" element={
+      <ProtectedRoute>
+        <Assessments />
+      </ProtectedRoute>
+    } />
+    <Route path="/profile" element={
+      <ProtectedRoute>
+        <Profile />
+      </ProtectedRoute>
+    } />
+    <Route path="/settings" element={
+      <ProtectedRoute>
+        <Settings />
+      </ProtectedRoute>
+    } />
+    <Route path="/grades" element={
+      <ProtectedRoute>
+        <Grades />
+      </ProtectedRoute>
+    } />
+    <Route path="/assignments" element={
+      <ProtectedRoute>
+        <Assignments />
+      </ProtectedRoute>
+    } />
+    <Route path="/calendar" element={
+      <ProtectedRoute>
+        <Calendar />
+      </ProtectedRoute>
+    } />
+    <Route path="/discussions" element={
+      <ProtectedRoute>
+        <Discussions />
+      </ProtectedRoute>
+    } />
+
+    {/* Admin Routes */}
+    <Route path="/admin/dashboard" element={
+      <AdminRoute>
+        <AdminDashboard />
+      </AdminRoute>
+    } />
+    <Route path="/admin/users" element={
+      <AdminRoute>
+        <UserManagement />
+      </AdminRoute>
+    } />
+    <Route path="/admin/courses" element={
+      <AdminRoute>
+        <CourseManagement />
+      </AdminRoute>
+    } />
+    <Route path="/admin/analytics" element={
+      <AdminRoute>
+        <Analytics />
+      </AdminRoute>
+    } />
+    <Route path="/admin/enrollment-requests" element={
+      <AdminRoute>
+        <EnrollmentRequests />
+      </AdminRoute>
+    } />
+    <Route path="/admin/contact-requests" element={
+      <AdminRoute>
+        <ContactRequests />
+      </AdminRoute>
+    } />
+    <Route path="/admin/instructors" element={
+      <AdminRoute>
+        <InstructorManagement />
+      </AdminRoute>
+    } />
+    <Route path="/admin/instructor-approvals" element={
+      <AdminRoute>
+        <InstructorApprovals />
+      </AdminRoute>
+    } />
+
+    {/* Instructor Routes */}
+    <Route path="/instructor" element={
+      <ProtectedRoute>
+        <InstructorLayout />
+      </ProtectedRoute>
+    }>
+      <Route index element={<Navigate to="/instructor/dashboard" replace />} />
+      <Route path="dashboard" element={<InstructorDashboard />} />
+      <Route path="courses" element={<InstructorCourses />} />
+      <Route path="courses/new" element={<CourseForm />} />
+      <Route path="courses/:courseId/edit" element={<CourseForm />} />
+      <Route path="courses/:courseId/content" element={<CourseContent />} />
+      <Route path="courses/:courseId/students" element={<Students />} />
+      <Route path="courses/:courseId/analytics" element={<InstructorAnalytics />} />
+      <Route path="content" element={<CourseContent />} />
+      <Route path="students" element={<Students />} />
+      <Route path="guidelines" element={<InstructorGuidelinesPage />} />
+      <Route path="support" element={<Support />} />
+      <Route path="faq" element={<FAQ />} />
+      <Route path="assessments" element={<InstructorAssessments />} />
+      <Route path="sessions" element={<LiveSessions />} />
+      <Route path="messages" element={<Navigate to="/instructor/dashboard" replace />} />
+      <Route path="settings" element={<Navigate to="/instructor/dashboard" replace />} />
+      <Route path="teaching-resources" element={<TeachingResources />} />
+      <Route path="create-assessment" element={
+        <ProtectedRoute>
+          <CreateAssessment />
+        </ProtectedRoute>
+      } />
+      <Route path="assessments" element={
+        <ProtectedRoute>
+          <InstructorLayout>
+            <Assessments />
+          </InstructorLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="sessions" element={
+        <ProtectedRoute>
+          <InstructorLayout>
+            <LiveSessions />
+          </InstructorLayout>
+        </ProtectedRoute>
+      } />
+    </Route>
+
+    <Route path="*" element={<NotFound />} />
+  </Routes>
+);
+
 const App = () => (
   <BrowserRouter>
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <TooltipProvider>
-          <Routes>
-            {/* Public Routes */}
-            <Route path="/" element={
-              <PublicRoute>
-                <Index />
-              </PublicRoute>
-            } />
-            <Route path="/login" element={
-              <PublicRoute>
-                <Login />
-              </PublicRoute>
-            } />
-            <Route path="/signup" element={
-              <PublicRoute>
-                <Signup />
-              </PublicRoute>
-            } />
-            
-            {/* Careers Routes - accessible without login */}
-            <Route path="/careers" element={<Careers />} />
-            <Route path="/careers/apply/:position" element={<InternshipApply />} />
-
-            {/* Protected Routes */}
-            <Route path="/dashboard" element={
-              <ProtectedRoute>
-                <Dashboard />
-              </ProtectedRoute>
-            } />
-            <Route path="/my-courses" element={
-              <ProtectedRoute>
-                <Courses />
-              </ProtectedRoute>
-            } />
-            <Route path="/explore-courses" element={
-              <ProtectedRoute>
-                <ExploreCourses />
-              </ProtectedRoute>
-            } />
-            <Route path="/course/:courseId" element={
-              <ProtectedRoute>
-                <CourseEnrollment />
-              </ProtectedRoute>
-            } />
-            <Route path="/course/:courseId/payment" element={
-              <ProtectedRoute>
-                <CoursePayment />
-              </ProtectedRoute>
-            } />
-            <Route path="/course/:courseId/weeks" element={
-              <ProtectedRoute>
-                <CourseWeekView />
-              </ProtectedRoute>
-            } />
-            <Route path="/profile" element={
-              <ProtectedRoute>
-                <Profile />
-              </ProtectedRoute>
-            } />
-            <Route path="/settings" element={
-              <ProtectedRoute>
-                <Settings />
-              </ProtectedRoute>
-            } />
-            <Route path="/grades" element={
-              <ProtectedRoute>
-                <Grades />
-              </ProtectedRoute>
-            } />
-            <Route path="/assignments" element={
-              <ProtectedRoute>
-                <Assignments />
-              </ProtectedRoute>
-            } />
-            <Route path="/calendar" element={
-              <ProtectedRoute>
-                <Calendar />
-              </ProtectedRoute>
-            } />
-            <Route path="/discussions" element={
-              <ProtectedRoute>
-                <Discussions />
-              </ProtectedRoute>
-            } />
-
-            {/* Admin Routes */}
-            <Route path="/admin/dashboard" element={
-              <AdminRoute>
-                <AdminDashboard />
-              </AdminRoute>
-            } />
-            <Route path="/admin/users" element={
-              <AdminRoute>
-                <UserManagement />
-              </AdminRoute>
-            } />
-            <Route path="/admin/courses" element={
-              <AdminRoute>
-                <CourseManagement />
-              </AdminRoute>
-            } />
-            <Route path="/admin/analytics" element={
-              <AdminRoute>
-                <Analytics />
-              </AdminRoute>
-            } />
-            <Route path="/admin/enrollment-requests" element={
-              <AdminRoute>
-                <EnrollmentRequests />
-              </AdminRoute>
-            } />
-            <Route path="/admin/contact-requests" element={
-              <AdminRoute>
-                <ContactRequests />
-              </AdminRoute>
-            } />
-
-            {/* Added explicit not-found-page route */}
-            <Route path="/not-found-page" element={<NotFound />} />
-            
-            {/* Catch-all route */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-          
-          {/* Toast Notifications */}
+      <TooltipProvider>
+        <AuthProvider>
+          <AppRoutes />
           <Toaster />
           <Sonner />
-        </TooltipProvider>
-      </AuthProvider>
+        </AuthProvider>
+      </TooltipProvider>
     </QueryClientProvider>
   </BrowserRouter>
 );

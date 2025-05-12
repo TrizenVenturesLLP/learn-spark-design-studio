@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import axios from '../lib/axios';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -9,11 +8,22 @@ interface User {
   name: string;
   email: string;
   role?: string; // Added role property
+  status?: 'pending' | 'approved' | 'rejected';
 }
 
 interface AuthResponse {
   token: string;
   user: User;
+  message: string;
+}
+
+interface SignupData {
+  name: string;
+  email: string;
+  password: string;
+  role: 'student' | 'instructor';
+  specialty?: string;
+  experience?: number;
 }
 
 interface AuthContextType {
@@ -22,7 +32,7 @@ interface AuthContextType {
   token: string | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  signup: (name: string, email: string, password: string) => Promise<void>;
+  signup: (data: SignupData) => Promise<void>;
   logout: () => void;
 }
 
@@ -76,31 +86,47 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { token: authToken, user: userData } = response.data as AuthResponse;
       
       localStorage.setItem('token', authToken);
+      localStorage.setItem('userEmail', userData.email);
+      localStorage.setItem('userRole', userData.role || 'student');
+      
       setToken(authToken);
       setUser(userData);
       
-      // Determine redirect path based on user role
+      // Determine redirect path based on user role and status
       let redirectPath = '/dashboard'; // Default path
       
-      // If user has admin role, redirect to admin dashboard
       if (userData.role === 'admin') {
         redirectPath = '/admin/dashboard';
-        
-        // Show admin login success toast
         toast({
           title: "Admin Login Successful",
           description: "Welcome to the admin dashboard",
           variant: "default",
         });
+      } else if (userData.role === 'instructor') {
+        if (userData.status === 'approved') {
+          redirectPath = '/instructor/dashboard';
+          toast({
+            title: "Welcome Back!",
+            description: "You're logged in as an approved instructor",
+            variant: "default",
+          });
+        } else {
+          redirectPath = '/pending-approval';
+          toast({
+            title: "Application Under Review",
+            description: "Your instructor application is still pending approval. We'll notify you once it's approved.",
+            variant: "default",
+            duration: 5000,
+          });
+        }
       } else {
-        // Check if there's a stored redirect path for regular users
+        // Student login
         const storedPath = localStorage.getItem('redirectPath');
-        if (storedPath) {
+        if (storedPath && !storedPath.startsWith('/instructor') && !storedPath.startsWith('/admin')) {
           redirectPath = storedPath;
-          localStorage.removeItem('redirectPath'); // Clear the stored path after use
+          localStorage.removeItem('redirectPath');
         }
         
-        // Show regular login success toast
         toast({
           title: "Login Successful",
           description: "Welcome back!",
@@ -109,37 +135,61 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       
       navigate(redirectPath);
-    } catch (error) {
-      throw new Error('Login failed');
+    } catch (error: any) {
+      if (error.response?.status === 403 && 
+          error.response?.data?.message?.includes('pending approval')) {
+        toast({
+          title: "Application Under Review",
+          description: "Your instructor application is still pending approval. We'll notify you once it's approved.",
+          variant: "default",
+          duration: 5000,
+        });
+      }
+      const errorMessage = error.response?.data?.message || 'Login failed';
+      throw new Error(errorMessage);
     }
   };
 
-  const signup = async (name: string, email: string, password: string) => {
+  const signup = async (data: SignupData) => {
     try {
-      // Fix: Use the correct endpoint for signup (changed from /register to /signup)
-      const response = await axios.post('/api/auth/signup', { name, email, password });
-      const { token: authToken, user: userData } = response.data as AuthResponse;
+      const endpoint = data.role === 'instructor' 
+        ? '/api/auth/instructor-signup'
+        : '/api/auth/signup';
+
+      const response = await axios.post(endpoint, data);
+      const { token: authToken, user: userData, message } = response.data as AuthResponse;
       
       localStorage.setItem('token', authToken);
       setToken(authToken);
       setUser(userData);
       
-      navigate('/dashboard');
-      
-      // Show success toast
-      toast({
-        title: "Account created",
-        description: "Your account has been created successfully!",
-        duration: 3000,
-      });
-    } catch (error) {
+      // Redirect based on role and status
+      if (data.role === 'instructor') {
+        navigate('/pending-approval');
+        toast({
+          title: "Application submitted",
+          description: "Your instructor application is being reviewed. We'll notify you once it's approved.",
+          duration: 5000,
+        });
+      } else {
+        navigate('/dashboard');
+        toast({
+          title: "Account created",
+          description: "Your account has been created successfully!",
+          duration: 3000,
+        });
+      }
+    } catch (error: any) {
       console.error('Signup error details:', error);
-      throw new Error('Signup failed');
+      const errorMessage = error.response?.data?.message || 'Failed to create account. Please try again.';
+      throw new Error(errorMessage);
     }
   };
 
   const logout = () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('userEmail');
+    localStorage.removeItem('userRole');
     setToken(null);
     setUser(null);
     navigate('/login');

@@ -1,8 +1,7 @@
-
-import React, { useState } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import AdminLayout from '@/components/layouts/AdminLayout';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { 
@@ -10,65 +9,70 @@ import {
   BookOpen, 
   UserCheck, 
   UserX, 
-  TrendingUp,
-  Bell 
+  Bell,
+  Loader2,
+  AlertTriangle,
+  UserCog,
 } from "lucide-react";
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-} from "@/components/ui/chart";
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts';
+import { useAdminDashboard } from '@/hooks/use-admin-dashboard';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
   
-  // Mock data - in a real app this would come from API calls
-  const [stats] = useState({
-    totalLearners: 1245,
-    totalCourses: 42,
-    activeUsers: 876,
-    inactiveUsers: 369,
-    pendingEnrollments: 1,
-    enrollments: {
-      daily: 24,
-      weekly: 187,
-      monthly: 743
-    }
-  });
-
-  const [recentActivities] = useState([
-    { id: 1, user: "John Doe", action: "Enrolled in React Fundamentals", time: "2 hours ago" },
-    { id: 2, user: "Sarah Smith", action: "Completed JavaScript Basics", time: "4 hours ago" },
-    { id: 3, user: "Mike Johnson", action: "Submitted support ticket", time: "5 hours ago" },
-    { id: 4, user: "Emily Brown", action: "Updated profile", time: "1 day ago" },
-    { id: 5, user: "Alex Wilson", action: "Requested course access", time: "1 day ago" },
-  ]);
-
-  const [enrollmentData] = useState([
-    { name: 'Jan', enrollments: 400 },
-    { name: 'Feb', enrollments: 300 },
-    { name: 'Mar', enrollments: 600 },
-    { name: 'Apr', enrollments: 800 },
-    { name: 'May', enrollments: 700 },
-    { name: 'Jun', enrollments: 900 },
-    { name: 'Jul', enrollments: 1000 },
-  ]);
+  // Use real-time data
+  const { data, isLoading, error, refetch } = useAdminDashboard();
+  
+  if (isLoading) {
+    return (
+      <AdminLayout>
+        <div className="flex items-center justify-center h-[600px]">
+          <div className="text-center">
+            <Loader2 className="h-12 w-12 animate-spin mx-auto text-primary" />
+            <p className="mt-4 text-lg">Loading dashboard data...</p>
+          </div>
+        </div>
+      </AdminLayout>
+    );
+  }
+  
+  if (error || !data) {
+    return (
+      <AdminLayout>
+        <div className="flex flex-col items-center justify-center h-[600px]">
+          <AlertTriangle className="h-12 w-12 text-red-500 mb-4" />
+          <p className="text-lg font-medium text-red-500">Failed to load dashboard data</p>
+          <Button onClick={() => refetch()} className="mt-4">
+            Retry
+          </Button>
+        </div>
+      </AdminLayout>
+    );
+  }
 
   const statCards = [
-    { title: "Total Learners", value: stats.totalLearners, icon: Users, color: "bg-blue-100 text-blue-600" },
-    { title: "Total Courses", value: stats.totalCourses, icon: BookOpen, color: "bg-green-100 text-green-600" },
-    { title: "Active Users", value: stats.activeUsers, icon: UserCheck, color: "bg-purple-100 text-purple-600" },
-    { title: "Inactive Users", value: stats.inactiveUsers, icon: UserX, color: "bg-orange-100 text-orange-600" },
+    { title: "Total Students", value: data.userStats.totalStudents, icon: Users, color: "bg-blue-100 text-blue-600" },
+    { title: "Total Courses", value: data.courseStats.totalCourses, icon: BookOpen, color: "bg-green-100 text-green-600" },
+    { title: "Active Users", value: data.userStats.activeUsers, icon: UserCheck, color: "bg-purple-100 text-purple-600" },
+    { title: "Inactive Users", value: data.userStats.inactiveUsers, icon: UserX, color: "bg-orange-100 text-orange-600" },
   ];
 
   return (
     <AdminLayout>
       <div className="space-y-6">
+        <div className="flex justify-between items-center">
         <h2 className="text-3xl font-bold tracking-tight">Dashboard Overview</h2>
+          <Button 
+            variant="outline" 
+            onClick={() => refetch()}
+          >
+            Refresh Data
+          </Button>
+        </div>
         
+        {/* Alerts Section */}
+        <div className="space-y-4">
         {/* Pending Enrollments Alert */}
-        {stats.pendingEnrollments > 0 && (
+          {data.enrollmentStats.pendingEnrollments > 0 && (
           <Card className="bg-yellow-50 border-yellow-200">
             <CardContent className="p-4 flex items-center justify-between">
               <div className="flex items-center">
@@ -76,7 +80,8 @@ const AdminDashboard = () => {
                   <Bell className="h-5 w-5" />
                 </div>
                 <span className="font-medium">
-                   pending enrollment {stats.pendingEnrollments === 1 ? 'request' : 'requests'} to review
+                    {data.enrollmentStats.pendingEnrollments} pending enrollment 
+                    {data.enrollmentStats.pendingEnrollments === 1 ? ' request' : ' requests'} to review
                 </span>
               </div>
               <Button 
@@ -89,6 +94,31 @@ const AdminDashboard = () => {
             </CardContent>
           </Card>
         )}
+          
+          {/* Pending Instructor Applications Alert */}
+          {data.instructorStats.pendingApplications > 0 && (
+            <Card className="bg-blue-50 border-blue-200">
+              <CardContent className="p-4 flex items-center justify-between">
+                <div className="flex items-center">
+                  <div className="p-2 rounded-full bg-blue-100 text-blue-600 mr-3">
+                    <UserCog className="h-5 w-5" />
+                  </div>
+                  <span className="font-medium">
+                    {data.instructorStats.pendingApplications} pending instructor 
+                    {data.instructorStats.pendingApplications === 1 ? ' application' : ' applications'} to review
+                  </span>
+                </div>
+                <Button 
+                  onClick={() => navigate('/admin/instructor-approvals')}
+                  variant="outline" 
+                  className="border-blue-300 text-blue-700 hover:bg-blue-100"
+                >
+                  Review Applications
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+        </div>
         
         {/* Stats Grid */}
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
@@ -107,88 +137,33 @@ const AdminDashboard = () => {
           ))}
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2">
-          {/* Enrollment Chart */}
-          <Card className="col-span-1">
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <TrendingUp className="mr-2 h-5 w-5 text-primary" />
-                Enrollment Trends
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="h-[300px]">
-                <ChartContainer config={{
-                  enrollments: { theme: { light: "#8b5cf6", dark: "#a78bfa" } }
-                }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={enrollmentData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                      <defs>
-                        <linearGradient id="colorEnrollments" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#8884d8" stopOpacity={0.8}/>
-                          <stop offset="95%" stopColor="#8884d8" stopOpacity={0}/>
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="name" />
-                      <YAxis />
-                      <ChartTooltip content={<ChartTooltipContent />} />
-                      <Area 
-                        type="monotone" 
-                        dataKey="enrollments" 
-                        stroke="var(--color-enrollments)" 
-                        fillOpacity={0.3} 
-                        fill="url(#colorEnrollments)" 
-                      />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </ChartContainer>
-              </div>
-              
-              <div className="grid grid-cols-3 gap-3 mt-4 text-center">
-                <div className="bg-blue-50 p-2 rounded-lg">
-                  <p className="text-xs text-muted-foreground">Daily</p>
-                  <p className="font-bold">{stats.enrollments.daily}</p>
-                </div>
-                <div className="bg-blue-50 p-2 rounded-lg">
-                  <p className="text-xs text-muted-foreground">Weekly</p>
-                  <p className="font-bold">{stats.enrollments.weekly}</p>
-                </div>
-                <div className="bg-blue-50 p-2 rounded-lg">
-                  <p className="text-xs text-muted-foreground">Monthly</p>
-                  <p className="font-bold">{stats.enrollments.monthly}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Recent Activity */}
-          <Card className="col-span-1">
-            <CardHeader>
-              <CardTitle>Recent Activity</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>User</TableHead>
-                    <TableHead>Action</TableHead>
-                    <TableHead>Time</TableHead>
+        {/* Recent Activity Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Recent Activity</CardTitle>
+            <CardDescription>Latest actions and events on the platform</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Action</TableHead>
+                  <TableHead>User</TableHead>
+                  <TableHead>Time</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data.recentActivities.map((activity, index) => (
+                  <TableRow key={index}>
+                    <TableCell className="font-medium">{activity.action}</TableCell>
+                    <TableCell>{activity.user}</TableCell>
+                    <TableCell>{activity.time}</TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {recentActivities.map((activity) => (
-                    <TableRow key={activity.id}>
-                      <TableCell className="font-medium">{activity.user}</TableCell>
-                      <TableCell>{activity.action}</TableCell>
-                      <TableCell>{activity.time}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </div>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       </div>
     </AdminLayout>
   );

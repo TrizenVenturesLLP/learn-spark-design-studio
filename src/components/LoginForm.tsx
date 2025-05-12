@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -37,14 +36,30 @@ const LoginForm = () => {
     try {
       await login(values.email, values.password);
       // Navigation is handled in the login function based on user role
-    } catch (error) {
+    } catch (error: any) {
       console.error('Login error:', error);
-      setError('Invalid email or password. Please try again.');
-      toast({
-        title: "Login Failed",
-        description: "Invalid email or password. Please try again.",
-        variant: "destructive",
-      });
+      const errorMessage = error.message || 'Invalid email or password. Please try again.';
+      setError(errorMessage);
+      
+      // Check if the error is about pending instructor status
+      if (errorMessage.includes('pending approval') || errorMessage.includes('still pending')) {
+        toast({
+          title: "Application Under Review",
+          description: "Your instructor application is still pending approval. We'll notify you once it's approved.",
+          variant: "default",
+          duration: 5000,
+        });
+        // Redirect to pending approval page
+        setTimeout(() => {
+          navigate('/pending-approval');
+        }, 1500);
+      } else {
+        toast({
+          title: "Login Failed",
+          description: errorMessage,
+          variant: "destructive",
+        });
+      }
     } finally {
       setIsLoading(false);
     }

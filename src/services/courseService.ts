@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "../lib/axios";
 
@@ -31,6 +30,9 @@ export interface Course {
   status?: 'enrolled' | 'started' | 'completed' | 'pending'; // Added for enrollment status
   lastAccessedAt?: string; // Added for tracking last access
   roadmap?: RoadmapDay[]; // Added for course weekly content
+  price?: number; // Added for course pricing
+  courseAccess?: boolean; // Added for course availability
+  createdAt?: string; // Added for timestamp
 }
 
 // Define the RoadmapDay interface for course content structure
@@ -205,6 +207,105 @@ export const useRejectEnrollmentRequest = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['enrollment-requests'] });
+    },
+  });
+};
+
+// Instructor: Get my courses
+export const useInstructorCourses = () => {
+  return useQuery({
+    queryKey: ['instructor-courses'],
+    queryFn: async (): Promise<Course[]> => {
+      const response = await axios.get('/api/instructor/courses');
+      return response.data as Course[];
+    },
+  });
+};
+
+// Instructor: Get students for a specific course
+export interface CourseStudent {
+  id: string;
+  name: string;
+  email: string;
+  enrolledDate: string;
+  progress: number;
+  status: string;
+  lastActive: string;
+}
+
+export interface CourseWithStudents {
+  id: string;
+  title: string;
+  students: CourseStudent[];
+}
+
+export const useCourseStudents = (courseId: string | undefined) => {
+  return useQuery<CourseWithStudents>({
+    queryKey: ['course-students', courseId],
+    queryFn: async (): Promise<CourseWithStudents> => {
+      if (!courseId) throw new Error("Course ID is required");
+      try {
+        const response = await axios.get(`/api/instructor/courses/${courseId}/students`);
+        // Ensure the response matches the expected type
+        const data = response.data as CourseWithStudents;
+        if (!data.id || !data.title || !Array.isArray(data.students)) {
+          throw new Error("Invalid course data format received from server");
+        }
+        return data;
+      } catch (error) {
+        console.error('Error fetching course students:', error);
+        throw error;
+      }
+    },
+    enabled: !!courseId,
+  });
+};
+
+// Instructor: Create new course
+export const useCreateCourse = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (courseData: Partial<Course>) => {
+      const response = await axios.post('/api/instructor/courses', courseData);
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['instructor-courses'] });
+      queryClient.invalidateQueries({ queryKey: ['courses'] });
+    },
+  });
+};
+
+// Instructor: Update course
+export const useUpdateCourse = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async ({courseId, courseData}: {courseId: string, courseData: Partial<Course>}) => {
+      const response = await axios.put(`/api/instructor/courses/${courseId}`, courseData);
+      return response.data;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['instructor-courses'] });
+      queryClient.invalidateQueries({ queryKey: ['courses'] });
+      queryClient.invalidateQueries({ queryKey: ['course', variables.courseId] });
+    },
+  });
+};
+
+// Instructor: Delete course
+export const useDeleteCourse = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (courseId: string) => {
+      const response = await axios.delete(`/api/instructor/courses/${courseId}`);
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['instructor-courses'] });
+      queryClient.invalidateQueries({ queryKey: ['courses'] });
     },
   });
 };

@@ -1,5 +1,30 @@
-
 const mongoose = require('mongoose');
+
+const reviewSchema = new mongoose.Schema({
+  studentId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  studentName: { type: String, required: true },
+  rating: { type: Number, required: true, min: 1, max: 5 },
+  comment: { type: String },
+  createdAt: { type: Date, default: Date.now }
+});
+
+const lessonSchema = new mongoose.Schema({
+  title: { type: String, required: true },
+  description: { type: String },
+  videoUrl: { type: String },
+  duration: { type: Number }, // in minutes
+  resources: [{ type: String }]
+});
+
+const moduleSchema = new mongoose.Schema({
+  title: { type: String, required: true },
+  description: { type: String },
+  lessons: [lessonSchema]
+});
 
 const courseSchema = new mongoose.Schema({
   image: { type: String, required: true },
@@ -7,6 +32,10 @@ const courseSchema = new mongoose.Schema({
   description: { type: String, required: true },
   longDescription: { type: String },
   instructor: { type: String, required: true },
+  instructorId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
   duration: { type: String, required: true },
   rating: { type: Number, required: true },
   students: { type: Number, default: 0 },
@@ -26,6 +55,8 @@ const courseSchema = new mongoose.Schema({
     author: { type: String },
     since: { type: String }
   }],
+  modules: [moduleSchema],
+  reviews: [reviewSchema],
   createdAt: { type: Date, default: Date.now }
 });
 

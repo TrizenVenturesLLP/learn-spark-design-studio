@@ -1,0 +1,537 @@
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Label } from '@/components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { 
+  ArrowLeft, 
+  Save, 
+  Upload, 
+  Plus, 
+  Trash2, 
+  Loader2, 
+  AlertTriangle 
+} from 'lucide-react';
+import { 
+  useCreateCourse, 
+  useUpdateCourse, 
+  useCourseDetails, 
+  Course, 
+  RoadmapDay 
+} from '@/services/courseService';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/components/ui/use-toast';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+
+interface CourseFormData {
+  title: string;
+  description: string;
+  longDescription?: string;
+  duration: string;
+  level: "Beginner" | "Intermediate" | "Advanced";
+  category: string;
+  image: string;
+  courseAccess: boolean;
+  skills: string[];
+  roadmap: RoadmapDay[];
+  instructor: string;
+}
+
+const CourseForm = () => {
+  const navigate = useNavigate();
+  const { courseId } = useParams<{ courseId: string }>();
+  const isEditMode = !!courseId;
+  const { toast } = useToast();
+  const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState('basic');
+  const [skill, setSkill] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const { data: existingCourse, isLoading: isLoadingCourse } = useCourseDetails(courseId);
+  const createCourseMutation = useCreateCourse();
+  const updateCourseMutation = useUpdateCourse();
+
+  const [courseData, setCourseData] = useState<CourseFormData>({
+    title: '',
+    description: '',
+    longDescription: '',
+    duration: '',
+    level: 'Beginner',
+    category: '',
+    image: '',
+    courseAccess: true,
+    skills: [],
+    roadmap: [{
+      day: 1,
+      topics: '',
+      video: ''
+    }],
+    instructor: user?.name || ''
+  });
+
+  // Load existing course data if in edit mode
+  useEffect(() => {
+    if (isEditMode && existingCourse) {
+      setCourseData({
+        title: existingCourse.title || '',
+        description: existingCourse.description || '',
+        longDescription: existingCourse.longDescription || '',
+        duration: existingCourse.duration || '',
+        level: existingCourse.level || 'Beginner',
+        category: existingCourse.category || '',
+        image: existingCourse.image || '',
+        courseAccess: Boolean(existingCourse.courseAccess),
+        skills: existingCourse.skills || [],
+        roadmap: existingCourse.roadmap || [{
+          day: 1,
+          topics: '',
+          video: ''
+        }],
+        instructor: existingCourse.instructor || user?.name || ''
+      });
+    }
+  }, [existingCourse, isEditMode, user]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+
+    try {
+      // Format data for API
+      const formattedCourseData: Partial<Course> = {
+        title: courseData.title,
+        description: courseData.description,
+        longDescription: courseData.longDescription,
+        duration: courseData.duration,
+        level: courseData.level,
+        category: courseData.category,
+        image: courseData.image,
+        courseAccess: courseData.courseAccess,
+        skills: courseData.skills,
+        roadmap: courseData.roadmap,
+        instructor: courseData.instructor,
+        students: existingCourse?.students || 0,
+        rating: existingCourse?.rating || 0,
+      };
+
+      if (isEditMode && courseId) {
+        await updateCourseMutation.mutateAsync({
+          courseId,
+          courseData: formattedCourseData
+        });
+        toast({
+          title: "Course updated",
+          description: "Your course has been successfully updated.",
+        });
+      } else {
+        await createCourseMutation.mutateAsync(formattedCourseData);
+        toast({
+          title: "Course created",
+          description: "Your course has been successfully created.",
+        });
+      }
+      navigate('/instructor/courses');
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: `Failed to ${isEditMode ? 'update' : 'create'} course. Please try again.`,
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const addSkill = () => {
+    if (skill.trim() && !courseData.skills.includes(skill.trim())) {
+      setCourseData(prev => ({
+        ...prev,
+        skills: [...prev.skills, skill.trim()]
+      }));
+      setSkill('');
+    }
+  };
+
+  const removeSkill = (skillToRemove: string) => {
+    setCourseData(prev => ({
+      ...prev,
+      skills: prev.skills.filter(s => s !== skillToRemove)
+    }));
+  };
+
+  const addRoadmapDay = () => {
+    const nextDay = courseData.roadmap.length + 1;
+    setCourseData(prev => ({
+      ...prev,
+      roadmap: [
+        ...prev.roadmap,
+        {
+          day: nextDay,
+          topics: '',
+          video: ''
+        }
+      ]
+    }));
+  };
+
+  const updateRoadmapDay = (index: number, field: keyof RoadmapDay, value: any) => {
+    setCourseData(prev => {
+      const updatedRoadmap = [...prev.roadmap];
+      updatedRoadmap[index] = {
+        ...updatedRoadmap[index],
+        [field]: value
+      };
+      return {
+        ...prev,
+        roadmap: updatedRoadmap
+      };
+    });
+  };
+
+  const removeRoadmapDay = (index: number) => {
+    setCourseData(prev => {
+      const updatedRoadmap = prev.roadmap.filter((_, i) => i !== index)
+        .map((day, i) => ({ ...day, day: i + 1 }));
+      return {
+        ...prev,
+        roadmap: updatedRoadmap
+      };
+    });
+  };
+
+  const handleLevelChange = (value: string) => {
+    const validLevel = value as "Beginner" | "Intermediate" | "Advanced";
+    setCourseData(prev => ({ ...prev, level: validLevel }));
+  };
+
+  if (isLoadingCourse && isEditMode) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-primary mb-2" />
+        <p>Loading course data...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+      <div className="flex items-center space-x-4">
+        <Button
+          variant="ghost"
+          onClick={() => navigate('/instructor/courses')}
+        >
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Back to Courses
+        </Button>
+          <h1 className="text-3xl font-bold">{isEditMode ? 'Edit Course' : 'Create New Course'}</h1>
+        </div>
+      </div>
+
+      <form onSubmit={handleSubmit}>
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="basic">Basic Information</TabsTrigger>
+            <TabsTrigger value="details">Course Details</TabsTrigger>
+            <TabsTrigger value="roadmap">Course Roadmap</TabsTrigger>
+            <TabsTrigger value="media">Media & Resources</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="basic">
+            <Card>
+              <CardHeader>
+                <CardTitle>Basic Information</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="title">Course Title *</Label>
+                  <Input
+                    id="title"
+                    value={courseData.title}
+                    onChange={(e) => setCourseData(prev => ({ ...prev, title: e.target.value }))}
+                    placeholder="Enter course title"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="description">Short Description *</Label>
+                  <Textarea
+                    id="description"
+                    value={courseData.description}
+                    onChange={(e) => setCourseData(prev => ({ ...prev, description: e.target.value }))}
+                    placeholder="Brief description (displayed in course cards)"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="longDescription">Full Description</Label>
+                  <Textarea
+                    id="longDescription"
+                    value={courseData.longDescription}
+                    onChange={(e) => setCourseData(prev => ({ ...prev, longDescription: e.target.value }))}
+                    placeholder="Detailed course description"
+                    rows={5}
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="instructor">Instructor Name *</Label>
+                    <Input
+                      id="instructor"
+                      value={courseData.instructor}
+                      onChange={(e) => setCourseData(prev => ({ ...prev, instructor: e.target.value }))}
+                      placeholder="Enter instructor name"
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="duration">Duration *</Label>
+                    <Input
+                      id="duration"
+                      value={courseData.duration}
+                      onChange={(e) => setCourseData(prev => ({ ...prev, duration: e.target.value }))}
+                      placeholder="e.g. 30 Days, 8 Weeks"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="category">Category *</Label>
+                    <Select
+                      value={courseData.category}
+                      onValueChange={(value) => setCourseData(prev => ({ ...prev, category: value }))}
+                      required
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Web Development">Web Development</SelectItem>
+                        <SelectItem value="Mobile Development">Mobile Development</SelectItem>
+                        <SelectItem value="Data Science">Data Science</SelectItem>
+                        <SelectItem value="Machine Learning">Machine Learning</SelectItem>
+                        <SelectItem value="Cloud Computing">Cloud Computing</SelectItem>
+                        <SelectItem value="DevOps">DevOps</SelectItem>
+                        <SelectItem value="Cybersecurity">Cybersecurity</SelectItem>
+                        <SelectItem value="Blockchain">Blockchain</SelectItem>
+                        <SelectItem value="Design">Design</SelectItem>
+                        <SelectItem value="Digital Marketing">Digital Marketing</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="level">Level *</Label>
+                    <Select
+                      value={courseData.level}
+                      onValueChange={handleLevelChange}
+                      required
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select level" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Beginner">Beginner</SelectItem>
+                        <SelectItem value="Intermediate">Intermediate</SelectItem>
+                        <SelectItem value="Advanced">Advanced</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="courseAccess"
+                    checked={courseData.courseAccess}
+                    onCheckedChange={(checked) => 
+                      setCourseData(prev => ({ ...prev, courseAccess: checked === true }))
+                    }
+                  />
+                  <Label htmlFor="courseAccess">Make course available immediately after creation</Label>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="details">
+            <Card>
+              <CardHeader>
+                <CardTitle>Course Skills & Requirements</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-4">
+                  <Label>Skills Students Will Learn</Label>
+                  <div className="flex space-x-2">
+                    <Input
+                      value={skill}
+                      onChange={(e) => setSkill(e.target.value)}
+                      placeholder="Add a skill"
+                      onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addSkill())}
+                    />
+                    <Button type="button" onClick={addSkill}>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add
+                    </Button>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {courseData.skills.map((skill, index) => (
+                      <Badge key={index} variant="secondary" className="flex items-center gap-1">
+                        {skill}
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-4 w-4 p-0 ml-1"
+                          onClick={() => removeSkill(skill)}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </Badge>
+                    ))}
+                    {courseData.skills.length === 0 && (
+                      <span className="text-sm text-muted-foreground">No skills added yet</span>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="roadmap">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>Course Roadmap</CardTitle>
+                <Button type="button" variant="outline" onClick={addRoadmapDay}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Day
+                </Button>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {courseData.roadmap.map((day, index) => (
+                  <div key={index} className="space-y-4 pb-4 border-b">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-medium">Day {day.day}</h3>
+                      {courseData.roadmap.length > 1 && (
+                        <Button 
+                          type="button" 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => removeRoadmapDay(index)}
+                          className="h-8 text-red-500 hover:text-red-700"
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Remove
+                        </Button>
+                      )}
+                </div>
+
+                <div className="space-y-2">
+                      <Label htmlFor={`topics-${index}`}>Topics</Label>
+                  <Textarea
+                        id={`topics-${index}`}
+                        value={day.topics}
+                        onChange={(e) => updateRoadmapDay(index, 'topics', e.target.value)}
+                        placeholder="Topics covered on this day"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                      <Label htmlFor={`video-${index}`}>Video Link</Label>
+                      <Input
+                        id={`video-${index}`}
+                        value={day.video}
+                        onChange={(e) => updateRoadmapDay(index, 'video', e.target.value)}
+                        placeholder="YouTube or Google Drive video link"
+                  />
+                </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="media">
+            <Card>
+              <CardHeader>
+                <CardTitle>Media & Resources</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="imageUrl">Course Image URL</Label>
+                    <Input
+                    id="imageUrl"
+                    value={courseData.image}
+                    onChange={(e) => setCourseData(prev => ({ ...prev, image: e.target.value }))}
+                    placeholder="Enter image URL"
+                  />
+                  {courseData.image && (
+                    <div className="mt-2">
+                      <p className="text-sm text-muted-foreground mb-2">Preview:</p>
+                      <img 
+                        src={courseData.image} 
+                        alt="Course thumbnail preview" 
+                        className="w-full max-w-md h-48 object-cover rounded-md"
+                        onError={(e) => {
+                          e.currentTarget.src = 'data:image/svg+xml;charset=UTF-8,%3Csvg xmlns="http://www.w3.org/2000/svg" width="300" height="200" viewBox="0 0 300 200" preserveAspectRatio="none"%3E%3Crect width="300" height="200" fill="%23CCCCCC"%3E%3C/rect%3E%3Ctext x="150" y="100" fill="%23333333" font-size="14" font-family="Arial" text-anchor="middle"%3EImage not available%3C/text%3E%3C/svg%3E';
+                          toast({
+                            title: "Image Error",
+                            description: "The provided image URL is not valid",
+                            variant: "destructive",
+                          });
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+
+        <div className="flex justify-end mt-6 space-x-4">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => navigate('/instructor/courses')}
+            disabled={isSubmitting}
+          >
+            Cancel
+          </Button>
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                {isEditMode ? 'Updating...' : 'Creating...'}
+              </>
+            ) : (
+              <>
+            <Save className="w-4 h-4 mr-2" />
+                {isEditMode ? 'Update Course' : 'Create Course'}
+              </>
+            )}
+          </Button>
+        </div>
+      </form>
+    </div>
+  );
+};
+
+export default CourseForm; 

@@ -1,17 +1,23 @@
-
 import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
+import SignupChoice from './SignupChoice';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
+import { Alert, AlertDescription } from './ui/alert';
 
 const SignupForm = () => {
   const [name, setName] = useState('');
+  const [selectedRole, setSelectedRole] = useState<'student' | 'instructor' | null>(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [specialty, setSpecialty] = useState('');
+  const [experience, setExperience] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [passwordError, setPasswordError] = useState('');
   const [signupError, setSignupError] = useState('');
@@ -32,10 +38,28 @@ const SignupForm = () => {
     return true;
   };
 
+  const validateInstructorFields = () => {
+    if (selectedRole === 'instructor') {
+      if (!specialty.trim()) {
+        setSignupError('Please enter your specialty');
+        return false;
+      }
+      if (!experience.trim() || isNaN(Number(experience))) {
+        setSignupError('Please enter valid years of experience');
+        return false;
+      }
+    }
+    return true;
+  };
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!validatePasswords()) {
+    if (!selectedRole) {
+      setSignupError('Please select a role');
+      return;
+    }
+
+    if (!validatePasswords() || !validateInstructorFields()) {
       return;
     }
     
@@ -43,21 +67,28 @@ const SignupForm = () => {
     setIsLoading(true);
     
     try {
-      await signup(name, email, password);
-      toast({
-        title: "Account created",
-        description: "Your account has been successfully created!",
-        duration: 3000,
-      });
-      navigate('/dashboard');
-    } catch (error) {
+      const signupData = {
+        name,
+        email,
+        password,
+        role: selectedRole,
+        ...(selectedRole === 'instructor' && {
+          specialty,
+          experience: Number(experience)
+        })
+      };
+
+      await signup(signupData);
+      
+    } catch (error: any) {
       console.error("Signup error:", error);
-      setSignupError('Failed to create account. Please try again.');
+      const errorMessage = error.message || 'Failed to create account. Please try again.';
+      setSignupError(errorMessage);
       toast({
         title: "Signup failed",
-        description: "There was a problem creating your account. Please try again.",
+        description: errorMessage,
         variant: "destructive",
-        duration: 3000,
+        duration: 5000,
       });
     } finally {
       setIsLoading(false);
@@ -70,11 +101,16 @@ const SignupForm = () => {
         <h2 className="text-2xl font-bold">Create an Account</h2>
         <p className="text-muted-foreground mt-1">Join Trizen to access high-quality courses</p>
       </div>
+
+      <SignupChoice
+        selected={selectedRole}
+        onSelect={setSelectedRole}
+      />
       
       {signupError && (
-        <div className="bg-destructive/15 text-destructive p-3 rounded-md text-sm">
-          {signupError}
-        </div>
+        <Alert variant="destructive">
+          <AlertDescription>{signupError}</AlertDescription>
+        </Alert>
       )}
       
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -101,6 +137,35 @@ const SignupForm = () => {
             required
           />
         </div>
+
+        {selectedRole === 'instructor' && (
+          <>
+            <div className="space-y-2">
+              <Label htmlFor="specialty">Specialty</Label>
+              <Input
+                id="specialty"
+                type="text"
+                placeholder="e.g., Web Development, Data Science"
+                value={specialty}
+                onChange={(e) => setSpecialty(e.target.value)}
+                required
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="experience">Years of Experience</Label>
+              <Input
+                id="experience"
+                type="number"
+                min="0"
+                placeholder="e.g., 5"
+                value={experience}
+                onChange={(e) => setExperience(e.target.value)}
+                required
+              />
+            </div>
+          </>
+        )}
         
         <div className="space-y-2">
           <Label htmlFor="password">Password</Label>
@@ -126,9 +191,17 @@ const SignupForm = () => {
             <p className="text-sm text-destructive">{passwordError}</p>
           )}
         </div>
+
+        {selectedRole === 'instructor' && (
+          <Alert>
+            <AlertDescription>
+              Your instructor application will be reviewed by our team. We'll notify you by email once it's approved. During this time, you can prepare your course materials and review our instructor guidelines.
+            </AlertDescription>
+          </Alert>
+        )}
         
         <Button type="submit" className="w-full" disabled={isLoading}>
-          {isLoading ? 'Creating account...' : 'Sign Up'}
+          {isLoading ? 'Creating account...' : selectedRole === 'instructor' ? 'Submit Application' : 'Sign Up'}
         </Button>
       </form>
       

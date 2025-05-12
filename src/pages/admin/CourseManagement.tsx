@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import AdminLayout from '@/components/layouts/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,7 +7,8 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger 
+  DropdownMenuTrigger,
+  DropdownMenuSeparator
 } from '@/components/ui/dropdown-menu';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { 
@@ -18,113 +18,140 @@ import {
   Edit, 
   Eye, 
   Trash2, 
-  Users
+  Users,
+  Loader2,
+  Archive,
+  CheckCircle
 } from "lucide-react";
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { useAllCourses, Course as CourseType } from '@/services/courseService';
+import { format } from 'date-fns';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import axios from '@/lib/axios';
+import { useNavigate } from 'react-router-dom';
 
-interface Course {
-  id: string;
-  title: string;
-  category: string;
-  instructor: string;
-  status: string;
-  students: number;
-  created: string;
-  lastUpdated: string;
-}
+// Extended course status type to include admin statuses
+type CourseStatus = 'enrolled' | 'started' | 'completed' | 'pending' | 'active' | 'draft' | 'archived';
 
 const CourseManagement = () => {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   
-  // Mock data - in a real app this would come from API calls
-  const [courses] = useState<Course[]>([
-    { 
-      id: '1', 
-      title: 'React Fundamentals', 
-      category: 'Web Development', 
-      instructor: 'Sarah Smith', 
-      status: 'active',
-      students: 245,
-      created: '2023-01-15',
-      lastUpdated: '2023-05-10'
-    },
-    { 
-      id: '2', 
-      title: 'Advanced JavaScript', 
-      category: 'Programming', 
-      instructor: 'Mike Johnson', 
-      status: 'active',
-      students: 182,
-      created: '2023-02-20',
-      lastUpdated: '2023-04-25'
-    },
-    { 
-      id: '3', 
-      title: 'UX Design Principles', 
-      category: 'Design', 
-      instructor: 'Emily Brown', 
-      status: 'draft',
-      students: 0,
-      created: '2023-05-10',
-      lastUpdated: '2023-05-10'
-    },
-    { 
-      id: '4', 
-      title: 'Data Science Basics', 
-      category: 'Data', 
-      instructor: 'Alex Wilson', 
-      status: 'archived',
-      students: 78,
-      created: '2022-11-05',
-      lastUpdated: '2023-03-15'
-    },
-    { 
-      id: '5', 
-      title: 'Mobile App Development', 
-      category: 'Mobile', 
-      instructor: 'John Doe', 
-      status: 'active',
-      students: 134,
-      created: '2023-03-12',
-      lastUpdated: '2023-05-18'
-    },
-  ]);
+  const [selectedCourse, setSelectedCourse] = useState<CourseType | null>(null);
+  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<string>('');
+  const [isActionLoading, setIsActionLoading] = useState(false);
+  
+  // Fetch courses from the API
+  const { data: coursesData, isLoading, error, refetch } = useAllCourses();
+  
+  // Extract unique categories from real course data
+  const categories = coursesData 
+    ? [...new Set(coursesData.map(course => course.category))]
+    : [];
 
-  // Mock categories for filter
-  const categories = [
-    'Web Development',
-    'Programming',
-    'Design',
-    'Data',
-    'Mobile',
-    'Business',
-    'Marketing'
-  ];
-
-  const handleCourseAction = (action: string, course: Course) => {
-    // In a real app, this would call an API
+  const handleCourseAction = async (action: string, course: CourseType) => {
+    setSelectedCourse(course);
+    
+    switch (action) {
+      case 'View':
+        navigate(`/admin/courses/${course._id || course.id}`);
+        break;
+      case 'Edit':
+        navigate(`/admin/courses/${course._id || course.id}/edit`);
+        break;
+      case 'Manage Enrollments':
+        navigate(`/admin/courses/${course._id || course.id}/enrollments`);
+        break;
+      case 'Archive':
+        setConfirmAction('archive');
+        setIsConfirmDialogOpen(true);
+        break;
+      case 'Activate':
+        setConfirmAction('activate');
+        setIsConfirmDialogOpen(true);
+        break;
+      case 'Delete':
+        setConfirmAction('delete');
+        setIsConfirmDialogOpen(true);
+        break;
+      default:
     toast({
       title: `${action} course`,
-      description: `${action} ${course.title}`,
+          description: `Action: ${action} on ${course.title}`,
       duration: 3000,
     });
+    }
   };
 
-  const filteredCourses = courses.filter(course => {
+  const handleConfirmAction = async () => {
+    if (!selectedCourse) return;
+    
+    setIsActionLoading(true);
+    try {
+      switch (confirmAction) {
+        case 'archive':
+          await axios.put(`/api/admin/courses/${selectedCourse._id || selectedCourse.id}/status`, { status: 'archived' });
+          toast({
+            title: "Course archived",
+            description: `${selectedCourse.title} has been archived successfully.`,
+          });
+          break;
+        case 'activate':
+          await axios.put(`/api/admin/courses/${selectedCourse._id || selectedCourse.id}/status`, { status: 'active' });
+          toast({
+            title: "Course activated",
+            description: `${selectedCourse.title} has been activated successfully.`,
+          });
+          break;
+        case 'delete':
+          await axios.delete(`/api/admin/courses/${selectedCourse._id || selectedCourse.id}`);
+          toast({
+            title: "Course deleted",
+            description: `${selectedCourse.title} has been deleted successfully.`,
+          });
+          break;
+      }
+      
+      // Refresh course data after action
+      refetch();
+    } catch (error) {
+      console.error(`Error performing action ${confirmAction}:`, error);
+      toast({
+        title: "Action failed",
+        description: `Failed to ${confirmAction} course. Please try again.`,
+        variant: "destructive",
+      });
+    } finally {
+      setIsActionLoading(false);
+      setIsConfirmDialogOpen(false);
+    }
+  };
+
+  const filteredCourses = coursesData?.filter(course => {
     const matchesSearch = course.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                         course.instructor.toLowerCase().includes(searchTerm.toLowerCase());
+                          (course.instructor && course.instructor.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesCategory = categoryFilter === 'all' || course.category === categoryFilter;
-    const matchesStatus = statusFilter === 'all' || course.status === statusFilter;
+    const matchesStatus = statusFilter === 'all' || (course.status || 'active') === statusFilter;
     
     return matchesSearch && matchesCategory && matchesStatus;
-  });
+  }) || [];
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string | undefined) => {
     switch (status) {
       case 'active':
         return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Active</Badge>;
@@ -133,8 +160,23 @@ const CourseManagement = () => {
       case 'archived':
         return <Badge className="bg-gray-100 text-gray-800 hover:bg-gray-100">Archived</Badge>;
       default:
-        return <Badge>{status}</Badge>;
+        return <Badge>{status || 'Active'}</Badge>;
     }
+  };
+
+  const formatDate = (dateString: string | undefined) => {
+    if (!dateString) return 'N/A';
+    try {
+      return format(new Date(dateString), 'yyyy-MM-dd');
+    } catch (error) {
+      return 'Invalid Date';
+    }
+  };
+
+  // Helper to get the lastUpdated date (could be createdAt if no lastModified)
+  const getLastUpdated = (course: CourseType) => {
+    // Return createdAt as fallback if no lastModified date available
+    return formatDate(course.createdAt);
   };
 
   return (
@@ -142,10 +184,6 @@ const CourseManagement = () => {
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <h2 className="text-3xl font-bold tracking-tight">Course Management</h2>
-          <Button>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Course
-          </Button>
         </div>
 
         <Card>
@@ -206,15 +244,37 @@ const CourseManagement = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredCourses.map((course) => (
-                    <TableRow key={course.id}>
+                  {isLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={8} className="h-24 text-center">
+                        <div className="flex justify-center items-center">
+                          <Loader2 className="h-6 w-6 animate-spin mr-2" />
+                          <span>Loading courses...</span>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ) : error ? (
+                    <TableRow>
+                      <TableCell colSpan={8} className="h-24 text-center text-red-500">
+                        Failed to load courses. Please try again.
+                      </TableCell>
+                    </TableRow>
+                  ) : filteredCourses.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={8} className="h-24 text-center">
+                        No courses found.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filteredCourses.map((course) => (
+                      <TableRow key={course._id || course.id}>
                       <TableCell className="font-medium">{course.title}</TableCell>
                       <TableCell>{course.category}</TableCell>
-                      <TableCell>{course.instructor}</TableCell>
-                      <TableCell>{getStatusBadge(course.status)}</TableCell>
-                      <TableCell>{course.students}</TableCell>
-                      <TableCell>{course.created}</TableCell>
-                      <TableCell>{course.lastUpdated}</TableCell>
+                        <TableCell>{course.instructor || 'Unknown'}</TableCell>
+                        <TableCell>{getStatusBadge(course.status as string)}</TableCell>
+                        <TableCell>{course.students || 0}</TableCell>
+                        <TableCell>{formatDate(course.createdAt)}</TableCell>
+                        <TableCell>{getLastUpdated(course)}</TableCell>
                       <TableCell className="text-right">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -236,6 +296,18 @@ const CourseManagement = () => {
                               <Users className="mr-2 h-4 w-4" />
                               Manage Enrollments
                             </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              {(course.status as string) === 'archived' ? (
+                                <DropdownMenuItem onClick={() => handleCourseAction('Activate', course)}>
+                                  <CheckCircle className="mr-2 h-4 w-4" />
+                                  Activate
+                                </DropdownMenuItem>
+                              ) : (
+                                <DropdownMenuItem onClick={() => handleCourseAction('Archive', course)}>
+                                  <Archive className="mr-2 h-4 w-4" />
+                                  Archive
+                                </DropdownMenuItem>
+                              )}
                             <DropdownMenuItem 
                               onClick={() => handleCourseAction('Delete', course)}
                               className="text-red-600 focus:text-red-600"
@@ -247,13 +319,7 @@ const CourseManagement = () => {
                         </DropdownMenu>
                       </TableCell>
                     </TableRow>
-                  ))}
-                  {filteredCourses.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={8} className="text-center py-6 text-muted-foreground">
-                        No courses found matching the current filters.
-                      </TableCell>
-                    </TableRow>
+                    ))
                   )}
                 </TableBody>
               </Table>
@@ -261,6 +327,41 @@ const CourseManagement = () => {
           </CardContent>
         </Card>
       </div>
+      
+      {/* Confirmation Dialog */}
+      <AlertDialog open={isConfirmDialogOpen} onOpenChange={setIsConfirmDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {confirmAction === 'delete' ? 'Delete Course' : 
+               confirmAction === 'archive' ? 'Archive Course' : 'Activate Course'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmAction === 'delete' ? 
+                `Are you sure you want to delete "${selectedCourse?.title}"? This action cannot be undone.` : 
+               confirmAction === 'archive' ? 
+                `Are you sure you want to archive "${selectedCourse?.title}"? It will no longer be visible to students.` :
+                `Are you sure you want to activate "${selectedCourse?.title}"? It will be visible to students.`
+              }
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isActionLoading}>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={(e) => {
+                e.preventDefault();
+                handleConfirmAction();
+              }}
+              disabled={isActionLoading}
+              className={confirmAction === 'delete' ? 'bg-red-600 hover:bg-red-700' : ''}
+            >
+              {isActionLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {confirmAction === 'delete' ? 'Delete' : 
+               confirmAction === 'archive' ? 'Archive' : 'Activate'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AdminLayout>
   );
 };

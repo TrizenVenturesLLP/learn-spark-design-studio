@@ -33,11 +33,21 @@ const userCourseSchema = new mongoose.Schema({
   completedDays: {
     type: [Number],
     default: []
+  },
+  updatedAt: {
+    type: Date,
+    default: Date.now
   }
 });
 
 // Compound index to prevent duplicate enrollments
 userCourseSchema.index({ userId: 1, courseId: 1 }, { unique: true });
+
+// Update the updatedAt field on save
+userCourseSchema.pre('save', function(next) {
+  this.updatedAt = new Date();
+  next();
+});
 
 const UserCourse = mongoose.model('UserCourse', userCourseSchema);
 

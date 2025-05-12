@@ -9,7 +9,9 @@ import {
   ChevronLeft,
   BarChart3,
   Receipt,
-  MessageSquare
+  MessageSquare,
+  UserCheck,
+  LifeBuoy
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
@@ -28,15 +30,38 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
   const handleLogout = () => {
     logout();
     navigate('/login');
-  };
+  };  
 
-  const menuItems = [
-    { icon: LayoutDashboard, name: 'Dashboard', path: '/admin/dashboard' },
-    { icon: Users, name: 'Users', path: '/admin/users' },
-    { icon: BookOpen, name: 'Courses', path: '/admin/courses' },
-    { icon: Receipt, name: 'Enrollment Requests', path: '/admin/enrollment-requests' },
-    { icon: MessageSquare, name: 'Contact Requests', path: '/admin/contact-requests' },
-    { icon: BarChart3, name: 'Analytics', path: '/admin/analytics' },
+  // Group the menu items by section
+  const menuSections = [
+    {
+      title: "Main",
+      items: [
+        { icon: LayoutDashboard, name: 'Dashboard', path: '/admin/dashboard' },
+      ]
+    },
+    {
+      title: "Management",
+      items: [
+        { icon: Users, name: 'Users', path: '/admin/users' },
+        { icon: BookOpen, name: 'Courses', path: '/admin/courses' },
+        { icon: Receipt, name: 'Enrollment Requests', path: '/admin/enrollment-requests' },
+        { icon: MessageSquare, name: 'Contact Requests', path: '/admin/contact-requests' },
+      ]
+    },
+    {
+      title: "Instructors",
+      items: [
+        { icon: Users, name: 'Instructor Management', path: '/admin/instructors' },
+        { icon: UserCheck, name: 'Instructor Approvals', path: '/admin/instructor-approvals' },
+      ]
+    },
+    {
+      title: "Analytics",
+      items: [
+        { icon: BarChart3, name: 'Analytics', path: '/admin/analytics' },
+      ]
+    }
   ];
 
   const isActive = (path: string) => {
@@ -84,37 +109,38 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
             
             {/* Menu Items */}
             <nav className="flex-1 overflow-y-auto py-4">
-              <ul className="space-y-1 px-2">
-                {menuItems.map((item) => (
-                  <li key={item.name}>
-                    <Link 
-                      to={item.path}
-                      className={`flex items-center p-2 rounded-md hover:bg-gray-100 transition-colors group ${
-                        isActive(item.path) ? 'bg-gray-100' : ''
-                      }`}
-                    >
-                      <item.icon className={`h-5 w-5 text-primary ${collapsed ? 'mx-auto' : 'mr-3'}`} />
-                      {!collapsed && <span>{item.name}</span>}
-                      {collapsed && (
-                        <span className="absolute left-16 p-2 bg-primary text-white rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity text-sm whitespace-nowrap">
-                          {item.name}
-                        </span>
-                      )}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
+              {menuSections.map((section, sectionIndex) => (
+                <div key={sectionIndex} className="mb-4">
+                  {!collapsed && (
+                    <h3 className="px-4 mb-1 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                      {section.title}
+                    </h3>
+                  )}
+                  <ul className="space-y-1 px-2">
+                    {section.items.map((item) => (
+                      <li key={item.name}>
+                        <Link 
+                          to={item.path}
+                          className={`flex items-center p-2 rounded-md hover:bg-gray-100 transition-colors group ${
+                            isActive(item.path) ? 'bg-gray-100' : ''
+                          }`}
+                        >
+                          <item.icon className={`h-5 w-5 text-primary ${collapsed ? 'mx-auto' : 'mr-3'}`} />
+                          {!collapsed && <span>{item.name}</span>}
+                          {collapsed && (
+                            <span className="absolute left-16 p-2 bg-primary text-white rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity text-sm whitespace-nowrap">
+                              {item.name}
+                            </span>
+                          )}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
             </nav>
             
             <div className="px-4 py-4 border-t space-y-2">
-              <Link 
-                to="/"
-                className={`flex items-center p-2 rounded-md hover:bg-gray-100 transition-colors w-full text-left ${collapsed ? 'justify-center' : ''}`}
-              >
-                <BookOpen className={`h-5 w-5 text-gray-500 ${collapsed ? '' : 'mr-3'}`} />
-                {!collapsed && <span>View Site</span>}
-              </Link>
-              
               <Button 
                 variant="ghost" 
                 className={`text-red-500 hover:text-red-600 hover:bg-red-50 ${collapsed ? 'p-2 w-full justify-center' : 'w-full'}`}
