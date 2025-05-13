@@ -15,11 +15,9 @@ import { useCreateDiscussion, useAddReply, useToggleLike, CreateDiscussionData }
 import { Heart, MessageCircle, Pin } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
-
-// Define the CourseLayout component since it was missing
-import React from 'react';
 import { Outlet } from 'react-router-dom';
 
+// Define the CourseLayout component
 const CourseLayout = ({ children }: { children: React.ReactNode }) => {
   return (
     <div className="min-h-screen bg-background">
@@ -69,11 +67,12 @@ const DiscussionPage = () => {
   const [replyContent, setReplyContent] = useState('');
   const [activeDiscussionId, setActiveDiscussionId] = useState<string | null>(null);
 
+  // Fix the useQuery type issue
   const { data: discussions = [], isLoading } = useQuery<Discussion[]>({
     queryKey: ['discussions', courseId],
     queryFn: async () => {
       if (!courseId) return [];
-      const response = await axios.get(`/api/courses/${courseId}/discussions`);
+      const response = await axios.get<Discussion[]>(`/api/courses/${courseId}/discussions`);
       return response.data;
     },
     enabled: !!courseId,
@@ -89,7 +88,7 @@ const DiscussionPage = () => {
     const data: CreateDiscussionData = {
       title: newDiscussionTitle,
       content: newDiscussionContent,
-      isPinned: false
+      isPinned: false // Make sure to include this required property
     };
     
     createDiscussionMutation.mutate(

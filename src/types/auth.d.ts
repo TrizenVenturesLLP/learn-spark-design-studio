@@ -26,6 +26,20 @@ export interface User {
     };
   };
   status?: 'pending' | 'approved' | 'rejected';
+  // Add these missing properties for InstructorProfile.tsx
+  profileCompletion?: number;
+  stats?: {
+    totalStudents?: number;
+    totalCourses?: number;
+    averageRating?: number;
+    teachingHours?: number;
+  };
+  recentReviews?: Array<{
+    student: string;
+    rating: number;
+    comment: string;
+    date: string;
+  }>;
 }
 
 // Helper function to safely access user properties

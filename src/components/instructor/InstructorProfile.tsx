@@ -120,7 +120,7 @@ const profileFormSchema = z.object({
 });
 
 const InstructorProfile: React.FC = () => {
-  const auth = useAuth();
+  const auth = useAuth() as unknown as AuthContextType;
   const { toast } = useToast();
   const [profileData, setProfileData] = useState(mockProfileData);
   const [isLoading, setIsLoading] = useState(false);
@@ -164,12 +164,12 @@ const InstructorProfile: React.FC = () => {
           specialty: safelyAccessUser(data, user => user.instructorProfile?.specialty, ''),
           experience: safelyAccessUser(data, user => user.instructorProfile?.experience, 0),
           bio: safelyAccessUser(data, user => user.instructorProfile?.bio, ''),
-          profileCompletion: safelyAccessUser(data, user => user.profileCompletion, 0),
+          profileCompletion: data.profileCompletion,
           totalStudents: safelyAccessUser(data, user => user.stats?.totalStudents, 0),
           totalCourses: safelyAccessUser(data, user => user.stats?.totalCourses, 0),
           averageRating: safelyAccessUser(data, user => user.stats?.averageRating, 0),
           teachingHours: safelyAccessUser(data, user => user.stats?.teachingHours, 0),
-          recentReviews: safelyAccessUser(data, user => user.recentReviews, []),
+          recentReviews: data.recentReviews || [],
           avatar: safelyAccessUser(data, user => user.instructorProfile?.avatar, null),
           socialLinks: {
             linkedin: safelyAccessUser(data, user => user.instructorProfile?.socialLinks?.linkedin, ''),
@@ -188,6 +188,13 @@ const InstructorProfile: React.FC = () => {
             ...mockProfileData,
             name: auth.user.name || mockProfileData.name,
             email: auth.user.email || mockProfileData.email,
+            // Use optional chaining for the new fields
+            profileCompletion: auth.user.profileCompletion || mockProfileData.profileCompletion,
+            totalStudents: auth.user.stats?.totalStudents || mockProfileData.totalStudents,
+            totalCourses: auth.user.stats?.totalCourses || mockProfileData.totalCourses,
+            averageRating: auth.user.stats?.averageRating || mockProfileData.averageRating,
+            teachingHours: auth.user.stats?.teachingHours || mockProfileData.teachingHours,
+            recentReviews: auth.user.recentReviews || mockProfileData.recentReviews,
           });
         }
         

@@ -1,40 +1,29 @@
 
-import React from 'react';
-
-// Define the MessageUser type
-export interface MessageUser {
-  _id: string;
-  name: string;
-  avatar?: string;
-  role?: string;
+/**
+ * Type guard to check if a value is a MessageUser object with _id property
+ */
+export function isMessageUser(value: any): value is { _id: string; name?: string } {
+  return value && typeof value === 'object' && '_id' in value;
 }
 
-// Function to safely access MessageUser properties and handle string | MessageUser type
-export function getUserId(user: string | MessageUser): string {
-  if (typeof user === 'string') {
-    return user;
+/**
+ * Safely get the ID from either a string ID or a MessageUser object
+ */
+export function getUserId(user: string | { _id: string }): string {
+  if (isMessageUser(user)) {
+    return user._id;
   }
-  return user._id;
+  return user;
 }
 
-// Function to check if an object is a MessageUser
-export function isMessageUser(obj: any): obj is MessageUser {
-  return typeof obj === 'object' && obj !== null && '_id' in obj;
-}
-
-// Safe accessor for user properties
-export function getUserProperty<T>(
-  user: string | MessageUser,
-  accessor: (user: MessageUser) => T,
-  defaultValue: T
-): T {
-  if (typeof user === 'string' || !user) {
-    return defaultValue;
-  }
+/**
+ * Type safe comparison of user IDs
+ */
+export function isSameUser(user1: string | { _id: string } | undefined, user2: string | { _id: string } | undefined): boolean {
+  if (!user1 || !user2) return false;
   
-  try {
-    return accessor(user) || defaultValue;
-  } catch (error) {
-    return defaultValue;
-  }
+  const id1 = getUserId(user1);
+  const id2 = getUserId(user2);
+  
+  return id1 === id2;
 }
