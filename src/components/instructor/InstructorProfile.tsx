@@ -302,22 +302,22 @@ const InstructorProfile: React.FC = () => {
             console.error('Error refetching profile after update:', refetchError);
             
             // Fall back to using the user data from the update response
-            const userData = response.data.user;
+            const responseData = response.data.user as InstructorProfileResponse;
             
             setProfileData({
               ...profileData,
-              name: safelyAccessUser(userData, u => u.name, profileData.name),
-              email: safelyAccessUser(userData, u => u.email, profileData.email),
-              role: safelyAccessUser(userData, u => u.displayName, profileData.role),
-              specialty: safelyAccessUser(userData, u => u.instructorProfile?.specialty, profileData.specialty),
-              experience: safelyAccessUser(userData, u => u.instructorProfile?.experience, profileData.experience),
-              phone: safelyAccessUser(userData, u => u.instructorProfile?.phone, profileData.phone),
-              location: safelyAccessUser(userData, u => u.instructorProfile?.location, profileData.location),
-              bio: safelyAccessUser(userData, u => u.instructorProfile?.bio, profileData.bio),
+              name: safelyAccessUser(responseData, u => u.name, profileData.name),
+              email: safelyAccessUser(responseData, u => u.email, profileData.email),
+              role: safelyAccessUser(responseData, u => u.displayName, profileData.role),
+              specialty: safelyAccessUser(responseData, u => u.instructorProfile?.specialty, profileData.specialty),
+              experience: safelyAccessUser(responseData, u => u.instructorProfile?.experience, profileData.experience),
+              phone: safelyAccessUser(responseData, u => u.instructorProfile?.phone, profileData.phone),
+              location: safelyAccessUser(responseData, u => u.instructorProfile?.location, profileData.location),
+              bio: safelyAccessUser(responseData, u => u.instructorProfile?.bio, profileData.bio),
               socialLinks: {
-                linkedin: safelyAccessUser(userData, u => u.instructorProfile?.socialLinks?.linkedin, profileData.socialLinks.linkedin),
-                twitter: safelyAccessUser(userData, u => u.instructorProfile?.socialLinks?.twitter, profileData.socialLinks.twitter),
-                website: safelyAccessUser(userData, u => u.instructorProfile?.socialLinks?.website, profileData.socialLinks.website)
+                linkedin: safelyAccessUser(responseData, u => u.instructorProfile?.socialLinks?.linkedin, profileData.socialLinks.linkedin),
+                twitter: safelyAccessUser(responseData, u => u.instructorProfile?.socialLinks?.twitter, profileData.socialLinks.twitter),
+                website: safelyAccessUser(responseData, u => u.instructorProfile?.socialLinks?.website, profileData.socialLinks.website)
               }
             });
           }
