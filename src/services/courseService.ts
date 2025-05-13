@@ -1,5 +1,7 @@
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "../lib/axios";
+import { toast } from "@/components/ui/use-toast";
 
 export interface MCQOption {
   text: string;
@@ -229,8 +231,14 @@ export const useInstructorCourses = () => {
   return useQuery({
     queryKey: ['instructor-courses'],
     queryFn: async (): Promise<Course[]> => {
-      const response = await axios.get('/api/instructor/courses');
-      return response.data as Course[];
+      try {
+        const response = await axios.get('/api/instructor/courses');
+        console.log("Instructor courses response:", response.data);
+        return response.data as Course[];
+      } catch (error) {
+        console.error("Error fetching instructor courses:", error);
+        throw error;
+      }
     },
   });
 };
@@ -280,13 +288,68 @@ export const useCreateCourse = () => {
   
   return useMutation({
     mutationFn: async (courseData: Partial<Course>) => {
-      const response = await axios.post('/api/instructor/courses', courseData);
-      return response.data;
+      // Log the data being sent for debugging
+      console.log("Creating course with data:", JSON.stringify(courseData, null, 2));
+      
+      // Validate required fields
+      const requiredFields = ['title', 'description', 'instructor', 'duration', 'level', 'category', 'image'];
+      for (const field of requiredFields) {
+        if (!courseData[field as keyof Partial<Course>]) {
+          toast({
+            title: "Validation Error",
+            description: `The ${field} field is required`,
+            variant: "destructive"
+          });
+          throw new Error(`The ${field} field is required`);
+        }
+      }
+
+      // Process roadmap data if it exists
+      if (courseData.roadmap) {
+        // Ensure roadmap data is valid
+        courseData.roadmap = courseData.roadmap.map((day, index) => ({
+          ...day,
+          day: index + 1, // Ensure days are sequential
+          mcqs: day.mcqs || [] // Ensure mcqs exists
+        }));
+      }
+      
+      try {
+        const response = await axios.post('/api/instructor/courses', courseData);
+        console.log("Course creation response:", response.data);
+        return response.data;
+      } catch (error: any) {
+        console.error("Error creating course:", error);
+        
+        // Extract and display error message
+        const errorMsg = error.response?.data?.message || "Failed to create course";
+        toast({
+          title: "Error",
+          description: errorMsg,
+          variant: "destructive"
+        });
+        
+        throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['instructor-courses'] });
       queryClient.invalidateQueries({ queryKey: ['courses'] });
+      
+      toast({
+        title: "Success",
+        description: "Course created successfully",
+      });
     },
+    onError: (error) => {
+      console.error("Mutation error:", error);
+      
+      toast({
+        title: "Error",
+        description: "Failed to create course. Please try again.",
+        variant: "destructive"
+      });
+    }
   });
 };
 
@@ -296,14 +359,56 @@ export const useUpdateCourse = () => {
   
   return useMutation({
     mutationFn: async ({courseId, courseData}: {courseId: string, courseData: Partial<Course>}) => {
-      const response = await axios.put(`/api/instructor/courses/${courseId}`, courseData);
-      return response.data;
+      // Log the data being updated for debugging
+      console.log(`Updating course ${courseId} with data:`, JSON.stringify(courseData, null, 2));
+      
+      // Process roadmap data if it exists
+      if (courseData.roadmap) {
+        // Ensure roadmap data is valid
+        courseData.roadmap = courseData.roadmap.map((day, index) => ({
+          ...day,
+          day: index + 1, // Ensure days are sequential
+          mcqs: day.mcqs || [] // Ensure mcqs exists
+        }));
+      }
+      
+      try {
+        const response = await axios.put(`/api/instructor/courses/${courseId}`, courseData);
+        console.log("Course update response:", response.data);
+        return response.data;
+      } catch (error: any) {
+        console.error("Error updating course:", error);
+        
+        // Extract and display error message
+        const errorMsg = error.response?.data?.message || "Failed to update course";
+        toast({
+          title: "Error",
+          description: errorMsg,
+          variant: "destructive"
+        });
+        
+        throw error;
+      }
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['instructor-courses'] });
       queryClient.invalidateQueries({ queryKey: ['courses'] });
       queryClient.invalidateQueries({ queryKey: ['course', variables.courseId] });
+      
+      toast({
+        title: "Success",
+        description: "Course updated successfully",
+      });
     },
+    onError: (error) => {
+      console.error("Mutation error:", error);
+      
+      toast({
+        title: "Error",
+        description: "Failed to update course. Please try again.",
+        variant: "destructive"
+      });
+    }
   });
 };
 

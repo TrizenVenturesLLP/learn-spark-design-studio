@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -118,6 +119,26 @@ const CourseForm = () => {
     setIsSubmitting(true);
 
     try {
+      // Validate basic required fields
+      if (!courseData.title.trim()) {
+        throw new Error("Course title is required");
+      }
+      if (!courseData.description.trim()) {
+        throw new Error("Course description is required");
+      }
+      if (!courseData.image.trim()) {
+        throw new Error("Course image URL is required");
+      }
+      if (!courseData.duration.trim()) {
+        throw new Error("Course duration is required");
+      }
+      if (!courseData.category) {
+        throw new Error("Course category is required");
+      }
+      if (!courseData.instructor.trim()) {
+        throw new Error("Instructor name is required");
+      }
+
       // Validate roadmap data
       const validatedRoadmap = courseData.roadmap.map((day, index) => {
         if (!day.topics.trim()) {
@@ -126,6 +147,31 @@ const CourseForm = () => {
         if (!day.video.trim()) {
           throw new Error(`Video link is required for Day ${index + 1}`);
         }
+        
+        // Validate MCQs if they exist
+        if (day.mcqs && day.mcqs.length > 0) {
+          day.mcqs.forEach((mcq, mcqIndex) => {
+            if (!mcq.question.trim()) {
+              throw new Error(`Question is required for MCQ #${mcqIndex + 1} on Day ${index + 1}`);
+            }
+            
+            if (!mcq.options || mcq.options.length < 2) {
+              throw new Error(`At least 2 options are required for MCQ #${mcqIndex + 1} on Day ${index + 1}`);
+            }
+            
+            const hasCorrectOption = mcq.options.some(option => option.isCorrect);
+            if (!hasCorrectOption) {
+              throw new Error(`At least one correct option is required for MCQ #${mcqIndex + 1} on Day ${index + 1}`);
+            }
+            
+            mcq.options.forEach((option, optIndex) => {
+              if (!option.text.trim()) {
+                throw new Error(`Option text is required for option #${optIndex + 1} of MCQ #${mcqIndex + 1} on Day ${index + 1}`);
+              }
+            });
+          });
+        }
+        
         return {
           day: index + 1, // Ensure days are sequential
           topics: day.topics.trim(),
@@ -153,6 +199,8 @@ const CourseForm = () => {
         rating: existingCourse?.rating || 0,
       };
 
+      console.log("Submitting course data:", formattedCourseData);
+
       if (isEditMode && courseId) {
         await updateCourseMutation.mutateAsync({
           courseId,
@@ -177,6 +225,7 @@ const CourseForm = () => {
         description: errorMessage,
         variant: "destructive",
       });
+      console.error("Course form submission error:", err);
     } finally {
       setIsSubmitting(false);
     }
@@ -270,6 +319,25 @@ const CourseForm = () => {
   };
 
   const handleMcqsUpdate = (dayIndex: number, mcqs: MCQQuestion[]) => {
+    // Validate MCQs before updating
+    mcqs.forEach((mcq, index) => {
+      // Ensure question is not empty
+      if (!mcq.question) {
+        mcq.question = "";
+      }
+      
+      // Ensure options array exists
+      if (!mcq.options || !Array.isArray(mcq.options)) {
+        mcq.options = [];
+      }
+      
+      // Ensure each option has text and isCorrect properties
+      mcq.options = mcq.options.map(option => ({
+        text: option.text || "",
+        isCorrect: Boolean(option.isCorrect)
+      }));
+    });
+    
     updateRoadmapDay(dayIndex, 'mcqs', mcqs);
   };
 
