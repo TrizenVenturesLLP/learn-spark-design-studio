@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -7,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { Edit, Star, Mail, Phone, MapPin, BookOpen, Users, Clock, FileCheck, Upload } from 'lucide-react';
+import { Edit, Star, Mail, Phone, MapPin, BookOpen, Users, Clock, FileCheck } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -31,9 +30,44 @@ import * as z from 'zod';
 import axios from '@/lib/axios';
 import { User } from '@/types/auth';
 
+// Define the full AuthContextType from your context
 interface AuthContextType {
   user: User | null;
   // Add other properties from AuthContext as needed
+}
+
+// Define API response types
+interface InstructorProfileResponse {
+  id: string;
+  name: string;
+  displayName?: string;
+  email: string;
+  instructorProfile?: {
+    phone?: string;
+    location?: string;
+    specialty?: string;
+    experience?: number;
+    bio?: string;
+    avatar?: string;
+    socialLinks?: {
+      linkedin?: string;
+      twitter?: string;
+      website?: string;
+    };
+  };
+  profileCompletion: number;
+  stats?: {
+    totalStudents: number;
+    totalCourses: number;
+    averageRating: number;
+    teachingHours: number;
+  };
+  recentReviews?: Array<{
+    student: string;
+    rating: number;
+    comment: string;
+    date: string;
+  }>;
 }
 
 // Mock data as fallback if API fails
@@ -86,7 +120,7 @@ const profileFormSchema = z.object({
 });
 
 const InstructorProfile: React.FC = () => {
-  const { user } = useAuth() as AuthContextType;
+  const auth = useAuth() as AuthContextType;
   const { toast } = useToast();
   const [profileData, setProfileData] = useState(mockProfileData);
   const [isLoading, setIsLoading] = useState(false);
@@ -117,7 +151,7 @@ const InstructorProfile: React.FC = () => {
       try {
         // Use the new API endpoint to fetch profile data
         const response = await axios.get('/api/instructor/profile');
-        const data = response.data;
+        const data = response.data as InstructorProfileResponse;
 
         // Transform the API response to match our component's data structure
         const transformedData = {
@@ -149,11 +183,11 @@ const InstructorProfile: React.FC = () => {
         console.error('Error fetching profile data:', error);
         
         // Fallback to using user data from auth context if available
-        if (user) {
+        if (auth.user) {
           setProfileData({
             ...mockProfileData,
-            name: user.name || mockProfileData.name,
-            email: user.email || mockProfileData.email,
+            name: auth.user.name || mockProfileData.name,
+            email: auth.user.email || mockProfileData.email,
           });
         }
         
@@ -168,7 +202,7 @@ const InstructorProfile: React.FC = () => {
     };
 
     fetchProfile();
-  }, [user, toast]);
+  }, [auth, toast]);
 
   // Update form values when profile data changes
   useEffect(() => {
@@ -224,38 +258,7 @@ const InstructorProfile: React.FC = () => {
           try {
             // Refetch profile to get latest data
             const profileResponse = await axios.get('/api/instructor/profile');
-            const data = profileResponse.data as {
-              id: string;
-              name: string;
-              displayName?: string;
-              email: string;
-              instructorProfile: {
-                specialty: string;
-                experience: number;
-                bio?: string;
-                phone?: string;
-                location?: string;
-                avatar?: string;
-                socialLinks?: {
-                  linkedin?: string;
-                  twitter?: string;
-                  website?: string;
-                };
-              };
-              profileCompletion: number;
-              stats?: {
-                totalStudents: number;
-                totalCourses: number;
-                averageRating: number;
-                teachingHours: number;
-              };
-              recentReviews?: Array<{
-                student: string;
-                rating: number;
-                comment: string;
-                date: string;
-              }>;
-            };
+            const data = profileResponse.data as InstructorProfileResponse;
             
             // Transform the API response to match our component's data structure
             const transformedData = {
@@ -289,24 +292,7 @@ const InstructorProfile: React.FC = () => {
             console.log('Response data:', refetchError.response?.data);
             
             // Fall back to using the user data from the update response
-            const userData = response.data.user as {
-              id: string;
-              name: string;
-              email: string;
-              displayName?: string;
-              instructorProfile?: {
-                specialty?: string;
-                experience?: number;
-                bio?: string;
-                phone?: string;
-                location?: string;
-                socialLinks?: {
-                  linkedin?: string;
-                  twitter?: string;
-                  website?: string;
-                }
-              }
-            };
+            const userData = response.data.user;
             
             setProfileData({
               ...profileData,

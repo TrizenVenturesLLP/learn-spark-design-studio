@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -11,11 +12,40 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
-import { useCreateDiscussion, useAddReply, useToggleLike, type CreateDiscussionData, type Discussion } from '@/services/discussionService';
+import { useCreateDiscussion, useAddReply, useToggleLike, CreateDiscussionData } from '@/services/discussionService';
 import { Heart, MessageCircle, Pin } from 'lucide-react';
 import CourseLayout from '@/components/layouts/CourseLayout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
+
+// Define the Discussion interface here
+interface Discussion {
+  _id: string;
+  title: string;
+  content: string;
+  author: {
+    _id: string;
+    name: string;
+    avatar?: string;
+  };
+  courseId: string;
+  courseName?: string;
+  createdAt: string;
+  updatedAt: string;
+  isPinned: boolean;
+  likes: number;
+  likedByUser: boolean;
+  replies: Array<{
+    _id: string;
+    content: string;
+    author: {
+      _id: string;
+      name: string;
+      avatar?: string;
+    };
+    createdAt: string;
+  }>;
+}
 
 const DiscussionPage = () => {
   const { courseId } = useParams<{ courseId: string }>();
