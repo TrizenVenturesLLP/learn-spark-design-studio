@@ -13,7 +13,7 @@ export function getUserId(user: string | { _id: string }): string {
   if (isMessageUser(user)) {
     return user._id;
   }
-  return user;
+  return user as string;
 }
 
 /**

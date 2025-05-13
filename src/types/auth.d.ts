@@ -26,7 +26,7 @@ export interface User {
     };
   };
   status?: 'pending' | 'approved' | 'rejected';
-  // Add these missing properties for InstructorProfile.tsx
+  // Add these properties for InstructorProfile.tsx
   profileCompletion?: number;
   stats?: {
     totalStudents?: number;

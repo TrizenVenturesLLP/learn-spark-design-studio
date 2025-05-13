@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { Edit, Star, Mail, Phone, MapPin, BookOpen, Users, Clock, FileCheck } from 'lucide-react';
+import { Edit, Star, Mail, Phone, MapPin, BookOpen, Users, Clock } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -31,10 +31,15 @@ import * as z from 'zod';
 import axios from '@/lib/axios';
 import { User, safelyAccessUser } from '@/types/auth';
 
-// Define the full AuthContextType from your context
+// Update the AuthContextType to match what's in contexts/AuthContext.tsx
 interface AuthContextType {
+  isAuthenticated: boolean;
   user: User | null;
-  // Add other properties from AuthContext as needed
+  token: string | null;
+  loading: boolean;
+  login: (email: string, password: string) => Promise<void>;
+  signup: (data: any) => Promise<void>;
+  logout: () => void;
 }
 
 // Define API response types
@@ -121,7 +126,7 @@ const profileFormSchema = z.object({
 });
 
 const InstructorProfile: React.FC = () => {
-  const { user } = useAuth() as AuthContextType;
+  const auth = useAuth();
   const { toast } = useToast();
   const [profileData, setProfileData] = useState(mockProfileData);
   const [isLoading, setIsLoading] = useState(false);
@@ -184,17 +189,17 @@ const InstructorProfile: React.FC = () => {
         console.error('Error fetching profile data:', error);
         
         // Fallback to using user data from auth context if available
-        if (user) {
+        if (auth.user) {
           setProfileData({
             ...mockProfileData,
-            name: user.name || mockProfileData.name,
-            email: user.email || mockProfileData.email,
-            profileCompletion: safelyAccessUser(user, u => u.profileCompletion, mockProfileData.profileCompletion),
-            totalStudents: safelyAccessUser(user, u => u.stats?.totalStudents, mockProfileData.totalStudents),
-            totalCourses: safelyAccessUser(user, u => u.stats?.totalCourses, mockProfileData.totalCourses),
-            averageRating: safelyAccessUser(user, u => u.stats?.averageRating, mockProfileData.averageRating),
-            teachingHours: safelyAccessUser(user, u => u.stats?.teachingHours, mockProfileData.teachingHours),
-            recentReviews: safelyAccessUser(user, u => u.recentReviews, mockProfileData.recentReviews),
+            name: auth.user.name || mockProfileData.name,
+            email: auth.user.email || mockProfileData.email,
+            profileCompletion: safelyAccessUser(auth.user, u => u.profileCompletion, mockProfileData.profileCompletion),
+            totalStudents: safelyAccessUser(auth.user, u => u.stats?.totalStudents, mockProfileData.totalStudents),
+            totalCourses: safelyAccessUser(auth.user, u => u.stats?.totalCourses, mockProfileData.totalCourses),
+            averageRating: safelyAccessUser(auth.user, u => u.stats?.averageRating, mockProfileData.averageRating),
+            teachingHours: safelyAccessUser(auth.user, u => u.stats?.teachingHours, mockProfileData.teachingHours),
+            recentReviews: safelyAccessUser(auth.user, u => u.recentReviews, mockProfileData.recentReviews),
           });
         }
         
@@ -209,7 +214,7 @@ const InstructorProfile: React.FC = () => {
     };
 
     fetchProfile();
-  }, [user, toast]);
+  }, [auth, toast]);
 
   // Update form values when profile data changes
   useEffect(() => {
