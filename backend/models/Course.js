@@ -1,3 +1,4 @@
+
 const mongoose = require('mongoose');
 
 const reviewSchema = new mongoose.Schema({
@@ -26,12 +27,24 @@ const moduleSchema = new mongoose.Schema({
   lessons: [lessonSchema]
 });
 
+const mcqOptionSchema = new mongoose.Schema({
+  text: { type: String, required: true },
+  isCorrect: { type: Boolean, required: true }
+});
+
+const mcqQuestionSchema = new mongoose.Schema({
+  question: { type: String, required: true },
+  options: [mcqOptionSchema],
+  explanation: { type: String }
+});
+
 const roadmapDaySchema = new mongoose.Schema({
   day: { type: Number, required: true },
   topics: { type: String, required: true },
   video: { type: String, required: true },
   transcript: { type: String },
-  notes: { type: String }
+  notes: { type: String },
+  mcqs: [mcqQuestionSchema] // Add MCQ questions to each day
 });
 
 const courseSchema = new mongoose.Schema({

@@ -1,6 +1,17 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "../lib/axios";
 
+export interface MCQOption {
+  text: string;
+  isCorrect: boolean;
+}
+
+export interface MCQQuestion {
+  question: string;
+  options: MCQOption[];
+  explanation?: string;
+}
+
 export interface Course {
   id: string;
   _id: string;
@@ -42,6 +53,7 @@ export interface RoadmapDay {
   video: string;
   transcript?: string;
   notes?: string;
+  mcqs?: MCQQuestion[]; // Add MCQ questions to each day
 }
 
 // Fetch all courses

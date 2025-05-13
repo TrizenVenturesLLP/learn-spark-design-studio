@@ -29,12 +29,14 @@ import {
   useUpdateCourse, 
   useCourseDetails, 
   Course, 
-  RoadmapDay 
+  RoadmapDay,
+  MCQQuestion
 } from '@/services/courseService';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import MCQForm from '@/components/MCQForm';
 
 interface CourseFormData {
   title: string;
@@ -79,7 +81,8 @@ const CourseForm = () => {
       topics: '',
       video: '',
       transcript: '',
-      notes: ''
+      notes: '',
+      mcqs: [] // Include MCQs in the submission
     }],
     instructor: user?.name || ''
   });
@@ -102,7 +105,8 @@ const CourseForm = () => {
           topics: '',
           video: '',
           transcript: '',
-          notes: ''
+          notes: '',
+          mcqs: []
         }],
         instructor: existingCourse.instructor || user?.name || ''
       });
@@ -127,7 +131,8 @@ const CourseForm = () => {
           topics: day.topics.trim(),
           video: day.video.trim(),
           transcript: day.transcript?.trim() || '',
-          notes: day.notes?.trim() || ''
+          notes: day.notes?.trim() || '',
+          mcqs: day.mcqs || [] // Include MCQs in the submission
         };
       });
 
@@ -205,7 +210,8 @@ const CourseForm = () => {
           topics: '',
           video: '',
           transcript: '',
-          notes: ''
+          notes: '',
+          mcqs: [] // Include MCQs in the submission
         }
       ]
     }));
@@ -261,6 +267,10 @@ const CourseForm = () => {
         setActiveTab('media');
         break;
     }
+  };
+
+  const handleMcqsUpdate = (dayIndex: number, mcqs: MCQQuestion[]) => {
+    updateRoadmapDay(dayIndex, 'mcqs', mcqs);
   };
 
   if (isLoadingCourse && isEditMode) {
@@ -556,6 +566,15 @@ const CourseForm = () => {
                         Add any supplementary notes, resources, or special instructions for this day's content
                       </p>
                     </div>
+                    
+                    {/* MCQ Form Component */}
+                    <div className="mt-6">
+                      <MCQForm 
+                        mcqs={day.mcqs || []}
+                        onChange={(mcqs) => handleMcqsUpdate(index, mcqs)}
+                        dayNumber={day.day}
+                      />
+                    </div>
                   </div>
                 ))}
                 
@@ -639,4 +658,4 @@ const CourseForm = () => {
   );
 };
 
-export default CourseForm; 
+export default CourseForm;

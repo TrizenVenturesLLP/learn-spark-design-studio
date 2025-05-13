@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -13,6 +14,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { useUpdateProgress, Course, RoadmapDay } from '@/services/courseService';
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import MCQQuiz from '@/components/MCQQuiz';
 
 // Import your logo image
 import companyLogo from '/logo_footer.png'; // Adjust path as needed
@@ -200,6 +202,8 @@ const CourseWeekView = () => {
   const [completedDays, setCompletedDays] = useState<number[]>([]);
   const [watchedVideos, setWatchedVideos] = useState<number[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [showQuiz, setShowQuiz] = useState(false);
+  const [quizCompleted, setQuizCompleted] = useState<number[]>([]);
   const { token, isAuthenticated, loading } = useAuth();
   const { toast } = useToast();
   const updateProgressMutation = useUpdateProgress();
@@ -286,6 +290,28 @@ const CourseWeekView = () => {
   const handleVideoComplete = (day: number) => {
     console.log(`Video ${day} completed`);
     setWatchedVideos(prev => [...prev, day]);
+    
+    // Show quiz if available for this day
+    const currentDay = course?.roadmap.find(d => d.day === day);
+    if (currentDay?.mcqs && currentDay.mcqs.length > 0) {
+      setShowQuiz(true);
+    }
+  };
+
+  const handleQuizComplete = (score: number) => {
+    const currentDay = selectedDay;
+    setQuizCompleted(prev => [...prev, currentDay]);
+    setShowQuiz(false);
+    
+    toast({
+      title: "Quiz completed",
+      description: `You scored ${score}% on the quiz for Day ${currentDay}`,
+    });
+    
+    // Mark day as complete after quiz
+    if (!completedDays.includes(currentDay)) {
+      handleDayComplete(currentDay);
+    }
   };
 
   const isVideoEnabled = (day: number) => {
@@ -307,6 +333,7 @@ const CourseWeekView = () => {
               onClick={() => {
                 setSelectedDay(day.day);
                 setIsSidebarOpen(false);
+                setShowQuiz(false); // Hide quiz when changing days
               }}
               className={cn(
                 "flex flex-col w-full p-3 rounded-lg text-sm gap-1 transition-colors text-left",
@@ -335,6 +362,16 @@ const CourseWeekView = () => {
               )}>
                 {day.topics}
               </p>
+              {day.mcqs && day.mcqs.length > 0 && (
+                <div className={cn(
+                  "text-xs mt-1",
+                  selectedDay === day.day 
+                    ? "text-primary-foreground/80"
+                    : "text-blue-500"
+                )}>
+                  Quiz: {day.mcqs.length} questions
+                </div>
+              )}
             </button>
           ))}
         </div>
@@ -398,56 +435,75 @@ const CourseWeekView = () => {
                 <p className="text-sm md:text-base text-muted-foreground">{currentDay.topics}</p>
               </div>
 
-              <Card>
-                <CardContent className="p-4 md:p-6">
-                  <VideoPlayer 
-                    videoUrl={currentDay.video} 
-                    onVideoComplete={() => handleVideoComplete(currentDay.day)}
-                    isEnabled={isVideoEnabled(currentDay.day)}
-                  />
-                </CardContent>
-              </Card>
+              {showQuiz && currentDay.mcqs && currentDay.mcqs.length > 0 ? (
+                <MCQQuiz 
+                  questions={currentDay.mcqs} 
+                  onComplete={handleQuizComplete} 
+                />
+              ) : (
+                <>
+                  <Card>
+                    <CardContent className="p-4 md:p-6">
+                      <VideoPlayer 
+                        videoUrl={currentDay.video} 
+                        onVideoComplete={() => handleVideoComplete(currentDay.day)}
+                        isEnabled={isVideoEnabled(currentDay.day)}
+                      />
+                    </CardContent>
+                  </Card>
 
-              {currentDay.notes && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg md:text-xl">Notes</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm md:text-base text-muted-foreground whitespace-pre-wrap">
-                      {currentDay.notes}
-                    </p>
-                  </CardContent>
-                </Card>
+                  {currentDay.notes && (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-lg md:text-xl">Notes</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-sm md:text-base text-muted-foreground whitespace-pre-wrap">
+                          {currentDay.notes}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  <TranscriptSection transcript={currentDay.transcript} />
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-lg md:text-xl">Topics Covered</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-sm md:text-base text-muted-foreground">
+                        {currentDay.topics}
+                      </p>
+                    </CardContent>
+                  </Card>
+
+                  {/* Show quiz button if there are MCQs for this day */}
+                  {currentDay.mcqs && currentDay.mcqs.length > 0 && watchedVideos.includes(currentDay.day) && !quizCompleted.includes(currentDay.day) && (
+                    <Button
+                      onClick={() => setShowQuiz(true)}
+                      className="w-full mb-4"
+                    >
+                      Take Quiz ({currentDay.mcqs.length} questions)
+                    </Button>
+                  )}
+
+                  <Button
+                    onClick={() => handleDayComplete(currentDay.day)}
+                    variant="default"
+                    className={cn(
+                      "w-full",
+                      completedDays.includes(currentDay.day)
+                        ? "bg-green-500 hover:bg-green-600 text-white"
+                        : "bg-primary text-primary-foreground hover:bg-primary/90"
+                    )}
+                  >
+                    {completedDays.includes(currentDay.day)
+                      ? "Mark as Incomplete"
+                      : "Mark as Complete"}
+                  </Button>
+                </>
               )}
-
-              <TranscriptSection transcript={currentDay.transcript} />
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg md:text-xl">Topics Covered</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm md:text-base text-muted-foreground">
-                    {currentDay.topics}
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Button
-                onClick={() => handleDayComplete(currentDay.day)}
-                variant="default"
-                className={cn(
-                  "w-full",
-                  completedDays.includes(currentDay.day)
-                    ? "bg-green-500 hover:bg-green-600 text-white"
-                    : "bg-primary text-primary-foreground hover:bg-primary/90"
-                )}
-              >
-                {completedDays.includes(currentDay.day)
-                  ? "Mark as Incomplete"
-                  : "Mark as Complete"}
-              </Button>
             </div>
           )}
         </div>
