@@ -138,7 +138,6 @@ const CreateAssessment = () => {
         })) as Question[],
         assignedDays: data.assignedDays,
         dueDate: data.dueDate,
-        totalMarks: data.questions.reduce((sum, q) => sum + q.marks, 0),
         status: 'pending',
       };
 
@@ -215,27 +214,27 @@ const CreateAssessment = () => {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Assessment Type</FormLabel>
-          <Select
+                      <Select
                         onValueChange={(value: AssessmentType) => {
                           field.onChange(value);
                           setAssessmentType(value);
                           form.setValue('questions', []);
                         }}
                         value={field.value}
-          >
+                      >
                         <SelectTrigger>
                           <SelectValue placeholder="Select type" />
-            </SelectTrigger>
-            <SelectContent>
+                        </SelectTrigger>
+                        <SelectContent>
                           <SelectItem value="MCQ">Multiple Choice Questions</SelectItem>
                           <SelectItem value="CODING">Coding Questions</SelectItem>
-            </SelectContent>
-          </Select>
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-        </div>
+              </div>
 
               <FormField
                 control={form.control}
@@ -283,7 +282,7 @@ const CreateAssessment = () => {
                   <FormItem>
                     <FormLabel>Due Date</FormLabel>
                     <FormControl>
-          <Input
+                      <Input
                         type="datetime-local" 
                         {...field} 
                         value={field.value || new Date().toISOString().split('T')[0] + 'T23:59'} 
@@ -398,8 +397,8 @@ const CreateAssessment = () => {
                                 <FormMessage />
                               </FormItem>
                             )}
-          />
-        </div>
+                          />
+                        </div>
                       ) : (
                         <div className="space-y-4">
                           <FormField
@@ -443,8 +442,8 @@ const CreateAssessment = () => {
                                   <FormMessage />
                                 </FormItem>
                               )}
-          />
-        </div>
+                            />
+                          </div>
 
                           <FormField
                             control={form.control}
@@ -524,12 +523,12 @@ const CreateAssessment = () => {
                     </CardContent>
                   </Card>
                 ))}
-        </div>
+              </div>
 
               <Button type="submit" className="w-full">
                 Create Assessment
               </Button>
-      </form>
+            </form>
           </Form>
         </CardContent>
       </Card>

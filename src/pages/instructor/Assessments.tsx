@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -17,67 +18,47 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Search, Plus, MoreHorizontal, Eye, Edit, Trash2 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-
-interface Assessment {
-  id: string;
-  title: string;
-  courseTitle: string;
-  dueDate: string;
-  type: string;
-  submissions: number;
-  status: 'draft' | 'published' | 'closed';
-}
-
-const mockAssessments: Assessment[] = [
-  {
-    id: '1',
-    title: 'Final Project',
-    courseTitle: 'Web Development Fundamentals',
-    dueDate: '2025-06-01',
-    type: 'Project',
-    submissions: 15,
-    status: 'published'
-  },
-  {
-    id: '2',
-    title: 'Midterm Quiz',
-    courseTitle: 'Data Structures',
-    dueDate: '2025-05-20',
-    type: 'Quiz',
-    submissions: 25,
-    status: 'closed'
-  },
-  {
-    id: '3',
-    title: 'Week 3 Assignment',
-    courseTitle: 'Python Programming',
-    dueDate: '2025-05-25',
-    type: 'Assignment',
-    submissions: 0,
-    status: 'draft'
-  },
-];
+import { useNavigate, useParams } from 'react-router-dom';
+import { useInstructorAssessments, Assessment } from '@/services/assessmentService';
+import { useToast } from '@/hooks/use-toast';
 
 const InstructorAssessments = () => {
+  const { courseId } = useParams<{ courseId: string }>();
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const { data: assessments, isLoading, error } = useInstructorAssessments(courseId);
 
   const getStatusBadgeClass = (status: string) => {
     switch (status) {
-      case 'published':
-        return 'bg-green-100 text-green-800';
-      case 'draft':
+      case 'pending':
         return 'bg-yellow-100 text-yellow-800';
-      case 'closed':
-        return 'bg-gray-100 text-gray-800';
+      case 'completed':
+        return 'bg-green-100 text-green-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
   };
 
   const handleCreateAssessment = () => {
-    navigate('/instructor/create-assessment');
+    if (courseId) {
+      navigate(`/instructor/courses/${courseId}/create-assessment`);
+    } else {
+      navigate('/instructor/create-assessment');
+    }
   };
+
+  if (isLoading) {
+    return <div className="p-6">Loading assessments...</div>;
+  }
+
+  if (error) {
+    toast({
+      title: 'Error',
+      description: 'Failed to load assessments',
+      variant: 'destructive',
+    });
+    return <div className="p-6">Error loading assessments</div>;
+  }
 
   return (
     <div className="p-6 space-y-6">
@@ -109,52 +90,58 @@ const InstructorAssessments = () => {
             <TableHeader>
               <TableRow>
                 <TableHead>Title</TableHead>
-                <TableHead>Course</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Due Date</TableHead>
-                <TableHead>Submissions</TableHead>
+                <TableHead>Assigned Days</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {mockAssessments.map((assessment) => (
-                <TableRow key={assessment.id}>
-                  <TableCell>{assessment.title}</TableCell>
-                  <TableCell>{assessment.courseTitle}</TableCell>
-                  <TableCell>{assessment.type}</TableCell>
-                  <TableCell>{new Date(assessment.dueDate).toLocaleDateString()}</TableCell>
-                  <TableCell>{assessment.submissions}</TableCell>
-                  <TableCell>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusBadgeClass(assessment.status)}`}>
-                      {assessment.status.charAt(0).toUpperCase() + assessment.status.slice(1)}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem>
-                          <Eye className="h-4 w-4 mr-2" />
-                          View Details
-                        </DropdownMenuItem>
-                        <DropdownMenuItem>
-                          <Edit className="h-4 w-4 mr-2" />
-                          Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="text-red-600">
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+              {assessments && assessments.length > 0 ? (
+                assessments.map((assessment) => (
+                  <TableRow key={assessment._id}>
+                    <TableCell>{assessment.title}</TableCell>
+                    <TableCell>{assessment.type}</TableCell>
+                    <TableCell>{new Date(assessment.dueDate).toLocaleDateString()}</TableCell>
+                    <TableCell>{assessment.assignedDays.join(', ')}</TableCell>
+                    <TableCell>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusBadgeClass(assessment.status)}`}>
+                        {assessment.status.charAt(0).toUpperCase() + assessment.status.slice(1)}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem>
+                            <Eye className="h-4 w-4 mr-2" />
+                            View Details
+                          </DropdownMenuItem>
+                          <DropdownMenuItem>
+                            <Edit className="h-4 w-4 mr-2" />
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem className="text-red-600">
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-6">
+                    No assessments found. Create your first assessment!
                   </TableCell>
                 </TableRow>
-              ))}
+              )}
             </TableBody>
           </Table>
         </CardContent>

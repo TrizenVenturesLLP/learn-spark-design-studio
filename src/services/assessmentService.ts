@@ -1,19 +1,14 @@
 
 import { useQuery, useMutation } from "@tanstack/react-query";
 import axios from "@/lib/axios";
-import { MCQQuestion } from "./courseService";
 
-export type Assessment = {
+export type MCQQuestion = {
   _id: string;
-  title: string;
-  description: string;
-  courseId: string;
-  type: 'MCQ' | 'CODING';
-  dueDate: string;
-  status: 'pending' | 'completed';
-  assignedDays: number[];
-  questions: (MCQQuestion | CodingQuestion)[];
-  score?: number;
+  type: 'MCQ';
+  questionText: string;
+  options: string[];
+  correctAnswer: string;
+  marks: number;
 };
 
 export type CodingQuestion = {
@@ -22,7 +17,30 @@ export type CodingQuestion = {
   problemStatement: string;
   inputFormat: string;
   outputFormat: string;
+  testCases: {
+    input: string;
+    expectedOutput: string;
+    isHidden?: boolean;
+  }[];
+  marks: number;
   sampleCode?: string;
+};
+
+export type Question = MCQQuestion | CodingQuestion;
+export type AssessmentType = 'MCQ' | 'CODING';
+
+export type Assessment = {
+  _id: string;
+  title: string;
+  description: string;
+  courseId: string;
+  type: AssessmentType;
+  dueDate: string;
+  status: 'pending' | 'completed';
+  assignedDays: number[];
+  questions: Question[];
+  totalMarks?: number;
+  score?: number;
 };
 
 export const useStudentAssessments = (courseId?: string, day?: number | null) => {
@@ -74,15 +92,7 @@ export const useSubmitAssessment = () => {
 
 export const useCreateAssessment = () => {
   return useMutation({
-    mutationFn: async (assessmentData: {
-      courseId: string;
-      title: string;
-      description: string;
-      type: 'MCQ' | 'CODING';
-      dueDate: string;
-      assignedDays: number[];
-      questions: (MCQQuestion | CodingQuestion)[];
-    }) => {
+    mutationFn: async (assessmentData: Omit<Assessment, '_id'>) => {
       const response = await axios.post('/api/instructor/assessments', assessmentData);
       return response.data;
     }
@@ -99,3 +109,31 @@ export const useInstructorAssessments = (courseId?: string) => {
     enabled: !!courseId,
   });
 };
+
+// Adding the missing function that was referenced in CreateAssessment.tsx
+export const useUploadAssessmentPDF = () => {
+  return useMutation({
+    mutationFn: async ({ 
+      file, 
+      courseId, 
+      assignedDays 
+    }: { 
+      file: File; 
+      courseId: string;
+      assignedDays: number[];
+    }) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('courseId', courseId);
+      formData.append('assignedDays', JSON.stringify(assignedDays));
+      
+      const response = await axios.post('/api/instructor/assessments/upload-pdf', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      return response.data;
+    },
+  });
+};
+
