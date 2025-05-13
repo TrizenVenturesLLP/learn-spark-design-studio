@@ -28,7 +28,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 import axios from '@/lib/axios';
-import { User } from '@/types/auth';
+import { User, safelyAccessUser } from '@/types/auth';
 
 // Define the full AuthContextType from your context
 interface AuthContextType {
@@ -120,7 +120,7 @@ const profileFormSchema = z.object({
 });
 
 const InstructorProfile: React.FC = () => {
-  const auth = useAuth() as AuthContextType;
+  const auth = useAuth();
   const { toast } = useToast();
   const [profileData, setProfileData] = useState(mockProfileData);
   const [isLoading, setIsLoading] = useState(false);
@@ -159,22 +159,22 @@ const InstructorProfile: React.FC = () => {
           name: data.name,
           role: data.displayName || 'Instructor',
           email: data.email,
-          phone: data.instructorProfile?.phone || '',
-          location: data.instructorProfile?.location || '',
-          specialty: data.instructorProfile?.specialty || '',
-          experience: data.instructorProfile?.experience || 0,
-          bio: data.instructorProfile?.bio || '',
-          profileCompletion: data.profileCompletion || 0,
-          totalStudents: data.stats?.totalStudents || 0,
-          totalCourses: data.stats?.totalCourses || 0,
-          averageRating: data.stats?.averageRating || 0,
-          teachingHours: data.stats?.teachingHours || 0,
-          recentReviews: data.recentReviews || [],
-          avatar: data.instructorProfile?.avatar || null,
+          phone: safelyAccessUser(data, user => user.instructorProfile?.phone, ''),
+          location: safelyAccessUser(data, user => user.instructorProfile?.location, ''),
+          specialty: safelyAccessUser(data, user => user.instructorProfile?.specialty, ''),
+          experience: safelyAccessUser(data, user => user.instructorProfile?.experience, 0),
+          bio: safelyAccessUser(data, user => user.instructorProfile?.bio, ''),
+          profileCompletion: safelyAccessUser(data, user => user.profileCompletion, 0),
+          totalStudents: safelyAccessUser(data, user => user.stats?.totalStudents, 0),
+          totalCourses: safelyAccessUser(data, user => user.stats?.totalCourses, 0),
+          averageRating: safelyAccessUser(data, user => user.stats?.averageRating, 0),
+          teachingHours: safelyAccessUser(data, user => user.stats?.teachingHours, 0),
+          recentReviews: safelyAccessUser(data, user => user.recentReviews, []),
+          avatar: safelyAccessUser(data, user => user.instructorProfile?.avatar, null),
           socialLinks: {
-            linkedin: data.instructorProfile?.socialLinks?.linkedin || '',
-            twitter: data.instructorProfile?.socialLinks?.twitter || '',
-            website: data.instructorProfile?.socialLinks?.website || ''
+            linkedin: safelyAccessUser(data, user => user.instructorProfile?.socialLinks?.linkedin, ''),
+            twitter: safelyAccessUser(data, user => user.instructorProfile?.socialLinks?.twitter, ''),
+            website: safelyAccessUser(data, user => user.instructorProfile?.socialLinks?.website, '')
           }
         };
 
@@ -266,48 +266,46 @@ const InstructorProfile: React.FC = () => {
               name: data.name,
               role: data.displayName || 'Instructor',
               email: data.email,
-              phone: data.instructorProfile.phone || '',
-              location: data.instructorProfile.location || '',
-              specialty: data.instructorProfile.specialty || '',
-              experience: data.instructorProfile.experience || 0,
-              bio: data.instructorProfile.bio || '',
-              profileCompletion: data.profileCompletion || 0,
-              totalStudents: data.stats?.totalStudents || 0,
-              totalCourses: data.stats?.totalCourses || 0,
-              averageRating: data.stats?.averageRating || 0,
-              teachingHours: data.stats?.teachingHours || 0,
-              recentReviews: data.recentReviews || [],
-              avatar: data.instructorProfile.avatar || null,
+              phone: safelyAccessUser(data, user => user.instructorProfile?.phone, ''),
+              location: safelyAccessUser(data, user => user.instructorProfile?.location, ''),
+              specialty: safelyAccessUser(data, user => user.instructorProfile?.specialty, ''),
+              experience: safelyAccessUser(data, user => user.instructorProfile?.experience, 0),
+              bio: safelyAccessUser(data, user => user.instructorProfile?.bio, ''),
+              profileCompletion: safelyAccessUser(data, user => user.profileCompletion, 0),
+              totalStudents: safelyAccessUser(data, user => user.stats?.totalStudents, 0),
+              totalCourses: safelyAccessUser(data, user => user.stats?.totalCourses, 0),
+              averageRating: safelyAccessUser(data, user => user.stats?.averageRating, 0),
+              teachingHours: safelyAccessUser(data, user => user.stats?.teachingHours, 0),
+              recentReviews: safelyAccessUser(data, user => user.recentReviews, []),
+              avatar: safelyAccessUser(data, user => user.instructorProfile?.avatar, null),
               socialLinks: {
-                linkedin: data.instructorProfile.socialLinks?.linkedin || '',
-                twitter: data.instructorProfile.socialLinks?.twitter || '',
-                website: data.instructorProfile.socialLinks?.website || ''
+                linkedin: safelyAccessUser(data, user => user.instructorProfile?.socialLinks?.linkedin, ''),
+                twitter: safelyAccessUser(data, user => user.instructorProfile?.socialLinks?.twitter, ''),
+                website: safelyAccessUser(data, user => user.instructorProfile?.socialLinks?.website, '')
               }
             };
 
             setProfileData(transformedData);
           } catch (refetchError: any) {
             console.error('Error refetching profile after update:', refetchError);
-            console.log('Response status:', refetchError.response?.status);
-            console.log('Response data:', refetchError.response?.data);
             
             // Fall back to using the user data from the update response
             const userData = response.data.user;
             
             setProfileData({
               ...profileData,
-              name: userData.name,
-              email: userData.email,
-              role: userData.displayName || profileData.role,
-              specialty: userData.instructorProfile?.specialty || profileData.specialty,
-              experience: userData.instructorProfile?.experience || profileData.experience,
-              phone: userData.instructorProfile?.phone || profileData.phone,
-              location: userData.instructorProfile?.location || profileData.location,
-              bio: userData.instructorProfile?.bio || profileData.bio,
+              name: safelyAccessUser(userData, user => user.name, profileData.name),
+              email: safelyAccessUser(userData, user => user.email, profileData.email),
+              role: safelyAccessUser(userData, user => user.displayName, profileData.role),
+              specialty: safelyAccessUser(userData, user => user.instructorProfile?.specialty, profileData.specialty),
+              experience: safelyAccessUser(userData, user => user.instructorProfile?.experience, profileData.experience),
+              phone: safelyAccessUser(userData, user => user.instructorProfile?.phone, profileData.phone),
+              location: safelyAccessUser(userData, user => user.instructorProfile?.location, profileData.location),
+              bio: safelyAccessUser(userData, user => user.instructorProfile?.bio, profileData.bio),
               socialLinks: {
-                linkedin: userData.instructorProfile?.socialLinks?.linkedin || profileData.socialLinks.linkedin,
-                twitter: userData.instructorProfile?.socialLinks?.twitter || profileData.socialLinks.twitter,
-                website: userData.instructorProfile?.socialLinks?.website || profileData.socialLinks.website
+                linkedin: safelyAccessUser(userData, user => user.instructorProfile?.socialLinks?.linkedin, profileData.socialLinks.linkedin),
+                twitter: safelyAccessUser(userData, user => user.instructorProfile?.socialLinks?.twitter, profileData.socialLinks.twitter),
+                website: safelyAccessUser(userData, user => user.instructorProfile?.socialLinks?.website, profileData.socialLinks.website)
               }
             });
           }
@@ -338,9 +336,6 @@ const InstructorProfile: React.FC = () => {
         });
       } catch (axiosError: any) {
         console.error('Error updating profile (axios):', axiosError);
-        console.log('Response status:', axiosError.response?.status);
-        console.log('Response data:', axiosError.response?.data);
-        console.log('Request config:', axiosError.config);
         
         // Check for 401/403 errors which might indicate auth issues
         if (axiosError.response?.status === 401) {

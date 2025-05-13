@@ -1,33 +1,40 @@
 
-// Helper functions for message-related components
+import React from 'react';
 
-/**
- * Safely gets the ID from a user object that might be a string or object
- * @param user - The user object or string ID
- * @returns The user ID as a string
- */
-export function safeGetUserId(user: string | { _id: string }): string {
+// Define the MessageUser type
+export interface MessageUser {
+  _id: string;
+  name: string;
+  avatar?: string;
+  role?: string;
+}
+
+// Function to safely access MessageUser properties and handle string | MessageUser type
+export function getUserId(user: string | MessageUser): string {
   if (typeof user === 'string') {
     return user;
   }
   return user._id;
 }
 
-/**
- * Determines if the user ID exists in the given object
- * @param user - The user object or string ID
- * @returns Boolean indicating if the ID exists
- */
-export function userIdExists(user: unknown): boolean {
-  if (!user) return false;
-  
-  if (typeof user === 'string') {
-    return user.length > 0;
+// Function to check if an object is a MessageUser
+export function isMessageUser(obj: any): obj is MessageUser {
+  return typeof obj === 'object' && obj !== null && '_id' in obj;
+}
+
+// Safe accessor for user properties
+export function getUserProperty<T>(
+  user: string | MessageUser,
+  accessor: (user: MessageUser) => T,
+  defaultValue: T
+): T {
+  if (typeof user === 'string' || !user) {
+    return defaultValue;
   }
   
-  if (typeof user === 'object' && user !== null) {
-    return '_id' in user && typeof (user as any)._id === 'string';
+  try {
+    return accessor(user) || defaultValue;
+  } catch (error) {
+    return defaultValue;
   }
-  
-  return false;
 }

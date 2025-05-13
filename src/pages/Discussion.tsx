@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -14,9 +13,23 @@ import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { useCreateDiscussion, useAddReply, useToggleLike, CreateDiscussionData } from '@/services/discussionService';
 import { Heart, MessageCircle, Pin } from 'lucide-react';
-import CourseLayout from '@/components/layouts/CourseLayout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
+
+// Define the CourseLayout component since it was missing
+import React from 'react';
+import { Outlet } from 'react-router-dom';
+
+const CourseLayout = ({ children }: { children: React.ReactNode }) => {
+  return (
+    <div className="min-h-screen bg-background">
+      {/* You can add a course-specific header here if needed */}
+      <main className="flex-1">
+        {children}
+      </main>
+    </div>
+  );
+};
 
 // Define the Discussion interface here
 interface Discussion {
@@ -70,11 +83,12 @@ const DiscussionPage = () => {
   const addReplyMutation = useAddReply();
   const toggleLikeMutation = useToggleLike();
 
-  const handleCreateDiscussion = (formData: { title: string, content: string }) => {
+  const handleCreateDiscussion = () => {
     if (!courseId) return;
     
     const data: CreateDiscussionData = {
-      ...formData,
+      title: newDiscussionTitle,
+      content: newDiscussionContent,
       isPinned: false
     };
     
@@ -128,8 +142,10 @@ const DiscussionPage = () => {
     toggleLikeMutation.mutate(discussionId);
   };
 
-  const pinnedDiscussions = discussions.filter(d => d.isPinned);
-  const regularDiscussions = discussions.filter(d => !d.isPinned);
+  // Safely access discussions data with type checking
+  const safeDiscussions = Array.isArray(discussions) ? discussions : [];
+  const pinnedDiscussions = safeDiscussions.filter(d => d.isPinned);
+  const regularDiscussions = safeDiscussions.filter(d => !d.isPinned);
 
   return (
     <CourseLayout>
@@ -146,7 +162,7 @@ const DiscussionPage = () => {
             <div className="space-y-6">
               {isLoading ? (
                 <div className="text-center py-10">Loading discussions...</div>
-              ) : discussions.length === 0 ? (
+              ) : safeDiscussions.length === 0 ? (
                 <Card>
                   <CardContent className="text-center py-10">
                     <p className="text-muted-foreground">No discussions yet. Be the first to start one!</p>
@@ -215,10 +231,7 @@ const DiscussionPage = () => {
                 <form
                   onSubmit={(e) => {
                     e.preventDefault();
-                    handleCreateDiscussion({
-                      title: newDiscussionTitle,
-                      content: newDiscussionContent,
-                    });
+                    handleCreateDiscussion();
                   }}
                   className="space-y-4"
                 >

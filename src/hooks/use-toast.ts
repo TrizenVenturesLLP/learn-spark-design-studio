@@ -1,5 +1,5 @@
 import * as React from "react"
-import { toast as sonnerToast, type ToastOptions } from "sonner"
+import { toast as sonnerToast, type ToastT } from "sonner"
 
 const TOAST_LIMIT = 1
 const TOAST_REMOVE_DELAY = 1000000
@@ -9,7 +9,7 @@ type ToasterToast = {
   title?: React.ReactNode
   description?: React.ReactNode
   action?: React.ReactNode
-  options?: ToastOptions
+  options?: Omit<ToastT, "id">
   variant?: "default" | "destructive"
 }
 
@@ -123,8 +123,10 @@ function dispatch(action: Action) {
   })
 }
 
+// Update the Toast type to include duration
 type Toast = Omit<ToasterToast, "id"> & {
   id?: string
+  duration?: number
 }
 
 function toast({ ...props }: Toast) {
@@ -137,6 +139,7 @@ function toast({ ...props }: Toast) {
       id,
       description: props.description,
       action: props.action,
+      duration: props.duration,
       ...options,
     }
   )
