@@ -62,6 +62,7 @@ const UserCourse = require('./models/UserCourse');
 const Discussion = require('./models/Discussion');
 const SupportTicket = require('./models/SupportTicket');
 const Notification = require('./models/Notification');
+const QuizSubmission = require('./models/QuizSubmission');
 
 // Create Message model schema
 const messageSchema = new mongoose.Schema({
@@ -3932,6 +3933,58 @@ app.delete('/api/instructor/courses/:courseId', authenticateToken, async (req, r
     res.json({ message: 'Course deleted successfully' });
   } catch (error) {
     console.error('Delete course error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get student's quiz submissions
+app.get('/api/student/quiz-submissions', authenticateToken, async (req, res) => {
+  try {
+    const submissions = await QuizSubmission.find({ 
+      studentId: req.user.id 
+    }).sort({ submittedDate: -1 });
+
+    res.json({ data: submissions });
+  } catch (error) {
+    console.error('Error fetching quiz submissions:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get student's enrolled courses with progress
+app.get('/api/student/enrolled-courses', authenticateToken, async (req, res) => {
+  try {
+    // Get all enrollments for the student
+    const enrollments = await UserCourse.find({
+      userId: req.user.id,
+      status: { $in: ['enrolled', 'started', 'completed'] }
+    });
+
+    // Get course details for each enrollment
+    const enrolledCourses = await Promise.all(
+      enrollments.map(async (enrollment) => {
+        const course = await Course.findById(enrollment.courseId);
+        if (!course) return null;
+
+        return {
+          _id: course._id,
+          title: course.title,
+          description: course.description,
+          instructor: course.instructor,
+          roadmap: course.roadmap,
+          completedDays: enrollment.completedDays || [],
+          progress: enrollment.progress,
+          status: enrollment.status
+        };
+      })
+    );
+
+    // Filter out null values (courses that might have been deleted)
+    const validCourses = enrolledCourses.filter(course => course !== null);
+
+    res.json({ data: validCourses });
+  } catch (error) {
+    console.error('Error fetching enrolled courses:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });

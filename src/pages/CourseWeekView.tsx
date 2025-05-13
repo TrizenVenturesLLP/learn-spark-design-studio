@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import axios from '../lib/axios';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Video, CheckCircle, AlertCircle, Menu, Lock, Unlock } from "lucide-react";
+import { Video, CheckCircle, AlertCircle, Menu, Lock, Unlock, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -15,6 +15,8 @@ import { useUpdateProgress, Course, RoadmapDay } from '@/services/courseService'
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import MCQQuiz from '@/components/MCQQuiz';
+import { Badge } from '@/components/ui/badge';
+import { format } from 'date-fns';
 
 // Import your logo image
 import companyLogo from '/logo_footer.png'; // Adjust path as needed
@@ -24,6 +26,13 @@ interface CourseData extends Course {
   title: string;
   description: string;
   roadmap: RoadmapDay[];
+}
+
+interface QuizResults {
+  dayNumber: number;
+  score: number;
+  completedAt: Date;
+  totalQuestions: number;
 }
 
 const VideoPlayer = ({ 
@@ -196,6 +205,62 @@ const TranscriptSection = ({ transcript }: { transcript?: string }) => {
   );
 };
 
+const QuizResultsDisplay = ({ results }: { results: QuizResults }) => {
+  const getScoreColor = (score: number) => {
+    if (score >= 70) return "text-green-500";
+    if (score >= 50) return "text-yellow-500";
+    return "text-red-500";
+  };
+
+  return (
+    <Card className="mt-4">
+      <CardContent className="p-4">
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold">Quiz Results - Day {results.dayNumber}</h3>
+            <Badge className={cn(
+              "text-white",
+              results.score >= 70 ? "bg-green-500" : 
+              results.score >= 50 ? "bg-yellow-500" : 
+              "bg-red-500"
+            )}>
+              Score: {results.score}%
+            </Badge>
+          </div>
+          
+          <div className="space-y-2">
+            <div className="flex items-center text-sm text-muted-foreground">
+              <Clock className="h-4 w-4 mr-2" />
+              Completed: {format(results.completedAt, 'PPp')}
+            </div>
+            
+            <div className="flex items-center justify-between text-sm">
+              <span>Questions Completed:</span>
+              <span>{results.totalQuestions} questions</span>
+            </div>
+            
+            <div className="w-full bg-secondary h-2 rounded-full">
+              <div 
+                className={cn(
+                  "h-2 rounded-full",
+                  getScoreColor(results.score)
+                )} 
+                style={{ width: `${results.score}%` }}
+              />
+            </div>
+            
+            <p className="text-sm text-muted-foreground mt-2">
+              {results.score >= 70 ? "Great job! You've mastered this topic." :
+               results.score >= 50 ? "Good effort! Review the material to improve your score." :
+               "Keep practicing! Review the material and try again."}
+            </p>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
 const CourseWeekView = () => {
   const { courseId } = useParams<{ courseId: string }>();
   const [selectedDay, setSelectedDay] = useState<number>(0);
@@ -217,6 +282,30 @@ const CourseWeekView = () => {
   const { toast } = useToast();
   const updateProgressMutation = useUpdateProgress();
   const navigate = useNavigate();
+  const [quizResults, setQuizResults] = useState<Record<number, QuizResults>>({});
+  const location = useLocation();
+
+  // Parse URL parameters
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const dayParam = params.get('day');
+    const startQuiz = params.get('startQuiz');
+    const review = params.get('review');
+
+    if (dayParam) {
+      const day = parseInt(dayParam);
+      setSelectedDay(day);
+      
+      if (startQuiz === 'true') {
+        setShowQuiz(true);
+        setContentSections(prev => ({ ...prev, mcqs: true }));
+      }
+      
+      if (review === 'true') {
+        setContentSections(prev => ({ ...prev, mcqs: true }));
+      }
+    }
+  }, [location.search]);
 
   const { data: course, isLoading, error } = useQuery<CourseData>({
     queryKey: ['course', courseId],
@@ -301,20 +390,61 @@ const CourseWeekView = () => {
     setWatchedVideos(prev => [...prev, day]);
   };
 
-  const handleQuizComplete = (score: number) => {
-    console.log(`Quiz ${selectedDay} completed with score: ${score}`);
+  const handleQuizComplete = async (score: number) => {
+    if (!courseId || !token) return;
+
     const currentDay = selectedDay;
-    setQuizCompleted(prev => [...prev, currentDay]);
-    setShowQuiz(false);
+    const dayData = course?.roadmap.find(day => day.day === currentDay);
     
-    toast({
-      title: "Quiz completed",
-      description: `You scored ${score}% on the quiz for Day ${currentDay}`,
-    });
-    
-    // Mark day as complete after quiz
-    if (!completedDays.includes(currentDay)) {
-      handleDayComplete(currentDay);
+    try {
+      // Submit to database
+      const response = await axios.post('/api/quiz-submissions', {
+        courseId,
+        dayNumber: currentDay,
+        title: `Day ${currentDay} Quiz`,
+        score,
+        completedAt: new Date().toISOString(),
+        isCompleted: true,
+        status: 'completed'
+      }, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+
+      if (response.data) {
+        // Update local state
+        setQuizCompleted(prev => [...prev, currentDay]);
+        setShowQuiz(false);
+        
+        // Store quiz results
+        setQuizResults(prev => ({
+          ...prev,
+          [currentDay]: {
+            dayNumber: currentDay,
+            score,
+            completedAt: new Date(),
+            totalQuestions: dayData?.mcqs?.length || 0
+          }
+        }));
+        
+        toast({
+          title: "Quiz completed",
+          description: `You scored ${score}% on the quiz for Day ${currentDay}`,
+        });
+        
+        // Mark day as complete after quiz
+        if (!completedDays.includes(currentDay)) {
+          handleDayComplete(currentDay);
+        }
+      }
+    } catch (error) {
+      console.error('Error submitting quiz:', error);
+      toast({
+        title: "Error submitting quiz",
+        description: "There was an error saving your quiz results. Please try again.",
+        variant: "destructive"
+      });
     }
   };
 
@@ -563,17 +693,30 @@ const CourseWeekView = () => {
                           <p className="text-sm text-muted-foreground mb-4">
                             Take this quiz to test your understanding of the material covered in today's lesson.
                           </p>
+                          {!quizCompleted.includes(currentDay.day) ? (
                           <Button 
                             onClick={() => setShowQuiz(true)}
                             className="w-full"
                           >
                             Start Quiz ({currentDay.mcqs.length} questions)
                           </Button>
-                          {quizCompleted.includes(currentDay.day) && (
-                            <div className="flex items-center justify-center gap-2 text-green-500 mt-2">
+                          ) : (
+                            <>
+                              <div className="flex items-center justify-center gap-2 text-green-500">
                               <CheckCircle className="h-4 w-4" />
                               <span>You've completed this quiz</span>
                             </div>
+                              {quizResults[currentDay.day] && (
+                                <QuizResultsDisplay results={quizResults[currentDay.day]} />
+                              )}
+                              <Button 
+                                variant="outline"
+                                onClick={() => setShowQuiz(true)}
+                                className="w-full mt-4"
+                              >
+                                Retake Quiz
+                              </Button>
+                            </>
                           )}
                         </div>
                       ) : (

@@ -374,7 +374,7 @@ export const useUpdateCourse = () => {
       if (missingFields.length > 0) {
         throw new Error(`Missing required fields: ${missingFields.join(', ')}`);
       }
-
+      
       // Process roadmap data if it exists
       if (courseData.roadmap) {
         courseData.roadmap = courseData.roadmap.map((day, index) => ({
@@ -395,7 +395,7 @@ export const useUpdateCourse = () => {
           }
         });
       }
-
+      
       try {
         const response = await axios.put(`/api/instructor/courses/${courseId}`, courseData, {
           headers: {
@@ -414,7 +414,7 @@ export const useUpdateCourse = () => {
           data: error.response?.data,
           error: error.message
         });
-
+        
         // Handle specific error cases
         if (error.response?.status === 404) {
           throw new Error('Course not found');
