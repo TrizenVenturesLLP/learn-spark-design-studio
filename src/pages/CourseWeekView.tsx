@@ -302,6 +302,7 @@ const CourseWeekView = () => {
   };
 
   const handleQuizComplete = (score: number) => {
+    console.log(`Quiz ${selectedDay} completed with score: ${score}`);
     const currentDay = selectedDay;
     setQuizCompleted(prev => [...prev, currentDay]);
     setShowQuiz(false);
@@ -445,7 +446,8 @@ const CourseWeekView = () => {
               {showQuiz && currentDay.mcqs && currentDay.mcqs.length > 0 ? (
                 <MCQQuiz 
                   questions={currentDay.mcqs} 
-                  onComplete={handleQuizComplete} 
+                  onComplete={handleQuizComplete}
+                  dayNumber={currentDay.day}
                 />
               ) : (
                 <>

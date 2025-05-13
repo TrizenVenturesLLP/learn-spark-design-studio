@@ -137,3 +137,36 @@ export const useUploadAssessmentPDF = () => {
   });
 };
 
+// New function to submit quiz results to assignments
+export const useSubmitQuizToAssignments = () => {
+  return useMutation({
+    mutationFn: async ({ 
+      courseId,
+      dayNumber,
+      title,
+      questions,
+      selectedAnswers,
+      score
+    }: { 
+      courseId: string;
+      dayNumber: number;
+      title: string;
+      questions: any[];
+      selectedAnswers: Record<string, string>;
+      score: number;
+    }) => {
+      const response = await axios.post(
+        `/api/courses/${courseId}/assignments/quiz-submission`,
+        { 
+          dayNumber,
+          title,
+          questions,
+          selectedAnswers,
+          score,
+          submittedDate: new Date().toISOString()
+        }
+      );
+      return response.data;
+    }
+  });
+};

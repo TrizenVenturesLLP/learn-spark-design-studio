@@ -7,18 +7,26 @@ import { Label } from '@/components/ui/label';
 import { MCQQuestion } from '@/services/courseService';
 import { Check, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useSubmitQuizToAssignments } from '@/services/assessmentService';
+import { useParams } from 'react-router-dom';
+import { useToast } from '@/hooks/use-toast';
 
 interface MCQQuizProps {
   questions: MCQQuestion[];
   onComplete: (score: number) => void;
+  dayNumber: number;
 }
 
-const MCQQuiz: React.FC<MCQQuizProps> = ({ questions, onComplete }) => {
+const MCQQuiz: React.FC<MCQQuizProps> = ({ questions, onComplete, dayNumber }) => {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedOptionIndices, setSelectedOptionIndices] = useState<number[]>(Array(questions.length).fill(-1));
   const [showResults, setShowResults] = useState(false);
   const [showExplanation, setShowExplanation] = useState(false);
   const [score, setScore] = useState(0);
+  const { courseId } = useParams<{ courseId: string }>();
+  const { toast } = useToast();
+  
+  const submitQuizToAssignments = useSubmitQuizToAssignments();
   
   const handleOptionSelect = (optionIndex: number) => {
     const newSelectedOptions = [...selectedOptionIndices];
@@ -42,6 +50,41 @@ const MCQQuiz: React.FC<MCQQuizProps> = ({ questions, onComplete }) => {
       const finalScore = Math.round((correctAnswers / questions.length) * 100);
       setScore(finalScore);
       setShowResults(true);
+      
+      // Create a map of selected answers
+      const selectedAnswers: Record<string, string> = {};
+      questions.forEach((question, index) => {
+        if (selectedOptionIndices[index] >= 0) {
+          selectedAnswers[question.question] = question.options[selectedOptionIndices[index]].text;
+        }
+      });
+      
+      // Submit to assignments
+      if (courseId) {
+        submitQuizToAssignments.mutate({
+          courseId,
+          dayNumber,
+          title: `Day ${dayNumber} Quiz`,
+          questions,
+          selectedAnswers,
+          score: finalScore
+        }, {
+          onSuccess: () => {
+            toast({
+              title: "Quiz submitted to assignments",
+              description: "Your quiz has been graded and added to your assignments."
+            });
+          },
+          onError: () => {
+            toast({
+              title: "Error submitting quiz",
+              description: "There was an error submitting your quiz to assignments.",
+              variant: "destructive"
+            });
+          }
+        });
+      }
+      
       onComplete(finalScore);
     }
   };
