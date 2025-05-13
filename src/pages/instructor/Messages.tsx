@@ -20,7 +20,7 @@ import {
 import { formatDistanceToNow } from 'date-fns';
 import { useInstructorDiscussions, useAddReply, useCreateDiscussion } from '@/services/discussionService';
 import { useInstructorCourses } from '@/services/courseService';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import {
   Select,
   SelectContent,
@@ -32,10 +32,37 @@ import { Discussion } from '@/types/discussion';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useConversations, useMessages, useSendMessage, useEnrolledStudents } from '@/services/messageService';
 import { cn } from '@/lib/utils';
+import { getUserId } from '@/utils/messageHelpers';
 
 interface Course {
   _id: string;
   title: string;
+}
+
+// Interface for Discussion from the service
+interface ServiceDiscussion {
+  _id: string;
+  title: string;
+  content: string;
+  isPinned: boolean;
+  createdAt: string;
+  userId: {
+    _id: string;
+    name: string;
+  };
+  courseId: {
+    _id: string;
+    title: string;
+  };
+  replies: Array<{
+    _id: string;
+    content: string;
+    createdAt: string;
+    userId: {
+      _id: string;
+      name: string;
+    };
+  }>;
 }
 
 const MessagesPage = () => {
@@ -54,11 +81,14 @@ const MessagesPage = () => {
   const [newDirectMessage, setNewDirectMessage] = useState('');
   const [dmSearchQuery, setDmSearchQuery] = useState('');
   
-  const { data: discussions = [], isLoading: isLoadingDiscussions } = useInstructorDiscussions();
+  const { data: discussionsData = [], isLoading: isLoadingDiscussions } = useInstructorDiscussions();
   const { data: courses = [], isLoading: isLoadingCourses } = useInstructorCourses();
   const { data: conversations = [], isLoading: isLoadingConversations } = useConversations();
   const { data: enrolledStudents = [], isLoading: isLoadingStudents } = useEnrolledStudents();
   const { data: messages = [], isLoading: isLoadingMessages } = useMessages(selectedConversation || '', selectedCourseForDM || '');
+  
+  // Convert service discussions to match the required Discussion type
+  const discussions = discussionsData as unknown as Discussion[];
   
   const addReplyMutation = useAddReply();
   const createDiscussionMutation = useCreateDiscussion();
@@ -135,7 +165,7 @@ const MessagesPage = () => {
 
   // Filter and organize discussions
   const filteredDiscussions = React.useMemo(() => {
-    let filtered = discussions as Discussion[];
+    let filtered = discussions;
 
     // Filter by course if selected
     if (selectedCourse !== 'all') {
@@ -560,10 +590,10 @@ const MessagesPage = () => {
                                 key={message._id}
                                 className={cn(
                                   "flex",
-                                  message.senderId._id === selectedConversation ? "justify-start" : "justify-end"
+                                  getUserId(message.senderId) === selectedConversation ? "justify-start" : "justify-end"
                                 )}
                               >
-                                {message.senderId._id === selectedConversation && (
+                                {getUserId(message.senderId) === selectedConversation && (
                                   <Avatar className="h-8 w-8 mr-2 self-end mb-1">
                                     <AvatarFallback>
                                       {conversations.find(c => c.partner._id === selectedConversation)?.partner.name.split(' ').map(n => n[0]).join('')}
@@ -573,7 +603,7 @@ const MessagesPage = () => {
                                 <div
                                   className={cn(
                                     "max-w-[70%] p-3 rounded-lg shadow-sm relative",
-                                    message.senderId._id === selectedConversation
+                                    getUserId(message.senderId) === selectedConversation
                                       ? "bg-white rounded-tl-none"
                                       : "bg-primary text-primary-foreground rounded-tr-none"
                                   )}
@@ -644,4 +674,4 @@ const MessagesPage = () => {
   );
 };
 
-export default MessagesPage; 
+export default MessagesPage;

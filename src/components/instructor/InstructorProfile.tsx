@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -120,7 +121,7 @@ const profileFormSchema = z.object({
 });
 
 const InstructorProfile: React.FC = () => {
-  const auth = useAuth() as unknown as AuthContextType;
+  const { user } = useAuth() as AuthContextType;
   const { toast } = useToast();
   const [profileData, setProfileData] = useState(mockProfileData);
   const [isLoading, setIsLoading] = useState(false);
@@ -183,18 +184,17 @@ const InstructorProfile: React.FC = () => {
         console.error('Error fetching profile data:', error);
         
         // Fallback to using user data from auth context if available
-        if (auth.user) {
+        if (user) {
           setProfileData({
             ...mockProfileData,
-            name: auth.user.name || mockProfileData.name,
-            email: auth.user.email || mockProfileData.email,
-            // Use optional chaining for the new fields
-            profileCompletion: auth.user.profileCompletion || mockProfileData.profileCompletion,
-            totalStudents: auth.user.stats?.totalStudents || mockProfileData.totalStudents,
-            totalCourses: auth.user.stats?.totalCourses || mockProfileData.totalCourses,
-            averageRating: auth.user.stats?.averageRating || mockProfileData.averageRating,
-            teachingHours: auth.user.stats?.teachingHours || mockProfileData.teachingHours,
-            recentReviews: auth.user.recentReviews || mockProfileData.recentReviews,
+            name: user.name || mockProfileData.name,
+            email: user.email || mockProfileData.email,
+            profileCompletion: safelyAccessUser(user, u => u.profileCompletion, mockProfileData.profileCompletion),
+            totalStudents: safelyAccessUser(user, u => u.stats?.totalStudents, mockProfileData.totalStudents),
+            totalCourses: safelyAccessUser(user, u => u.stats?.totalCourses, mockProfileData.totalCourses),
+            averageRating: safelyAccessUser(user, u => u.stats?.averageRating, mockProfileData.averageRating),
+            teachingHours: safelyAccessUser(user, u => u.stats?.teachingHours, mockProfileData.teachingHours),
+            recentReviews: safelyAccessUser(user, u => u.recentReviews, mockProfileData.recentReviews),
           });
         }
         
@@ -209,7 +209,7 @@ const InstructorProfile: React.FC = () => {
     };
 
     fetchProfile();
-  }, [auth, toast]);
+  }, [user, toast]);
 
   // Update form values when profile data changes
   useEffect(() => {
@@ -301,18 +301,18 @@ const InstructorProfile: React.FC = () => {
             
             setProfileData({
               ...profileData,
-              name: safelyAccessUser(userData, user => user.name, profileData.name),
-              email: safelyAccessUser(userData, user => user.email, profileData.email),
-              role: safelyAccessUser(userData, user => user.displayName, profileData.role),
-              specialty: safelyAccessUser(userData, user => user.instructorProfile?.specialty, profileData.specialty),
-              experience: safelyAccessUser(userData, user => user.instructorProfile?.experience, profileData.experience),
-              phone: safelyAccessUser(userData, user => user.instructorProfile?.phone, profileData.phone),
-              location: safelyAccessUser(userData, user => user.instructorProfile?.location, profileData.location),
-              bio: safelyAccessUser(userData, user => user.instructorProfile?.bio, profileData.bio),
+              name: safelyAccessUser(userData, u => u.name, profileData.name),
+              email: safelyAccessUser(userData, u => u.email, profileData.email),
+              role: safelyAccessUser(userData, u => u.displayName, profileData.role),
+              specialty: safelyAccessUser(userData, u => u.instructorProfile?.specialty, profileData.specialty),
+              experience: safelyAccessUser(userData, u => u.instructorProfile?.experience, profileData.experience),
+              phone: safelyAccessUser(userData, u => u.instructorProfile?.phone, profileData.phone),
+              location: safelyAccessUser(userData, u => u.instructorProfile?.location, profileData.location),
+              bio: safelyAccessUser(userData, u => u.instructorProfile?.bio, profileData.bio),
               socialLinks: {
-                linkedin: safelyAccessUser(userData, user => user.instructorProfile?.socialLinks?.linkedin, profileData.socialLinks.linkedin),
-                twitter: safelyAccessUser(userData, user => user.instructorProfile?.socialLinks?.twitter, profileData.socialLinks.twitter),
-                website: safelyAccessUser(userData, user => user.instructorProfile?.socialLinks?.website, profileData.socialLinks.website)
+                linkedin: safelyAccessUser(userData, u => u.instructorProfile?.socialLinks?.linkedin, profileData.socialLinks.linkedin),
+                twitter: safelyAccessUser(userData, u => u.instructorProfile?.socialLinks?.twitter, profileData.socialLinks.twitter),
+                website: safelyAccessUser(userData, u => u.instructorProfile?.socialLinks?.website, profileData.socialLinks.website)
               }
             });
           }
