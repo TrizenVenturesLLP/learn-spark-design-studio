@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -11,9 +12,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Alert, AlertDescription } from './ui/alert';
 import { Separator } from './ui/separator';
 
+type UserRole = 'student' | 'instructor';
+
 const SignupForm = () => {
   const [name, setName] = useState('');
-  const [selectedRole, setSelectedRole] = useState<'student' | null>(null);
+  const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -105,8 +108,8 @@ const SignupForm = () => {
       </div>
 
       <SignupChoice
-        selected={selectedRole}
-        onSelect={setSelectedRole}
+        selected={selectedRole as 'student' | null}
+        onSelect={(role) => setSelectedRole(role as UserRole)}
       />
       
       {signupError && (

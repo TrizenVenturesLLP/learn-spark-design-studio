@@ -188,6 +188,15 @@ export const useCourseInstructors = () => {
   });
 };
 
+// Add this function to the file - actual implementation will depend on the current messageService.ts content
+// This is a helper function to safely get the ID from a MessageUser or string
+export function getUserId(user: string | MessageUser): string {
+  if (typeof user === 'string') {
+    return user;
+  }
+  return user._id;
+}
+
 export const useMessageStore = create<MessageStore>()(
   persist(
     (set) => ({
@@ -297,4 +306,4 @@ export const useMessageStore = create<MessageStore>()(
       name: 'message-store',
     }
   )
-); 
+);

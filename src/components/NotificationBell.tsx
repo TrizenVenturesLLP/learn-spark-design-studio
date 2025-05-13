@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -116,7 +117,7 @@ export const NotificationBell = () => {
         read: message.read,
         courseName: student.courseName,
         avatar: student.avatar
-      } satisfies DirectMessageNotification;
+      } as DirectMessageNotification;
     }).filter((n): n is DirectMessageNotification => n !== null);
 
     setNotifications(messageNotifications);

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -28,6 +29,12 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 import axios from '@/lib/axios';
+import { User } from '@/types/auth';
+
+interface AuthContextType {
+  user: User | null;
+  // Add other properties from AuthContext as needed
+}
 
 // Mock data as fallback if API fails
 const mockProfileData = {
@@ -79,7 +86,7 @@ const profileFormSchema = z.object({
 });
 
 const InstructorProfile: React.FC = () => {
-  const { user } = useAuth();
+  const { user } = useAuth() as AuthContextType;
   const { toast } = useToast();
   const [profileData, setProfileData] = useState(mockProfileData);
   const [isLoading, setIsLoading] = useState(false);
@@ -118,22 +125,22 @@ const InstructorProfile: React.FC = () => {
           name: data.name,
           role: data.displayName || 'Instructor',
           email: data.email,
-          phone: data.instructorProfile.phone || '',
-          location: data.instructorProfile.location || '',
-          specialty: data.instructorProfile.specialty || '',
-          experience: data.instructorProfile.experience || 0,
-          bio: data.instructorProfile.bio || '',
+          phone: data.instructorProfile?.phone || '',
+          location: data.instructorProfile?.location || '',
+          specialty: data.instructorProfile?.specialty || '',
+          experience: data.instructorProfile?.experience || 0,
+          bio: data.instructorProfile?.bio || '',
           profileCompletion: data.profileCompletion || 0,
           totalStudents: data.stats?.totalStudents || 0,
           totalCourses: data.stats?.totalCourses || 0,
           averageRating: data.stats?.averageRating || 0,
           teachingHours: data.stats?.teachingHours || 0,
           recentReviews: data.recentReviews || [],
-          avatar: data.instructorProfile.avatar || null,
+          avatar: data.instructorProfile?.avatar || null,
           socialLinks: {
-            linkedin: data.instructorProfile.socialLinks?.linkedin || '',
-            twitter: data.instructorProfile.socialLinks?.twitter || '',
-            website: data.instructorProfile.socialLinks?.website || ''
+            linkedin: data.instructorProfile?.socialLinks?.linkedin || '',
+            twitter: data.instructorProfile?.socialLinks?.twitter || '',
+            website: data.instructorProfile?.socialLinks?.website || ''
           }
         };
 
@@ -740,4 +747,4 @@ const InstructorProfile: React.FC = () => {
   );
 };
 
-export default InstructorProfile; 
+export default InstructorProfile;
