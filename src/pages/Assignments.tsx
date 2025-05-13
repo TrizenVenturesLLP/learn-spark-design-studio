@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, Clock, CheckCircle, XCircle } from "lucide-react";
+import { FileText, Clock, CheckCircle, XCircle, ClipboardList } from "lucide-react";
 
 interface Assignment {
   id: string;
@@ -66,20 +66,20 @@ const AssignmentCard = ({ assignment }: { assignment: Assignment }) => {
   };
 
   return (
-    <Card>
-      <CardContent className="p-6">
-        <div className="flex justify-between items-start mb-4">
+    <Card className="hover:shadow-md transition-shadow">
+      <CardContent className="p-4 sm:p-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start gap-2 sm:items-center mb-4">
           <div>
             <h3 className="font-semibold mb-1">{assignment.title}</h3>
             <p className="text-sm text-muted-foreground">{assignment.course}</p>
           </div>
-          <Badge className={`${getStatusColor(assignment.status)} text-white`}>
+          <Badge className={`${getStatusColor(assignment.status)} text-white whitespace-nowrap`}>
             {assignment.status.charAt(0).toUpperCase() + assignment.status.slice(1)}
           </Badge>
         </div>
         
         <div className="flex items-center text-sm text-muted-foreground mb-4">
-          <Clock className="h-4 w-4 mr-2" />
+          <Clock className="h-4 w-4 mr-2 flex-shrink-0" />
           Due: {assignment.dueDate}
         </div>
 
@@ -97,7 +97,7 @@ const AssignmentCard = ({ assignment }: { assignment: Assignment }) => {
           </div>
         )}
 
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2">
           <Button variant="outline" className="w-full">
             View Details
           </Button>
@@ -111,46 +111,53 @@ const AssignmentCard = ({ assignment }: { assignment: Assignment }) => {
 };
 
 const Assignments = () => {
-  const [activeTab, setActiveTab] = useState('all');
-
-  const filteredAssignments = assignments.filter(assignment => {
-    if (activeTab === 'all') return true;
-    return assignment.status === activeTab;
-  });
+  const [activeTab] = useState('all');
 
   return (
     <DashboardLayout>
-      <div className="flex-1 p-6 overflow-y-auto">
-        <div className="flex justify-between items-center mb-6">
-          <div>
-            <h1 className="text-2xl font-bold">Assignments</h1>
-            <p className="text-muted-foreground">
-              View and manage your course assignments
-            </p>
-          </div>
-          <Button>
-            <FileText className="h-4 w-4 mr-2" />
-            New Submission
-          </Button>
-        </div>
-
-        <Tabs defaultValue="all" className="mb-6">
-          <TabsList>
-            <TabsTrigger value="all">All</TabsTrigger>
-            <TabsTrigger value="pending">Pending</TabsTrigger>
-            <TabsTrigger value="submitted">Submitted</TabsTrigger>
-            <TabsTrigger value="graded">Graded</TabsTrigger>
-            <TabsTrigger value="overdue">Overdue</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="all" className="mt-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {filteredAssignments.map(assignment => (
-                <AssignmentCard key={assignment.id} assignment={assignment} />
-              ))}
+      <div className="flex-1 overflow-y-auto bg-gray-50/50">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+            <div>
+              <h1 className="text-2xl font-bold">Assignments</h1>
+              <p className="text-muted-foreground">
+                View and manage your course assignments
+              </p>
             </div>
-          </TabsContent>
-        </Tabs>
+          </div>
+
+          <Tabs 
+            defaultValue="all" 
+            className="mb-6"
+          >
+            <div className="overflow-x-auto">
+              <TabsList className="inline-flex min-w-max">
+                <TabsTrigger value="all" className="px-4">All</TabsTrigger>
+                <TabsTrigger value="pending" className="px-4">Pending</TabsTrigger>
+                <TabsTrigger value="submitted" className="px-4">Submitted</TabsTrigger>
+                <TabsTrigger value="graded" className="px-4">Graded</TabsTrigger>
+              </TabsList>
+            </div>
+
+            <TabsContent value={activeTab} className="mt-6">
+              <Card className="w-full">
+                <CardContent className="flex flex-col items-center justify-center py-12">
+                  <div className="rounded-full bg-primary/10 p-4 mb-4">
+                    <ClipboardList className="w-8 h-8 text-primary" />
+                  </div>
+                  <h3 className="text-xl font-semibold mb-2">No Assignments Yet</h3>
+                  <p className="text-muted-foreground text-center max-w-md mb-6">
+                    You don't have any assignments at the moment. New assignments will appear here when your instructors create them.
+                  </p>
+                  <Button variant="outline" onClick={() => window.location.href = '/contact-instructors'}>
+                    <FileText className="w-4 h-4 mr-2" />
+                    Contact Instructors
+                  </Button>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        </div>
       </div>
     </DashboardLayout>
   );

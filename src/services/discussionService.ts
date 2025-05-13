@@ -1,29 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from '@/lib/axios';
+import { Discussion } from '@/types/discussion';
 
-export interface Discussion {
-  _id: string;
-  courseId: string;
-  userId: {
-    _id: string;
-    name: string;
-    displayName: string;
-  };
+interface CreateDiscussionData {
   title: string;
   content: string;
-  tags: string[];
-  replies: Array<{
-    _id: string;
-    userId: {
-      _id: string;
-      name: string;
-      displayName: string;
-    };
-    content: string;
-    createdAt: string;
-  }>;
-  likes: string[];
-  createdAt: string;
+  isPinned: boolean;
 }
 
 // Get discussions for a course
@@ -38,23 +20,13 @@ export const useCourseDiscussions = (courseId: string) => {
   });
 };
 
-// Create new discussion
-export const useCreateDiscussion = () => {
-  const queryClient = useQueryClient();
-  
-  return useMutation({
-    mutationFn: async ({ 
-      courseId, 
-      data 
-    }: { 
-      courseId: string; 
-      data: { title: string; content: string; tags?: string[]; }; 
-    }) => {
-      const response = await axios.post(`/api/courses/${courseId}/discussions`, data);
+// Get all discussions for instructor (across all their courses)
+export const useInstructorDiscussions = () => {
+  return useQuery<Discussion[]>({
+    queryKey: ['instructor-discussions'],
+    queryFn: async () => {
+      const response = await axios.get<Discussion[]>('/api/instructor/discussions');
       return response.data;
-    },
-    onSuccess: (_, { courseId }) => {
-      queryClient.invalidateQueries({ queryKey: ['discussions', courseId] });
     },
   });
 };
@@ -64,22 +36,31 @@ export const useAddReply = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: async ({ 
-      discussionId, 
-      content 
-    }: { 
-      discussionId: string; 
-      content: string; 
-    }) => {
+    mutationFn: async ({ discussionId, content }: { discussionId: string; content: string }) => {
       const response = await axios.post(`/api/discussions/${discussionId}/replies`, { content });
       return response.data;
     },
-    onSuccess: (_, { discussionId }) => {
-      // Get courseId from cache to invalidate discussions query
-      const discussion = queryClient.getQueryData<Discussion>(['discussion', discussionId]);
-      if (discussion) {
-        queryClient.invalidateQueries({ queryKey: ['discussions', discussion.courseId] });
-      }
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['discussions'] });
+      queryClient.invalidateQueries({ queryKey: ['instructor-discussions'] });
+    },
+  });
+};
+
+// Create new discussion
+export const useCreateDiscussion = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async ({ courseId, data }: { courseId: string; data: CreateDiscussionData }) => {
+      const response = await axios.post(`/api/courses/${courseId}/discussions`, data);
+      return response.data;
+    },
+    onSuccess: (_, { courseId }) => {
+      // Invalidate both instructor and course-specific discussion queries
+      queryClient.invalidateQueries({ queryKey: ['discussions'] });
+      queryClient.invalidateQueries({ queryKey: ['discussions', courseId] });
+      queryClient.invalidateQueries({ queryKey: ['instructor-discussions'] });
     },
   });
 };

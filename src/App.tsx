@@ -1,3 +1,4 @@
+import React from 'react';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -15,7 +16,7 @@ import CourseWeekView from "./pages/CourseWeekView";
 import CoursePayment from "./pages/CoursePayment";
 import NotFound from "./pages/NotFound";
 import Profile from "./pages/Profile";
-import Settings from "./pages/Settings";
+import { default as StudentSettings } from "./pages/Settings";
 import Grades from "./pages/Grades";
 import Assignments from "./pages/Assignments";
 import Calendar from "./pages/Calendar";
@@ -49,9 +50,18 @@ import InstructorGuidelinesPage from "./pages/instructor/InstructorGuidelinesPag
 import Support from "./pages/instructor/Support";
 import FAQ from "./pages/instructor/FAQ";
 import TeachingResources from "./pages/instructor/TeachingResources";
+import MessagesPage from "./pages/instructor/Messages";
+import { default as InstructorSettings } from "./pages/instructor/Settings";
 
 // Layouts
 import InstructorLayout from "./components/layouts/InstructorLayout";
+import DashboardLayout from "./components/layouts/DashboardLayout";
+
+import ContactInstructorsPage from "./pages/student/ContactInstructors";
+import InstructorProfile from "./components/instructor/InstructorProfile";
+
+// Auth Pages
+import InstructorSignup from "./pages/InstructorSignup";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -126,7 +136,7 @@ const PublicRoute = ({ children }: { children: React.ReactNode }) => {
       return <Navigate to="/admin/dashboard" />;
     }
     
-    return <Navigate to="/dashboard" />;
+    return <Navigate to="/explore-courses" />;
   }
 
   return <>{children}</>;
@@ -148,6 +158,11 @@ const AppRoutes = () => (
     <Route path="/signup" element={
       <PublicRoute>
         <Signup />
+      </PublicRoute>
+    } />
+    <Route path="/instructor-signup" element={
+      <PublicRoute>
+        <InstructorSignup />
       </PublicRoute>
     } />
     <Route path="/pending-approval" element={
@@ -203,7 +218,7 @@ const AppRoutes = () => (
     } />
     <Route path="/settings" element={
       <ProtectedRoute>
-        <Settings />
+        <StudentSettings />
       </ProtectedRoute>
     } />
     <Route path="/grades" element={
@@ -224,6 +239,11 @@ const AppRoutes = () => (
     <Route path="/discussions" element={
       <ProtectedRoute>
         <Discussions />
+      </ProtectedRoute>
+    } />
+    <Route path="/contact-instructors" element={
+      <ProtectedRoute>
+        <ContactInstructorsPage />
       </ProtectedRoute>
     } />
 
@@ -277,6 +297,7 @@ const AppRoutes = () => (
     }>
       <Route index element={<Navigate to="/instructor/dashboard" replace />} />
       <Route path="dashboard" element={<InstructorDashboard />} />
+      <Route path="profile" element={<InstructorProfile />} />
       <Route path="courses" element={<InstructorCourses />} />
       <Route path="courses/new" element={<CourseForm />} />
       <Route path="courses/:courseId/edit" element={<CourseForm />} />
@@ -290,28 +311,16 @@ const AppRoutes = () => (
       <Route path="faq" element={<FAQ />} />
       <Route path="assessments" element={<InstructorAssessments />} />
       <Route path="sessions" element={<LiveSessions />} />
-      <Route path="messages" element={<Navigate to="/instructor/dashboard" replace />} />
-      <Route path="settings" element={<Navigate to="/instructor/dashboard" replace />} />
+      <Route path="messages" element={<MessagesPage />} />
+      <Route path="settings" element={<InstructorSettings />} />
       <Route path="teaching-resources" element={<TeachingResources />} />
       <Route path="create-assessment" element={
         <ProtectedRoute>
           <CreateAssessment />
         </ProtectedRoute>
       } />
-      <Route path="assessments" element={
-        <ProtectedRoute>
-          <InstructorLayout>
-            <Assessments />
-          </InstructorLayout>
-        </ProtectedRoute>
-      } />
-      <Route path="sessions" element={
-        <ProtectedRoute>
-          <InstructorLayout>
-            <LiveSessions />
-          </InstructorLayout>
-        </ProtectedRoute>
-      } />
+      <Route path="assessments" element={<Assessments />} />
+      <Route path="sessions" element={<LiveSessions />} />
     </Route>
 
     <Route path="*" element={<NotFound />} />

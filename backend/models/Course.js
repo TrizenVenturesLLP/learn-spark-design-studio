@@ -30,7 +30,8 @@ const roadmapDaySchema = new mongoose.Schema({
   day: { type: Number, required: true },
   topics: { type: String, required: true },
   video: { type: String, required: true },
-  transcript: { type: String }
+  transcript: { type: String },
+  notes: { type: String }
 });
 
 const courseSchema = new mongoose.Schema({

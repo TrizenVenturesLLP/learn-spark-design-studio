@@ -62,6 +62,7 @@ const UserCourse = require('./models/UserCourse');
 const Discussion = require('./models/Discussion');
 const SupportTicket = require('./models/SupportTicket');
 const Notification = require('./models/Notification');
+const Message = require('./models/Message');
 
 // Create EnrollmentRequest model
 const enrollmentRequestSchema = new mongoose.Schema({
@@ -1091,15 +1092,18 @@ app.get('/api/courses/:courseId/discussions', authenticateToken, async (req, res
   try {
     const { courseId } = req.params;
 
-    // Check if user is enrolled in the course
-    const enrollment = await UserCourse.findOne({
-      userId: req.user.id,
-      courseId,
-      status: { $in: ['enrolled', 'started', 'completed'] }
-    });
+    // Check if user is enrolled in the course or is the instructor
+    const [enrollment, course] = await Promise.all([
+      UserCourse.findOne({
+        userId: req.user.id,
+        courseId,
+        status: { $in: ['enrolled', 'started', 'completed'] }
+      }),
+      Course.findOne({ _id: courseId })
+    ]);
 
-    if (!enrollment) {
-      return res.status(403).json({ message: 'You must be enrolled in this course to view discussions' });
+    if (!enrollment && course.instructorId.toString() !== req.user.id.toString()) {
+      return res.status(403).json({ message: 'You must be enrolled in this course or be the instructor to view discussions' });
     }
 
     // Get discussions with user and course info
@@ -1119,17 +1123,22 @@ app.get('/api/courses/:courseId/discussions', authenticateToken, async (req, res
 app.post('/api/courses/:courseId/discussions', authenticateToken, async (req, res) => {
   try {
     const { courseId } = req.params;
-    const { title, content, tags } = req.body;
+    const { title, content, isPinned } = req.body;
 
-    // Check if user is enrolled in the course
-    const enrollment = await UserCourse.findOne({
-      userId: req.user.id,
-      courseId,
-      status: { $in: ['enrolled', 'started', 'completed'] }
-    });
+    // Check if user is enrolled in the course or is the instructor
+    const [enrollment, course] = await Promise.all([
+      UserCourse.findOne({
+        userId: req.user.id,
+        courseId,
+        status: { $in: ['enrolled', 'started', 'completed'] }
+      }),
+      Course.findOne({ _id: courseId })
+    ]);
 
-    if (!enrollment) {
-      return res.status(403).json({ message: 'You must be enrolled in this course to create discussions' });
+    const isInstructor = course && course.instructorId.toString() === req.user.id.toString();
+
+    if (!enrollment && !isInstructor) {
+      return res.status(403).json({ message: 'You must be enrolled in this course or be the instructor to create discussions' });
     }
 
     const discussion = new Discussion({
@@ -1137,7 +1146,7 @@ app.post('/api/courses/:courseId/discussions', authenticateToken, async (req, re
       userId: req.user.id,
       title,
       content,
-      tags
+      isPinned: isInstructor ? isPinned : false // Only instructors can pin discussions
     });
 
     await discussion.save();
@@ -1247,7 +1256,12 @@ app.delete('/api/discussions/:discussionId', authenticateToken, async (req, res)
       return res.status(404).json({ message: 'Discussion not found' });
     }
 
-    if (discussion.userId.toString() !== req.user.id.toString()) {
+    // Check if user is the discussion creator or the course instructor
+    const course = await Course.findById(discussion.courseId);
+    const isInstructor = course && course.instructorId.toString() === req.user.id.toString();
+    const isCreator = discussion.userId.toString() === req.user.id.toString();
+
+    if (!isCreator && !isInstructor) {
       return res.status(403).json({ message: 'Not authorized to delete this discussion' });
     }
 
@@ -3012,3 +3026,248 @@ const createNotification = async (data) => {
 // Start server
 const PORT = process.env.PORT || 5001;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+// Get all discussions for instructor's courses
+app.get('/api/instructor/discussions', authenticateToken, async (req, res) => {
+  try {
+    // Get all courses where the user is an instructor
+    const instructorCourses = await Course.find({ instructorId: req.user.id });
+    const courseIds = instructorCourses.map(course => course._id);
+
+    // Get all discussions from instructor's courses
+    const discussions = await Discussion.find({ courseId: { $in: courseIds } })
+      .populate('userId', 'name displayName')
+      .populate('replies.userId', 'name displayName')
+      .populate('courseId', 'title')
+      .sort({ createdAt: -1 });
+
+    res.json(discussions);
+  } catch (error) {
+    console.error('Get instructor discussions error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Message Routes
+
+// Get conversations for a user (either instructor or student)
+app.get('/api/messages/conversations', authenticateToken, async (req, res) => {
+  try {
+    // Get all messages where user is either sender or receiver
+    const messages = await Message.find({
+      $or: [
+        { senderId: req.user.id },
+        { receiverId: req.user.id }
+      ]
+    })
+    .sort({ createdAt: -1 })
+    .populate('senderId', 'name role')
+    .populate('receiverId', 'name role')
+    .populate('courseId', 'title');
+
+    // Group messages by conversation partner
+    const conversations = messages.reduce((acc, message) => {
+      const partnerId = message.senderId._id.toString() === req.user.id ? 
+        message.receiverId._id : message.senderId._id;
+      
+      if (!acc[partnerId]) {
+        acc[partnerId] = {
+          partner: message.senderId._id.toString() === req.user.id ? 
+            message.receiverId : message.senderId,
+          course: message.courseId,
+          lastMessage: message,
+          unreadCount: message.receiverId._id.toString() === req.user.id && !message.read ? 1 : 0
+        };
+      } else {
+        // Update unread count
+        if (message.receiverId._id.toString() === req.user.id && !message.read) {
+          acc[partnerId].unreadCount++;
+        }
+      }
+      return acc;
+    }, {});
+
+    res.json(Object.values(conversations));
+  } catch (error) {
+    console.error('Get conversations error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get messages between two users for a specific course
+app.get('/api/messages/:partnerId/:courseId', authenticateToken, async (req, res) => {
+  try {
+    const { partnerId, courseId } = req.params;
+
+    const messages = await Message.find({
+      courseId,
+      $or: [
+        { senderId: req.user.id, receiverId: partnerId },
+        { senderId: partnerId, receiverId: req.user.id }
+      ]
+    })
+    .sort({ createdAt: 1 })
+    .populate('senderId', 'name role')
+    .populate('receiverId', 'name role');
+
+    // Mark messages as read
+    await Message.updateMany({
+      courseId,
+      senderId: partnerId,
+      receiverId: req.user.id,
+      read: false
+    }, {
+      read: true
+    });
+
+    res.json(messages);
+  } catch (error) {
+    console.error('Get messages error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Send a new message
+app.post('/api/messages', authenticateToken, async (req, res) => {
+  try {
+    const { receiverId, courseId, content } = req.body;
+
+    // Verify that the users are connected through the course
+    const course = await Course.findById(courseId);
+    if (!course) {
+      return res.status(404).json({ message: 'Course not found' });
+    }
+
+    // Check if sender is instructor of the course or student enrolled in the course
+    const isInstructor = course.instructorId.toString() === req.user.id;
+    const isStudent = await UserCourse.findOne({
+      userId: req.user.id,
+      courseId,
+      status: { $in: ['enrolled', 'started', 'completed'] }
+    });
+
+    if (!isInstructor && !isStudent) {
+      return res.status(403).json({ message: 'Not authorized to send messages in this course' });
+    }
+
+    // Create and save the message
+    const message = new Message({
+      senderId: req.user.id,
+      receiverId,
+      courseId,
+      content,
+      read: false
+    });
+
+    await message.save();
+    await message.populate('senderId', 'name role');
+    await message.populate('receiverId', 'name role');
+
+    res.status(201).json(message);
+  } catch (error) {
+    console.error('Send message error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get enrolled students for instructor
+app.get('/api/instructor/students', authenticateToken, async (req, res) => {
+  try {
+    // Verify user is an instructor
+    if (req.user.role !== 'instructor') {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+
+    // Get all courses where user is instructor
+    const courses = await Course.find({ instructorId: req.user.id });
+    
+    // Get all enrollments for these courses
+    const enrollments = await UserCourse.find({
+      courseId: { $in: courses.map(c => c._id) },
+      status: { $in: ['enrolled', 'started', 'completed'] }
+    })
+    .populate('userId', 'name email')
+    .populate('courseId', 'title');
+
+    // Group students by course
+    const studentsByCourse = enrollments.reduce((acc, enrollment) => {
+      const courseId = enrollment.courseId._id.toString();
+      if (!acc[courseId]) {
+        acc[courseId] = {
+          courseId: enrollment.courseId._id,
+          courseTitle: enrollment.courseId.title,
+          students: []
+        };
+      }
+      acc[courseId].students.push({
+        id: enrollment.userId._id,
+        name: enrollment.userId.name,
+        email: enrollment.userId.email
+      });
+      return acc;
+    }, {});
+
+    res.json(Object.values(studentsByCourse));
+  } catch (error) {
+    console.error('Get enrolled students error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get course instructors for student
+app.get('/api/student/instructors', authenticateToken, async (req, res) => {
+  try {
+    console.log('Fetching instructors for student:', req.user.id);
+    
+    // Get all courses where user is enrolled
+    const enrollments = await UserCourse.find({
+      userId: req.user.id,
+      status: { $in: ['enrolled', 'started', 'completed'] }
+    }).lean();
+
+    console.log(`Found ${enrollments?.length || 0} enrollments for student`);
+
+    if (!enrollments || enrollments.length === 0) {
+      return res.json([]);
+    }
+
+    const courseIds = enrollments.map(e => e.courseId);
+
+    // Get courses with instructors
+    const courses = await Course.find({
+      _id: { $in: courseIds }
+    })
+    .populate('instructorId', 'name email')
+    .lean();
+
+    console.log(`Found ${courses?.length || 0} courses with instructors`);
+
+    // Filter out courses with no instructor and map to required format
+    const instructorsByCourse = courses
+      .filter(course => course && course.instructorId)
+      .map(course => ({
+        courseId: course._id,
+        courseTitle: course.title || 'Untitled Course',
+        instructor: {
+          id: course.instructorId._id,
+          name: course.instructorId.name || 'Unknown Instructor',
+          email: course.instructorId.email || 'no-email'
+        }
+      }));
+
+    console.log(`Returning ${instructorsByCourse.length} course-instructor mappings`);
+    res.json(instructorsByCourse);
+
+  } catch (error) {
+    console.error('Error in /api/student/instructors:', {
+      error: error.message,
+      stack: error.stack,
+      userId: req.user?.id
+    });
+    
+    res.status(500).json({ 
+      message: 'Failed to fetch instructor information',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});

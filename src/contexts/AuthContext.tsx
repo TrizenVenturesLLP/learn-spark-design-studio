@@ -93,7 +93,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(userData);
       
       // Determine redirect path based on user role and status
-      let redirectPath = '/dashboard'; // Default path
+      let redirectPath = '/explore-courses'; // Default path for students
       
       if (userData.role === 'admin') {
         redirectPath = '/admin/dashboard';

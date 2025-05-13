@@ -5,10 +5,6 @@ import {
   Users, 
   BarChart2, 
   MessageSquare, 
-  Settings, 
-  FileText,
-  Calendar,
-  Star,
   LogOut,
   HelpCircle,
   BookMarked,
@@ -17,10 +13,20 @@ import {
   BookOpenCheck,
   ClipboardList,
   Award,
-  UserCheck
+  UserCheck,
+  User
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 const InstructorLayout = () => {
   const { logout, user } = useAuth();
@@ -35,10 +41,9 @@ const InstructorLayout = () => {
     { name: 'Dashboard', href: '/instructor/dashboard', icon: BarChart2 },
     { name: 'Courses', href: '/instructor/courses', icon: BookOpen },
     { name: 'Students', href: '/instructor/students', icon: Users },
-    { name: 'Assessments', href: '/instructor/assessments', icon: Star },
-    { name: 'Live Sessions', href: '/instructor/sessions', icon: Calendar },
+    { name: 'Assessments', href: '/instructor/assessments', icon: Award },
+    { name: 'Live Sessions', href: '/instructor/sessions', icon: BookOpenCheck },
     { name: 'Messages', href: '/instructor/messages', icon: MessageSquare },
-    { name: 'Settings', href: '/instructor/settings', icon: Settings },
   ];
 
   const staticPages = [
@@ -67,6 +72,46 @@ const InstructorLayout = () => {
 
   return (
     <div className="min-h-screen bg-gray-100">
+      {/* Header */}
+      <div className="fixed top-0 left-0 right-0 h-16 bg-white shadow-sm z-50 pl-64">
+        <div className="h-full px-4 flex items-center justify-end space-x-4">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                <Avatar className="h-8 w-8">
+                  <AvatarFallback>{user ? getInitials(user.name) : "IN"}</AvatarFallback>
+                </Avatar>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-56" align="end" forceMount>
+              <DropdownMenuLabel className="font-normal">
+                <div className="flex flex-col space-y-1">
+                  <p className="text-sm font-medium leading-none">{user?.name}</p>
+                  <p className="text-xs leading-none text-muted-foreground">
+                    {user?.email}
+                  </p>
+                </div>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => navigate('/instructor/profile')} className="cursor-pointer">
+                <User className="mr-2 h-4 w-4" />
+                <span>Profile</span>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleLogout} className="text-red-600 cursor-pointer">
+                <LogOut className="mr-2 h-4 w-4" />
+                <span>Log out</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+
+      {/* Title Section */}
+      <div className="fixed top-0 left-0 w-64 h-16 bg-primary z-50 flex items-center justify-center">
+        <h1 className="text-xl font-bold text-white">Instructor Panel</h1>
+      </div>
+
       {/* Sidebar */}
       <div className="fixed inset-y-0 left-0 w-64 bg-white shadow-lg">
         <div className="flex flex-col h-full">
@@ -152,36 +197,21 @@ const InstructorLayout = () => {
             </div>
           </nav>
 
-          {/* Profile Section */}
+          {/* Signout Button */}
           <div className="p-4 border-t">
-            <div className="flex items-center mb-4">
-              <div
-                className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center"
-                aria-label="Profile"
-              >
-                <span className="text-sm font-medium">{user ? getInitials(user.name) : "IN"}</span>
-              </div>
-              <div className="ml-3">
-                <p className="text-sm font-medium text-gray-700">{user?.name || "Instructor"}</p>
-                <p className="text-xs text-gray-500">Instructor</p>
-              </div>
-            </div>
-            
-            {/* Logout Button */}
-            <Button 
-              variant="ghost" 
-              className="w-full text-red-500 hover:text-red-600 hover:bg-red-50"
+            <button
               onClick={handleLogout}
+              className="w-full flex items-center justify-center px-4 py-2 text-sm font-medium text-red-600 bg-red-50 rounded-md hover:bg-red-100"
             >
               <LogOut className="w-5 h-5 mr-2" />
-              Logout
-            </Button>
+              Sign Out
+            </button>
           </div>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="pl-64">
+      <div className="pl-64 pt-16">
         <main className="p-8">
           <Outlet />
         </main>

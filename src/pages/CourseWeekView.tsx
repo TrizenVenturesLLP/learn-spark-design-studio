@@ -408,6 +408,19 @@ const CourseWeekView = () => {
                 </CardContent>
               </Card>
 
+              {currentDay.notes && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg md:text-xl">Notes</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm md:text-base text-muted-foreground whitespace-pre-wrap">
+                      {currentDay.notes}
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+
               <TranscriptSection transcript={currentDay.transcript} />
 
               <Card>

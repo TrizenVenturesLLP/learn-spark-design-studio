@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { HeartHandshake, Calendar, Image, Users } from "lucide-react";
+import { HeartHandshake, Calendar, Image, Users, BookOpen } from "lucide-react";
 
 const Footer = () => {
   return (
@@ -44,6 +44,12 @@ const Footer = () => {
                   <span>About Us</span>
                 </Link>
               </li>
+              <li>
+                <Link to="/instructor-signup" className="text-muted-foreground hover:text-primary flex items-center gap-2">
+                  <BookOpen className="h-4 w-4" />
+                  <span>Become an Instructor</span>
+                </Link>
+              </li>
             </ul>
           </div>
 
@@ -75,20 +81,21 @@ const Footer = () => {
           </p>
           
           {/* Social Links */}
-          <div className="mt-4 md:mt-0 flex space-x-6">
-          <a href="https://x.com/TrizenVentures" className="text-gray-500 hover:text-primary">
-            <span className="sr-only">X</span>
-            <svg
-              className="h-6 w-6"
-              fill="currentColor"
-              viewBox="0 0 24 24"
-              aria-hidden="true"
-            >
-              <path d="M20.18 3H17.3L12 9.1L6.7 3H3.82L10.6 11L3 21H6.02L12 14.37L17.98 21H21L13.4 11L20.18 3Z" />
-            </svg>
-          </a>
+          <div className="flex space-x-4 mt-4 md:mt-0">
+            {/* X (Twitter) */}
+            <a href="https://x.com/TrizenVentures" className="text-gray-500 hover:text-primary">
+              <span className="sr-only">X</span>
+              <svg
+                className="h-6 w-6"
+                fill="currentColor"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <path d="M20.18 3H17.3L12 9.1L6.7 3H3.82L10.6 11L3 21H6.02L12 14.37L17.98 21H21L13.4 11L20.18 3Z" />
+              </svg>
+            </a>
             
-             {/* Instagram */}
+            {/* Instagram */}
             <a href="https://www.instagram.com/trizenventures" className="text-gray-500 hover:text-primary" target="_blank" rel="noopener noreferrer">
               <span className="sr-only">Instagram</span>
               <svg
@@ -101,7 +108,8 @@ const Footer = () => {
               </svg>
             </a>
             
-            <a href="https://www.linkedin.com/company/trizenventuresllp/" className="text-gray-500 hover:text-primary">
+            {/* LinkedIn */}
+            <a href="https://www.linkedin.com/company/trizenventures" className="text-gray-500 hover:text-primary" target="_blank" rel="noopener noreferrer">
               <span className="sr-only">LinkedIn</span>
               <svg 
                 className="h-6 w-6" 
@@ -113,7 +121,8 @@ const Footer = () => {
               </svg>
             </a>
             
-            <a href="https://github.com/TrizenVenturesLLP" className="text-gray-500 hover:text-primary">
+            {/* GitHub */}
+            <a href="https://github.com/trizenventures" className="text-gray-500 hover:text-primary" target="_blank" rel="noopener noreferrer">
               <span className="sr-only">GitHub</span>
               <svg
                 className="h-6 w-6"

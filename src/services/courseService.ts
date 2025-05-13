@@ -41,6 +41,7 @@ export interface RoadmapDay {
   topics: string;
   video: string;
   transcript?: string;
+  notes?: string;
 }
 
 // Fetch all courses

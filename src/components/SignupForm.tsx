@@ -9,10 +9,11 @@ import { useToast } from '@/hooks/use-toast';
 import SignupChoice from './SignupChoice';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Alert, AlertDescription } from './ui/alert';
+import { Separator } from './ui/separator';
 
 const SignupForm = () => {
   const [name, setName] = useState('');
-  const [selectedRole, setSelectedRole] = useState<'student' | 'instructor' | null>(null);
+  const [selectedRole, setSelectedRole] = useState<'student' | null>(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -51,6 +52,7 @@ const SignupForm = () => {
     }
     return true;
   };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -205,7 +207,7 @@ const SignupForm = () => {
         </Button>
       </form>
       
-      <div className="text-center text-sm">
+      <div className="mt-6 text-center text-sm">
         <p>Already have an account? 
           <Button 
             variant="link" 

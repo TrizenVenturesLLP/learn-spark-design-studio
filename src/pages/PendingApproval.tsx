@@ -101,16 +101,7 @@ const PendingApproval = () => {
             </div>
 
             <div className="text-center space-y-4">
-              <p className="text-muted-foreground">
-                While you wait, you can explore our platform as a student
-              </p>
-              <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              <Button
-                variant="outline"
-                onClick={() => navigate('/explore-courses')}
-              >
-                Explore Courses
-              </Button>
+              <div className="flex justify-center">
                 <Button
                   variant="ghost"
                   onClick={() => logout()}

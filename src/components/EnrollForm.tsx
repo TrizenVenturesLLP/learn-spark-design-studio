@@ -71,21 +71,21 @@ const EnrollForm: React.FC<EnrollFormProps> = ({ courseId }) => {
     return (
       <div className="min-h-screen">
         <Header />
-        <div className="container max-w-7xl py-8">
-          <Skeleton className="h-12 w-3/4 mb-4" />
-          <Skeleton className="h-24 w-full mb-6" />
-          <div className="flex items-center gap-2 mb-6">
-            <Skeleton className="h-6 w-32" />
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+          <Skeleton className="h-8 sm:h-12 w-3/4 mb-3 sm:mb-4" />
+          <Skeleton className="h-16 sm:h-24 w-full mb-4 sm:mb-6" />
+          <div className="flex items-center gap-2 mb-4 sm:mb-6">
+            <Skeleton className="h-4 sm:h-6 w-24 sm:w-32" />
           </div>
-          <Skeleton className="h-10 w-36 mb-4" />
-          <div className="flex gap-6 mb-10">
-            <Skeleton className="h-6 w-40" />
-            <Skeleton className="h-6 w-48" />
+          <Skeleton className="h-8 sm:h-10 w-28 sm:w-36 mb-3 sm:mb-4" />
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-6 mb-8 sm:mb-10">
+            <Skeleton className="h-4 sm:h-6 w-32 sm:w-40" />
+            <Skeleton className="h-4 sm:h-6 w-36 sm:w-48" />
           </div>
           {/* Course Highlights Skeleton */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-6 mb-10">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-6">
             {[...Array(5)].map((_, i) => (
-              <Skeleton key={i} className="h-24 w-full" />
+              <Skeleton key={i} className="h-20 sm:h-24 w-full" />
             ))}
           </div>
         </div>
@@ -97,9 +97,9 @@ const EnrollForm: React.FC<EnrollFormProps> = ({ courseId }) => {
     return (
       <div className="min-h-screen">
         <Header />
-        <div className="container max-w-7xl py-12 text-center">
-          <h1 className="text-2xl font-bold mb-4">Course Not Found</h1>
-          <p className="text-muted-foreground mb-6">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 text-center">
+          <h1 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4">Course Not Found</h1>
+          <p className="text-sm sm:text-base text-muted-foreground mb-4 sm:mb-6">
             The course you're looking for doesn't seem to exist.
           </p>
           <Button onClick={() => navigate('/explore-courses')}>
@@ -120,7 +120,7 @@ const EnrollForm: React.FC<EnrollFormProps> = ({ courseId }) => {
         className="mb-4"
         disabled={enrollMutation.isPending}
       >
-        {enrollMutation.isPending ? "Enrolling..." : "Enroll for Free"}
+        {enrollMutation.isPending ? "Enrolling..." : "Enroll Now"}
       </Button>
     );
   } else if (course.enrollmentStatus === 'enrolled') {
@@ -156,194 +156,139 @@ const EnrollForm: React.FC<EnrollFormProps> = ({ courseId }) => {
     <div className="min-h-screen">
       <Header />
 
-      <div className="container max-w-7xl py-8">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         {/* Hero Section */}
-        <div className="mb-10">
-          <h1 className="text-4xl font-bold mb-4">{course?.title}</h1>
-          <p className="text-lg text-muted-foreground mb-6 max-w-3xl">
+        <div className="mb-8 sm:mb-10">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-3 sm:mb-4">
+            {course?.title}
+          </h1>
+          <p className="text-base sm:text-lg text-muted-foreground mb-4 sm:mb-6 max-w-3xl">
             {course?.longDescription}
           </p>
-          <div className="flex items-center gap-2 mb-6">
-            <span className="text-muted-foreground">Instructor:</span>
-            <span className="font-medium">{course?.instructor}</span>
+          <div className="flex items-center gap-2 mb-4 sm:mb-6">
+            <span className="text-sm sm:text-base text-muted-foreground">Instructor:</span>
+            <span className="text-sm sm:text-base font-medium">{course?.instructor}</span>
           </div>
           
-          {actionButton}
+          <div className="mb-4 sm:mb-6">
+            {actionButton}
+          </div>
           
-          <div className="flex flex-col sm:flex-row gap-2 sm:gap-6 text-sm text-muted-foreground">
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-6 text-xs sm:text-sm text-muted-foreground">
             <span>{course?.students?.toLocaleString()} already enrolled</span>
             <span>Included with <strong>TRIZEN Premium</strong></span>
           </div>
         </div>
 
         {/* Course Highlights */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-6 mb-10">
-          <div className="bg-card rounded-lg p-4 shadow-sm">
-            <h3 className="font-medium mb-1">{course.courses?.length || 3} course series</h3>
-            <p className="text-sm text-muted-foreground">Get in-depth knowledge</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-6 mb-8 sm:mb-10">
+          <div className="bg-card rounded-lg p-3 sm:p-4 shadow-sm">
+            <h3 className="text-sm sm:text-base font-medium mb-1">
+              {course.courses?.length || 3} course series
+            </h3>
+            <p className="text-xs sm:text-sm text-muted-foreground">
+              Get in-depth knowledge
+            </p>
           </div>
-          <div className="bg-card rounded-lg p-4 shadow-sm">
+          
+          <div className="bg-card rounded-lg p-3 sm:p-4 shadow-sm">
             <div className="flex items-center gap-1 mb-1">
               <span className="text-yellow-500">★★★★</span><span>☆</span>
-              <span className="font-medium">{course.rating}</span>
+              <span className="text-sm sm:text-base font-medium">{course.rating}</span>
             </div>
-            <p className="text-sm text-muted-foreground">({Math.floor(course.students / 15)} reviews)</p>
+            <p className="text-xs sm:text-sm text-muted-foreground">
+              ({Math.floor(course.students / 15)} reviews)
+            </p>
           </div>
-          <div className="bg-card rounded-lg p-4 shadow-sm">
-            <h3 className="font-medium mb-1">{course.level} level</h3>
-            <p className="text-sm text-muted-foreground">Recommended experience</p>
-          </div>
-          <div className="bg-card rounded-lg p-4 shadow-sm">
-            <h3 className="font-medium mb-1">{Math.ceil(parseInt(course.duration) / 12)} months</h3>
-            <p className="text-sm text-muted-foreground">at 3 hours a week</p>
-          </div>
-          <div className="bg-card rounded-lg p-4 shadow-sm">
-            <h3 className="font-medium mb-1">Flexible schedule</h3>
-            <p className="text-sm text-muted-foreground">Learn at your own pace</p>
-          </div>
-        </div>
-
-        {/* Navigation */}
-        <div className="border-b mb-10">
-          <nav className="flex space-x-8">
-            <Link to="#about" className="py-4 px-1 font-medium border-b-2 border-primary">About</Link>
-            <Link to="#outcomes" className="py-4 px-1 text-muted-foreground hover:text-foreground">Outcomes</Link>
-            <Link to="#courses" className="py-4 px-1 text-muted-foreground hover:text-foreground">Courses</Link>
-            <Link to="#testimonials" className="py-4 px-1 text-muted-foreground hover:text-foreground">Testimonials</Link>
-          </nav>
-        </div>
-
-        {/* What You'll Learn */}
-        <section id="about" className="mb-12">
-          <h2 className="text-2xl font-bold mb-6">What you'll learn</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <p className="flex items-start mb-4">
-                <span className="text-primary mr-2">✓</span>
-                <span>Master fundamentals, best practices, and advanced techniques in {course.title}.</span>
-              </p>
-              <p className="flex items-start mb-4">
-                <span className="text-primary mr-2">✓</span>
-                <span>Build practical skills through hands-on projects and real-world applications.</span>
-              </p>
-            </div>
-            <div>
-              <p className="flex items-start mb-4">
-                <span className="text-primary mr-2">✓</span>
-                <span>Learn industry-standard tools and methodologies used by professionals.</span>
-              </p>
-              <p className="flex items-start mb-4">
-                <span className="text-primary mr-2">✓</span>
-                <span>Gain a competitive edge in the job market with in-demand skills and knowledge.</span>
-              </p>
-            </div>
-          </div>
-        </section>
-
-        {/* Skills Gained */}
-        <section className="mb-12">
-          <h2 className="text-2xl font-bold mb-6">Skills you'll gain</h2>
-          <div className="flex flex-wrap gap-2 mb-4">
-            {course.skills?.map((skill) => (
-              <Badge key={skill} variant="outline" className="px-3 py-1 text-sm bg-secondary/30">
-                {skill}
-              </Badge>
-            ))}
-          </div>
-          <Button variant="outline" size="sm">View all skills</Button>
-        </section>
-
-        {/* Details */}
-        <section className="mb-12">
-          <h2 className="text-2xl font-bold mb-6">Details to know</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <div className="bg-card rounded-lg p-6 shadow-sm">
-              <h3 className="font-medium mb-2 text-lg">Shareable certificate</h3>
-              <p className="text-muted-foreground">Add to your LinkedIn profile</p>
-            </div>
-            <div className="bg-card rounded-lg p-6 shadow-sm">
-              <h3 className="font-medium mb-2 text-lg">Taught in English</h3>
-              <p className="text-muted-foreground">23 languages available</p>
-            </div>
-          </div>
-        </section>
-
-        {/* Course Series */}
-        <section id="courses" className="mb-12">
-          <h2 className="text-2xl font-bold mb-6">Specialization - {course.courses?.length || 3} course series</h2>
-          <p className="mb-4 text-muted-foreground">
-            Introducing the {course.title} Specialization, designed to empower your career 
-            by providing a comprehensive skillset for success in this field.
-          </p>
-          <p className="mb-4 text-muted-foreground">The specialization consists of {course.courses?.length || 3} intensive courses:</p>
           
-          <div className="space-y-4 mt-8">
-            {course.courses?.map((course, index) => (
-              <div key={index} className="bg-card border rounded-lg p-6 flex items-center justify-between">
-                <div>
-                  <h3 className="font-medium mb-1">{course.title}</h3>
-                  <p className="text-sm text-muted-foreground">{course.details}</p>
+          <div className="bg-card rounded-lg p-3 sm:p-4 shadow-sm">
+            <h3 className="text-sm sm:text-base font-medium mb-1">
+              {course.level} level
+            </h3>
+            <p className="text-xs sm:text-sm text-muted-foreground">
+              Recommended experience
+            </p>
+          </div>
+          
+          <div className="bg-card rounded-lg p-3 sm:p-4 shadow-sm">
+            <h3 className="text-sm sm:text-base font-medium mb-1">
+              {Math.ceil(parseInt(course.duration) / 12)} months
+            </h3>
+            <p className="text-xs sm:text-sm text-muted-foreground">
+              at 3 hours a week
+            </p>
+          </div>
+          
+          <div className="bg-card rounded-lg p-3 sm:p-4 shadow-sm">
+            <h3 className="text-sm sm:text-base font-medium mb-1">
+              Certificate
+            </h3>
+            <p className="text-xs sm:text-sm text-muted-foreground">
+              Upon completion
+            </p>
+          </div>
+        </div>
+
+        {/* Course Content Preview */}
+        <div className="space-y-6 sm:space-y-8">
+          <div>
+            <h2 className="text-xl sm:text-2xl font-semibold mb-3 sm:mb-4">
+              What you'll learn
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+              {course.skills?.map((skill, index) => (
+                <div 
+                  key={index}
+                  className="flex items-start gap-2 p-2 sm:p-3 rounded-md bg-muted/50"
+                >
+                  <span className="text-sm sm:text-base">{skill}</span>
                 </div>
-                <span className="text-primary text-xl">✓</span>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </section>
 
-        {/* Testimonials */}
-        <section id="testimonials" className="mb-12">
-          <h2 className="text-2xl font-bold mb-6">Why people choose TRIZEN for their career</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {course.testimonials?.map((testimonial, index) => (
-              <div key={index} className="bg-card border rounded-lg p-6">
-                <p className="mb-4 italic">{`"${testimonial.text}"`}</p>
-                <p className="text-sm">
-                  <span className="font-medium">{testimonial.author}</span>
-                  {testimonial.since && <span className="text-muted-foreground ml-2">{testimonial.since}</span>}
-                </p>
+          {course.roadmap && course.roadmap.length > 0 && (
+            <div>
+              <h2 className="text-xl sm:text-2xl font-semibold mb-3 sm:mb-4">
+                Course Roadmap
+              </h2>
+              <div className="space-y-3 sm:space-y-4">
+                {course.roadmap.map((day, index) => (
+                  <div 
+                    key={index}
+                    className="p-3 sm:p-4 rounded-lg border bg-card"
+                  >
+                    <h3 className="text-base sm:text-lg font-medium mb-2">
+                      Day {index + 1}
+                    </h3>
+                    <div className="space-y-2">
+                      <div className="flex items-start gap-2">
+                        <span className="text-sm sm:text-base">Topics:</span>
+                        <p className="text-sm sm:text-base text-muted-foreground">
+                          {day.topics}
+                        </p>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <span className="text-sm sm:text-base">Video:</span>
+                        <p className="text-sm sm:text-base text-muted-foreground">
+                          {day.video}
+                        </p>
+                      </div>
+                      {day.notes && (
+                        <div className="flex items-start gap-2 mt-2 pt-2 border-t">
+                          <span className="text-sm sm:text-base">Notes:</span>
+                          <p className="text-sm sm:text-base text-muted-foreground">
+                            {day.notes}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        </section>
-
-        {/* Footer */}
-        <footer className="mt-16 pt-8 border-t">
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-8">
-            <div>
-              <h3 className="font-bold mb-4">TRIZEN</h3>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li className="hover:text-foreground cursor-pointer">About</li>
-                <li className="hover:text-foreground cursor-pointer">What We Offer</li>
-                <li className="hover:text-foreground cursor-pointer">Leadership</li>
-                <li className="hover:text-foreground cursor-pointer">Careers</li>
-                <li className="hover:text-foreground cursor-pointer">Catalog</li>
-              </ul>
             </div>
-            <div>
-              <h3 className="font-bold mb-4">Community</h3>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li className="hover:text-foreground cursor-pointer">Learners</li>
-                <li className="hover:text-foreground cursor-pointer">Partners</li>
-                <li className="hover:text-foreground cursor-pointer">Beta Testers</li>
-                <li className="hover:text-foreground cursor-pointer">Blog</li>
-                <li className="hover:text-foreground cursor-pointer">Teaching Center</li>
-              </ul>
-            </div>
-            <div>
-              <h3 className="font-bold mb-4">More</h3>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li className="hover:text-foreground cursor-pointer">Press</li>
-                <li className="hover:text-foreground cursor-pointer">Investors</li>
-                <li className="hover:text-foreground cursor-pointer">Terms</li>
-                <li className="hover:text-foreground cursor-pointer">Privacy</li>
-                <li className="hover:text-foreground cursor-pointer">Help</li>
-              </ul>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground mt-8">© 2025 TRIZEN Inc. All rights reserved.</p>
-            </div>
-          </div>
-        </footer>
+          )}
+        </div>
       </div>
     </div>
   );

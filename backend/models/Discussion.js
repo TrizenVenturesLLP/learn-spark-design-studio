@@ -35,6 +35,10 @@ const discussionSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  isPinned: {
+    type: Boolean,
+    default: false
+  },
   tags: [{
     type: String
   }],

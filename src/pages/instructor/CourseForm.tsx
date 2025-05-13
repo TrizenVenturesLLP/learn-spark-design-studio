@@ -77,7 +77,9 @@ const CourseForm = () => {
     roadmap: [{
       day: 1,
       topics: '',
-      video: ''
+      video: '',
+      transcript: '',
+      notes: ''
     }],
     instructor: user?.name || ''
   });
@@ -98,7 +100,9 @@ const CourseForm = () => {
         roadmap: existingCourse.roadmap || [{
           day: 1,
           topics: '',
-          video: ''
+          video: '',
+          transcript: '',
+          notes: ''
         }],
         instructor: existingCourse.instructor || user?.name || ''
       });
@@ -122,7 +126,8 @@ const CourseForm = () => {
           day: index + 1, // Ensure days are sequential
           topics: day.topics.trim(),
           video: day.video.trim(),
-          transcript: day.transcript?.trim() || ''
+          transcript: day.transcript?.trim() || '',
+          notes: day.notes?.trim() || ''
         };
       });
 
@@ -199,7 +204,8 @@ const CourseForm = () => {
           day: nextDay,
           topics: '',
           video: '',
-          transcript: ''
+          transcript: '',
+          notes: ''
         }
       ]
     }));
@@ -535,6 +541,20 @@ const CourseForm = () => {
                         placeholder="Video transcript or additional notes"
                         rows={4}
                       />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor={`notes-${index}`}>Notes (Optional)</Label>
+                      <Textarea
+                        id={`notes-${index}`}
+                        value={day.notes || ''}
+                        onChange={(e) => updateRoadmapDay(index, 'notes', e.target.value)}
+                        placeholder="Additional notes, resources, or instructions for this day"
+                        rows={3}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Add any supplementary notes, resources, or special instructions for this day's content
+                      </p>
                     </div>
                   </div>
                 ))}

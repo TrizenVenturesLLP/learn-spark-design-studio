@@ -20,48 +20,35 @@ export interface Instructor {
 }
 
 export interface DashboardOverview {
-  totalCourses: number;
   activeCourses: number;
   totalStudents: number;
   averageRating: number;
-  totalReviews: number;
   teachingHours: number;
-  profileCompletion: number;
-  completionRates: Array<{
-    courseId: string;
-    courseTitle: string;
-    totalEnrollments: number;
-    completions: number;
+  newStudents: number;
+  ratingChange: number;
+  teachingHoursChange: number;
+  courseStatus: Array<{
+    title: string;
+    enrolledStudents: number;
     completionRate: number;
   }>;
   recentActivity: Array<{
     type: 'enrollment' | 'review' | 'completion';
-    date: string;
     studentName: string;
-    studentId?: string;
     courseTitle: string;
-    courseId?: string;
     rating?: number;
-    comment?: string;
-  }>;
-  courseBreakdown: Array<{
-    id: string;
-    title: string;
-    students: number;
-    rating: number;
-    created: string;
+    date: string;
   }>;
 }
 
 // Get instructor dashboard overview with real-time data
 export const useDashboardOverview = () => {
   return useQuery<DashboardOverview>({
-    queryKey: ['dashboardOverview'],
-    queryFn: async () => {
-      const response = await axios.get<DashboardOverview>('/api/instructor/dashboard/overview');
-      return response.data;
-    },
-    refetchInterval: 5 * 60 * 1000, // Refetch every 5 minutes
+    queryKey: ['dashboard-overview'],
+    queryFn: async (): Promise<DashboardOverview> => {
+      const { data } = await axios.get<DashboardOverview>('/api/instructor/dashboard/overview');
+      return data;
+    }
   });
 };
 

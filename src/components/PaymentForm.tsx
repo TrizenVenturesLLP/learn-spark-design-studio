@@ -105,40 +105,49 @@ const PaymentForm = () => {
   }
 
   return (
-    <div className="container max-w-lg py-10">
-      <Card>
-        <CardHeader>
-          <CardTitle>Payment Details</CardTitle>
-          <CardDescription>
+    <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-lg py-6 sm:py-10">
+      <Card className="shadow-lg">
+        <CardHeader className="space-y-1">
+          <CardTitle className="text-2xl sm:text-3xl">Payment Details</CardTitle>
+          <CardDescription className="text-sm sm:text-base">
             Complete your enrollment for <span className="font-semibold">{course.title}</span>
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="mb-6 border p-4 rounded-md bg-slate-50">
-            <h3 className="text-sm font-medium mb-2">Scan QR code to make payment</h3>
+          <div className="mb-6 border p-3 sm:p-4 rounded-md bg-slate-50">
+            <h3 className="text-sm sm:text-base font-medium mb-2">Scan QR code to make payment</h3>
             <div className="flex justify-center">
-            
-            <iframe src="https://drive.google.com/file/d/1tMSWcxYAypJ0IzKTslgwLepTSIOT3MvD/preview" width="300" height="300" ></iframe>
-
+              <iframe 
+                src="https://drive.google.com/file/d/1tMSWcxYAypJ0IzKTslgwLepTSIOT3MvD/preview" 
+                width="100%" 
+                height="280" 
+                className="max-w-[300px]"
+              ></iframe>
             </div>
-            <p className="text-base text-center font-semibold text-black">Payment details: ₹399</p>
-            <p className="text-xs text-center text-muted-foreground">
+            <p className="text-base sm:text-lg text-center font-semibold text-black mt-3">
+              Payment details: ₹399
+            </p>
+            <p className="text-xs sm:text-sm text-center text-muted-foreground mt-1">
               After payment, fill the form below with your payment details
             </p>
           </div>
 
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 sm:space-y-6">
               <FormField
                 control={form.control}
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email</FormLabel>
+                    <FormLabel className="text-sm sm:text-base">Email</FormLabel>
                     <FormControl>
-                      <Input {...field} disabled={!!user?.email} />
+                      <Input 
+                        {...field} 
+                        disabled={!!user?.email}
+                        className="h-9 sm:h-10" 
+                      />
                     </FormControl>
-                    <FormMessage />
+                    <FormMessage className="text-xs sm:text-sm" />
                   </FormItem>
                 )}
               />
@@ -148,15 +157,16 @@ const PaymentForm = () => {
                 name="mobile"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Mobile Number</FormLabel>
+                    <FormLabel className="text-sm sm:text-base">Mobile Number</FormLabel>
                     <FormControl>
                       <Input 
                         {...field} 
                         placeholder="Enter your mobile number" 
                         type="tel"
+                        className="h-9 sm:h-10"
                       />
                     </FormControl>
-                    <FormMessage />
+                    <FormMessage className="text-xs sm:text-sm" />
                   </FormItem>
                 )}
               />
@@ -166,11 +176,15 @@ const PaymentForm = () => {
                 name="utrNumber"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>UTR Number</FormLabel>
+                    <FormLabel className="text-sm sm:text-base">UTR Number</FormLabel>
                     <FormControl>
-                      <Input {...field} placeholder="Enter transaction UTR number" />
+                      <Input 
+                        {...field} 
+                        placeholder="Enter transaction UTR number"
+                        className="h-9 sm:h-10"
+                      />
                     </FormControl>
-                    <FormMessage />
+                    <FormMessage className="text-xs sm:text-sm" />
                   </FormItem>
                 )}
               />
@@ -180,54 +194,59 @@ const PaymentForm = () => {
                 name="transactionScreenshot"
                 render={({ field: { onChange, value, ...fieldProps } }) => (
                   <FormItem>
-                    <FormLabel>Transaction Screenshot</FormLabel>
+                    <FormLabel className="text-sm sm:text-base">Transaction Screenshot</FormLabel>
                     <FormControl>
-                      <Input 
-                        {...fieldProps}
-                        type="file" 
-                        accept="image/*" 
-                        onChange={(e) => {
-                          onChange(e.target.files);
-                          handleImageChange(e);
-                        }} 
-                      />
+                      <div className="relative">
+                        <Input 
+                          {...fieldProps}
+                          type="file" 
+                          accept="image/*" 
+                          onChange={(e) => {
+                            onChange(e.target.files);
+                            handleImageChange(e);
+                          }}
+                          className="h-9 sm:h-10 cursor-pointer
+                            file:mr-4 file:py-2 file:px-4 file:ml-0
+                            file:rounded-md file:border-0
+                            file:text-sm file:font-medium
+                            file:bg-primary file:text-primary-foreground
+                            hover:file:bg-primary/90
+                            file:cursor-pointer
+                            mb-2"
+                        />
+                      </div>
                     </FormControl>
                     {imagePreview && (
-                      <div className="mt-2 border rounded-md overflow-hidden">
+                      <div className="mt-3 border rounded-md overflow-hidden">
                         <img 
                           src={imagePreview} 
                           alt="Transaction Screenshot Preview" 
-                          className="max-h-40 mx-auto" 
+                          className="max-h-40 w-full object-contain" 
                         />
                       </div>
                     )}
-                    <FormMessage />
+                    <FormMessage className="text-xs sm:text-sm" />
                   </FormItem>
                 )}
               />
-
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">
-                  Course: {course.title}
-                </p>
-                {course.level && (
-                  <p className="text-sm text-muted-foreground">
-                    Level: {course.level}
-                  </p>
+              
+              <Button 
+                type="submit" 
+                disabled={isSubmitting} 
+                className="w-full h-9 sm:h-10 mt-4"
+              >
+                {isSubmitting ? (
+                  <LoadingSpinner className="w-5 h-5" />
+                ) : (
+                  "Submit Payment Details"
                 )}
-              </div>
+              </Button>
             </form>
           </Form>
         </CardContent>
-        <CardFooter className="flex justify-between">
-          <Button variant="outline" onClick={() => navigate(-1)}>Cancel</Button>
-          <Button 
-            type="submit" 
-            onClick={form.handleSubmit(onSubmit)} 
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? "Submitting..." : "Submit Payment Details"}
-          </Button>
+        <CardFooter className="flex flex-col space-y-2 text-xs sm:text-sm text-muted-foreground">
+          <p>• Please ensure all details are correct before submitting</p>
+          <p>• Your course access will be activated after payment verification</p>
         </CardFooter>
       </Card>
     </div>
