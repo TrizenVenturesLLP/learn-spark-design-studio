@@ -18,7 +18,9 @@ const messageSchema = new mongoose.Schema({
   },
   content: {
     type: String,
-    required: true
+    required: true,
+    trim: true,
+    maxlength: 5000
   },
   read: {
     type: Boolean,
@@ -28,11 +30,24 @@ const messageSchema = new mongoose.Schema({
     type: Date,
     default: Date.now
   }
+}, {
+  timestamps: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
 });
 
-// Create indexes for efficient querying
+// Add indexes for better query performance
 messageSchema.index({ senderId: 1, receiverId: 1 });
 messageSchema.index({ courseId: 1 });
+messageSchema.index({ createdAt: -1 });
+
+// Add validation to ensure message content is not empty
+messageSchema.pre('save', function(next) {
+  if (this.content.trim().length === 0) {
+    next(new Error('Message content cannot be empty'));
+  }
+  next();
+});
 
 const Message = mongoose.model('Message', messageSchema);
 

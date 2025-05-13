@@ -8,7 +8,7 @@ const notificationSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['course_update', 'assignment', 'discussion'],
+    enum: ['course_update', 'assignment', 'discussion', 'new_day', 'message'],
     required: true
   },
   title: {
@@ -38,16 +38,15 @@ const notificationSchema = new mongoose.Schema({
   link: {
     type: String
   },
-  createdAt: {
+  timestamp: {
     type: Date,
     default: Date.now
   }
 });
 
-// Compound index for faster queries
-notificationSchema.index({ userId: 1, read: 1, createdAt: -1 });
-// Index for type-based queries
-notificationSchema.index({ userId: 1, type: 1 });
+// Create indexes for efficient querying
+notificationSchema.index({ userId: 1, timestamp: -1 });
+notificationSchema.index({ userId: 1, read: 1 });
 
 const Notification = mongoose.model('Notification', notificationSchema);
 

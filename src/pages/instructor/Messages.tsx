@@ -15,10 +15,11 @@ import {
   Filter,
   Loader2,
   ArrowLeft,
-  Mail
+  Mail,
+  Trash2
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-import { useInstructorDiscussions, useAddReply, useCreateDiscussion } from '@/services/discussionService';
+import { useInstructorDiscussions, useAddReply, useCreateDiscussion, useDeleteDiscussion } from '@/services/discussionService';
 import { useInstructorCourses } from '@/services/courseService';
 import { useToast } from '@/components/ui/use-toast';
 import {
@@ -30,8 +31,11 @@ import {
 } from "@/components/ui/select";
 import { Discussion } from '@/types/discussion';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useConversations, useMessages, useSendMessage, useEnrolledStudents } from '@/services/messageService';
+import { useConversations, useMessages, useEnrolledStudents } from '@/services/messageService';
+import { useSendMessage } from '@/services/chatService';
 import { cn } from '@/lib/utils';
+import { isValidObjectId } from '@/utils/validation';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Course {
   _id: string;
@@ -40,6 +44,7 @@ interface Course {
 
 const MessagesPage = () => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [selectedDiscussion, setSelectedDiscussion] = useState<Discussion | null>(null);
   const [newMessage, setNewMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -62,6 +67,7 @@ const MessagesPage = () => {
   
   const addReplyMutation = useAddReply();
   const createDiscussionMutation = useCreateDiscussion();
+  const deleteDiscussionMutation = useDeleteDiscussion();
   const sendMessageMutation = useSendMessage();
 
   const handleSendMessage = () => {
@@ -113,24 +119,169 @@ const MessagesPage = () => {
   };
 
   const handleSendDirectMessage = () => {
-    if (!newDirectMessage.trim() || !selectedConversation || !selectedCourseForDM) return;
+    if (!newDirectMessage.trim() || !selectedConversation || !selectedCourseForDM) {
+      console.log('Initial validation failed:', {
+        messageContent: newDirectMessage.trim(),
+        selectedConversation,
+        selectedCourseForDM
+      });
+      toast({ 
+        title: 'Missing required fields',
+        description: 'Please select a conversation and course before sending a message.',
+        variant: 'destructive'
+      });
+      return;
+    }
 
-    sendMessageMutation.mutate({
-      receiverId: selectedConversation,
-      courseId: selectedCourseForDM,
-      content: newDirectMessage
-    }, {
-      onSuccess: () => {
-        setNewDirectMessage('');
-        toast({ title: 'Message sent successfully!' });
-      },
-      onError: () => {
-        toast({ 
-          title: 'Failed to send message',
-          variant: 'destructive'
-        });
-      }
+    // Get the current conversation to ensure we have valid IDs
+    const currentConversation = conversations?.find(c => c.partner._id === selectedConversation);
+    console.log('Found conversation:', {
+      selectedConversation,
+      currentConversation,
+      allConversations: conversations
     });
+    
+    if (!currentConversation) {
+      toast({ 
+        title: 'Invalid conversation',
+        description: 'Please select a valid conversation.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    // Ensure we have valid MongoDB ObjectIDs
+    const isValidReceiverId = isValidObjectId(currentConversation.partner._id);
+    const isValidCourseId = isValidObjectId(currentConversation.course._id);
+    console.log('ID validation:', {
+      receiverId: currentConversation.partner._id,
+      isValidReceiverId,
+      courseId: currentConversation.course._id,
+      isValidCourseId
+    });
+
+    if (!isValidReceiverId || !isValidCourseId) {
+      toast({ 
+        title: 'Invalid IDs',
+        description: 'The conversation contains invalid IDs.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    // Ensure message content is not too long
+    const messageLength = newDirectMessage.trim().length;
+    console.log('Message validation:', {
+      messageLength,
+      isValid: messageLength <= 5000
+    });
+
+    if (messageLength > 5000) {
+      toast({ 
+        title: 'Message too long',
+        description: 'Message content cannot exceed 5000 characters.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    // Clear the input immediately for better UX
+    const messageContent = newDirectMessage.trim();
+    setNewDirectMessage('');
+
+    console.log('Sending message:', {
+      receiverId: currentConversation.partner._id,
+      courseId: currentConversation.course._id,
+      content: messageContent
+    });
+
+    sendMessageMutation.mutate(
+      {
+        receiverId: currentConversation.partner._id,
+        courseId: currentConversation.course._id,
+        content: messageContent,
+      },
+      {
+        onSuccess: () => {
+          toast({ 
+            title: 'Message sent',
+            variant: 'default',
+          });
+        },
+        onError: (error: any) => {
+          // Restore the message content on error
+          setNewDirectMessage(messageContent);
+          
+          let errorTitle = 'Failed to send message';
+          let errorDescription = 'An unexpected error occurred. Please try again.';
+
+          // Handle validation errors from our frontend validation
+          if (error instanceof Error) {
+            errorDescription = error.message;
+            if (error.message.includes('ObjectId')) {
+              errorTitle = 'Invalid ID format';
+            } else if (error.message.includes('required fields')) {
+              errorTitle = 'Missing information';
+            } else if (error.message.includes('characters')) {
+              errorTitle = 'Message too long';
+            } else if (error.message.includes('part of the course')) {
+              errorTitle = 'Course access error';
+            } else if (error.message.includes('cannot message')) {
+              errorTitle = 'Permission denied';
+            }
+          } 
+          // Handle backend errors
+          else if (error?.response?.data?.message) {
+            errorDescription = error.response.data.message;
+            if (error.response.status === 403) {
+              errorTitle = 'Permission denied';
+            } else if (error.response.status === 400) {
+              errorTitle = 'Invalid request';
+            }
+          }
+
+          console.error('Message sending error details:', {
+            error,
+            requestData: {
+              receiverId: currentConversation.partner._id,
+              courseId: currentConversation.course._id,
+              content: messageContent
+            },
+            errorResponse: error?.response?.data
+          });
+          
+          toast({ 
+            title: errorTitle,
+            description: errorDescription,
+            variant: 'destructive',
+          });
+        },
+      }
+    );
+  };
+
+  const handleDeleteDiscussion = (discussionId: string, courseId: string) => {
+    if (window.confirm('Are you sure you want to delete this discussion?')) {
+      deleteDiscussionMutation.mutate(
+        { discussionId, courseId },
+        {
+          onSuccess: () => {
+            toast({ 
+              title: 'Discussion deleted successfully',
+              variant: 'default'
+            });
+            setSelectedDiscussion(null);
+          },
+          onError: (error) => {
+            toast({ 
+              title: 'Failed to delete discussion',
+              description: error instanceof Error ? error.message : 'Please try again',
+              variant: 'destructive'
+            });
+          }
+        }
+      );
+    }
   };
 
   // Filter and organize discussions
@@ -309,6 +460,17 @@ const MessagesPage = () => {
                           Instructor Post
                         </Badge>
                       )}
+                      {selectedDiscussion.userId._id === user?._id && (
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleDeleteDiscussion(selectedDiscussion._id, selectedDiscussion.courseId._id)}
+                          className="ml-auto"
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete Discussion
+                        </Button>
+                      )}
                     </div>
                     
                     <ScrollArea className="h-[500px] pr-4">
@@ -420,9 +582,23 @@ const MessagesPage = () => {
                                     </>
                                   )}
                                 </div>
-                                <span className="text-sm text-muted-foreground">
-                                  {formatDistanceToNow(new Date(discussion.createdAt), { addSuffix: true })}
-                                </span>
+                                <div className="flex items-center space-x-2">
+                                  <span className="text-sm text-muted-foreground">
+                                    {formatDistanceToNow(new Date(discussion.createdAt), { addSuffix: true })}
+                                  </span>
+                                  {discussion.userId._id === user?._id && (
+                                    <Button
+                                      variant="destructive"
+                                      size="sm"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDeleteDiscussion(discussion._id, discussion.courseId._id);
+                                      }}
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  )}
+                                </div>
                               </div>
                               <p className="text-sm text-muted-foreground mb-2">
                                 {discussion.userId.name} · {discussion.courseId.title}

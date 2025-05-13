@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -38,13 +37,14 @@ import { useToast } from '@/components/ui/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import MCQForm from '@/components/MCQForm';
+import { DayCodeEditor } from '@/components/instructor/DayCodeEditor';
 
 interface CourseFormData {
   title: string;
   description: string;
-  longDescription?: string;
+  longDescription: string;
   duration: string;
-  level: "Beginner" | "Intermediate" | "Advanced";
+  level: string;
   category: string;
   image: string;
   courseAccess: boolean;
@@ -83,7 +83,8 @@ const CourseForm = () => {
       video: '',
       transcript: '',
       notes: '',
-      mcqs: [] // Include MCQs in the submission
+      mcqs: [],
+      code: ''
     }],
     instructor: user?.name || ''
   });
@@ -107,7 +108,8 @@ const CourseForm = () => {
           video: '',
           transcript: '',
           notes: '',
-          mcqs: []
+          mcqs: [],
+          code: ''
         }],
         instructor: existingCourse.instructor || user?.name || ''
       });
@@ -119,25 +121,13 @@ const CourseForm = () => {
     setIsSubmitting(true);
 
     try {
-      // Validate basic required fields
-      if (!courseData.title.trim()) {
-        throw new Error("Course title is required");
-      }
-      if (!courseData.description.trim()) {
-        throw new Error("Course description is required");
-      }
-      if (!courseData.image.trim()) {
-        throw new Error("Course image URL is required");
-      }
-      if (!courseData.duration.trim()) {
-        throw new Error("Course duration is required");
-      }
-      if (!courseData.category) {
-        throw new Error("Course category is required");
-      }
-      if (!courseData.instructor.trim()) {
-        throw new Error("Instructor name is required");
-      }
+      // Basic validation
+      if (!courseData.title.trim()) throw new Error("Course title is required");
+      if (!courseData.description.trim()) throw new Error("Course description is required");
+      if (!courseData.image.trim()) throw new Error("Course image URL is required");
+      if (!courseData.duration.trim()) throw new Error("Course duration is required");
+      if (!courseData.category) throw new Error("Course category is required");
+      if (!courseData.instructor.trim()) throw new Error("Instructor name is required");
 
       // Validate roadmap data
       const validatedRoadmap = courseData.roadmap.map((day, index) => {
@@ -148,38 +138,23 @@ const CourseForm = () => {
           throw new Error(`Video link is required for Day ${index + 1}`);
         }
         
-        // Validate MCQs if they exist
-        if (day.mcqs && day.mcqs.length > 0) {
-          day.mcqs.forEach((mcq, mcqIndex) => {
-            if (!mcq.question.trim()) {
-              throw new Error(`Question is required for MCQ #${mcqIndex + 1} on Day ${index + 1}`);
-            }
-            
-            if (!mcq.options || mcq.options.length < 2) {
-              throw new Error(`At least 2 options are required for MCQ #${mcqIndex + 1} on Day ${index + 1}`);
-            }
-            
-            const hasCorrectOption = mcq.options.some(option => option.isCorrect);
-            if (!hasCorrectOption) {
-              throw new Error(`At least one correct option is required for MCQ #${mcqIndex + 1} on Day ${index + 1}`);
-            }
-            
-            mcq.options.forEach((option, optIndex) => {
-              if (!option.text.trim()) {
-                throw new Error(`Option text is required for option #${optIndex + 1} of MCQ #${mcqIndex + 1} on Day ${index + 1}`);
-              }
-            });
-          });
-        }
-        
         return {
-          day: index + 1, // Ensure days are sequential
+          day: index + 1,
           topics: day.topics.trim(),
           video: day.video.trim(),
           transcript: day.transcript?.trim() || '',
           notes: day.notes?.trim() || '',
-          mcqs: day.mcqs || [] // Include MCQs in the submission
-        };
+          mcqs: (day.mcqs || []).map(mcq => ({
+            ...mcq,
+            question: mcq.question.trim(),
+            options: mcq.options.map(opt => ({
+              ...opt,
+              text: opt.text.trim()
+            }))
+          })),
+          code: day.code || '',
+          language: day.language || 'javascript'
+        } as RoadmapDay;
       });
 
       // Format data for API
@@ -188,18 +163,14 @@ const CourseForm = () => {
         description: courseData.description.trim(),
         longDescription: courseData.longDescription?.trim(),
         duration: courseData.duration.trim(),
-        level: courseData.level,
+        level: courseData.level as "Beginner" | "Intermediate" | "Advanced",
         category: courseData.category,
         image: courseData.image.trim(),
         courseAccess: courseData.courseAccess,
         skills: courseData.skills,
         roadmap: validatedRoadmap,
-        instructor: courseData.instructor.trim(),
-        students: existingCourse?.students || 0,
-        rating: existingCourse?.rating || 0,
+        instructor: courseData.instructor.trim()
       };
-
-      console.log("Submitting course data:", formattedCourseData);
 
       if (isEditMode && courseId) {
         await updateCourseMutation.mutateAsync({
@@ -207,25 +178,25 @@ const CourseForm = () => {
           courseData: formattedCourseData
         });
         toast({
-          title: "Course updated",
-          description: "Your course has been successfully updated.",
+          title: "Success",
+          description: "Course updated successfully",
         });
       } else {
         await createCourseMutation.mutateAsync(formattedCourseData);
         toast({
-          title: "Course created",
-          description: "Your course has been successfully created.",
+          title: "Success",
+          description: "Course created successfully",
         });
       }
       navigate('/instructor/courses');
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to save course';
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to save course';
       toast({
         title: "Error",
         description: errorMessage,
         variant: "destructive",
       });
-      console.error("Course form submission error:", err);
+      console.error("Course form submission error:", error);
     } finally {
       setIsSubmitting(false);
     }
@@ -260,7 +231,8 @@ const CourseForm = () => {
           video: '',
           transcript: '',
           notes: '',
-          mcqs: [] // Include MCQs in the submission
+          mcqs: [],
+          code: ''
         }
       ]
     }));
@@ -339,6 +311,31 @@ const CourseForm = () => {
     });
     
     updateRoadmapDay(dayIndex, 'mcqs', mcqs);
+  };
+
+  const handleCodeSave = async (dayIndex: number, newCode: string) => {
+    try {
+      const updatedRoadmap = [...courseData.roadmap];
+      updatedRoadmap[dayIndex] = {
+        ...updatedRoadmap[dayIndex],
+        code: newCode
+      };
+      setCourseData(prev => ({
+        ...prev,
+        roadmap: updatedRoadmap
+      }));
+
+      toast({
+        title: 'Success',
+        description: `Code for Day ${dayIndex + 1} saved successfully`,
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to save code',
+        variant: 'destructive',
+      });
+    }
   };
 
   if (isLoadingCourse && isEditMode) {
@@ -633,6 +630,15 @@ const CourseForm = () => {
                       <p className="text-xs text-muted-foreground">
                         Add any supplementary notes, resources, or special instructions for this day's content
                       </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Code Content</Label>
+                      <DayCodeEditor
+                        dayNumber={day.day}
+                        code={day.code || ''}
+                        onSave={(newCode) => handleCodeSave(index, newCode)}
+                      />
                     </div>
                     
                     {/* MCQ Form Component */}

@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "../lib/axios";
 import { toast } from "@/components/ui/use-toast";
@@ -14,48 +13,49 @@ export interface MCQQuestion {
   explanation?: string;
 }
 
-export interface Course {
-  id: string;
-  _id: string;
-  image: string;
-  title: string;
-  description: string;
-  longDescription: string;
-  instructor: string;
-  duration: string;
-  rating: number;
-  students: number;
-  level: "Beginner" | "Intermediate" | "Advanced";
-  category: string;
-  skills: string[];
-  courses: {
-    title: string;
-    details: string;
-  }[];
-  testimonials: {
-    text: string;
-    author: string;
-    since: string;
-  }[];
-  progress?: number; // Added for enrolled courses
-  enrolledAt?: string; // Added for enrolled courses
-  enrollmentStatus?: 'enrolled' | 'started' | 'completed' | 'pending'; // Added for enrollment status
-  status?: 'enrolled' | 'started' | 'completed' | 'pending'; // Added for enrollment status
-  lastAccessedAt?: string; // Added for tracking last access
-  roadmap?: RoadmapDay[]; // Added for course weekly content
-  price?: number; // Added for course pricing
-  courseAccess?: boolean; // Added for course availability
-  createdAt?: string; // Added for timestamp
-}
-
-// Define the RoadmapDay interface for course content structure
 export interface RoadmapDay {
   day: number;
   topics: string;
   video: string;
   transcript?: string;
   notes?: string;
-  mcqs?: MCQQuestion[]; // Add MCQ questions to each day
+  mcqs: MCQQuestion[];
+  code?: string;
+  language?: string;
+}
+
+export interface Course {
+  id?: string;
+  _id?: string;
+  image: string;
+  title: string;
+  description: string;
+  longDescription?: string;
+  instructor: string;
+  duration: string;
+  rating?: number;
+  students?: number;
+  level: "Beginner" | "Intermediate" | "Advanced";
+  category: string;
+  skills: string[];
+  courses?: {
+    title: string;
+    details: string;
+  }[];
+  testimonials?: {
+    text: string;
+    author: string;
+    since: string;
+  }[];
+  progress?: number;
+  enrolledAt?: string;
+  enrollmentStatus?: 'enrolled' | 'started' | 'completed' | 'pending';
+  status?: 'enrolled' | 'started' | 'completed' | 'pending';
+  lastAccessedAt?: string;
+  roadmap?: RoadmapDay[];
+  price?: number;
+  courseAccess?: boolean;
+  createdAt?: string;
 }
 
 // Fetch all courses
@@ -359,38 +359,83 @@ export const useUpdateCourse = () => {
   
   return useMutation({
     mutationFn: async ({courseId, courseData}: {courseId: string, courseData: Partial<Course>}) => {
-      // Log the data being updated for debugging
-      console.log(`Updating course ${courseId} with data:`, JSON.stringify(courseData, null, 2));
+      if (!courseId) {
+        throw new Error('Course ID is required');
+      }
+
+      // Log the update attempt
+      console.log('Attempting to update course:', courseId);
+      console.log('Update payload:', JSON.stringify(courseData, null, 2));
+
+      // Validate required fields
+      const requiredFields = ['title', 'description', 'instructor', 'duration', 'level', 'category', 'image'] as const;
+      const missingFields = requiredFields.filter(field => !courseData[field]);
       
+      if (missingFields.length > 0) {
+        throw new Error(`Missing required fields: ${missingFields.join(', ')}`);
+      }
+
       // Process roadmap data if it exists
       if (courseData.roadmap) {
-        // Ensure roadmap data is valid
         courseData.roadmap = courseData.roadmap.map((day, index) => ({
           ...day,
-          day: index + 1, // Ensure days are sequential
-          mcqs: day.mcqs || [] // Ensure mcqs exists
+          day: index + 1,
+          mcqs: day.mcqs || [],
+          code: day.code || '',
+          language: day.language || 'javascript'
         }));
+
+        // Validate roadmap data
+        courseData.roadmap.forEach((day, index) => {
+          if (!day.topics) {
+            throw new Error(`Topics are required for Day ${index + 1}`);
+          }
+          if (!day.video) {
+            throw new Error(`Video link is required for Day ${index + 1}`);
+          }
+        });
       }
-      
+
       try {
-        const response = await axios.put(`/api/instructor/courses/${courseId}`, courseData);
-        console.log("Course update response:", response.data);
-        return response.data;
-      } catch (error: any) {
-        console.error("Error updating course:", error);
-        
-        // Extract and display error message
-        const errorMsg = error.response?.data?.message || "Failed to update course";
-        toast({
-          title: "Error",
-          description: errorMsg,
-          variant: "destructive"
+        const response = await axios.put(`/api/instructor/courses/${courseId}`, courseData, {
+          headers: {
+            'Content-Type': 'application/json'
+          }
         });
         
-        throw error;
+        // Log successful response
+        console.log('Course update successful:', response.data);
+        return response.data;
+      } catch (error: any) {
+        // Log the complete error
+        console.error('Course update error details:', {
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          data: error.response?.data,
+          error: error.message
+        });
+
+        // Handle specific error cases
+        if (error.response?.status === 404) {
+          throw new Error('Course not found');
+        }
+        if (error.response?.status === 403) {
+          throw new Error('You do not have permission to update this course');
+        }
+        if (error.response?.status === 400) {
+          const message = error.response.data.message || 'Invalid course data';
+          throw new Error(`Validation error: ${message}`);
+        }
+        if (error.response?.status === 500) {
+          throw new Error('Server error occurred. Please try again later.');
+        }
+        
+        // Handle network or other errors
+        throw new Error(error.response?.data?.message || 'Failed to update course');
       }
     },
     onSuccess: (_, variables) => {
+      // Invalidate and refetch relevant queries
       queryClient.invalidateQueries({ queryKey: ['instructor-courses'] });
       queryClient.invalidateQueries({ queryKey: ['courses'] });
       queryClient.invalidateQueries({ queryKey: ['course', variables.courseId] });
@@ -400,12 +445,12 @@ export const useUpdateCourse = () => {
         description: "Course updated successfully",
       });
     },
-    onError: (error) => {
-      console.error("Mutation error:", error);
+    onError: (error: Error) => {
+      console.error("Course update error:", error);
       
       toast({
         title: "Error",
-        description: "Failed to update course. Please try again.",
+        description: error.message || "Failed to update course. Please try again.",
         variant: "destructive"
       });
     }

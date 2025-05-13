@@ -21,4 +21,5 @@ export interface Discussion {
       name: string;
     };
   }>;
+  likes: string[];
 } 

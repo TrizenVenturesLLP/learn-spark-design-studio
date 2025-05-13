@@ -1,226 +1,160 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Bell } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Bell, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { useNavigate } from 'react-router-dom';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { useNavigate } from 'react-router-dom';
-import { formatDistanceToNow } from 'date-fns';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Separator } from '@/components/ui/separator';
-import { useToast } from '@/hooks/use-toast';
-import { useMessageStore } from '@/services/messageService';
-import type { Message, Student, MessageUser } from '@/services/messageService';
-
-interface DirectMessageNotification {
-  id: string;
-  senderId: string;
-  senderName: string;
-  content: string;
-  timestamp: string;
-  read: boolean;
-  courseName: string;
-  avatar?: string;
-}
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { useAuth } from '@/contexts/AuthContext';
+import { useNotifications, useMarkNotificationRead, useMarkAllNotificationsRead, type Notification } from '@/services/notificationService';
+import { useToast } from "@/hooks/use-toast";
 
 export const NotificationBell = () => {
+  const { data, isLoading } = useNotifications();
+  const markAsRead = useMarkNotificationRead();
+  const markAllRead = useMarkAllNotificationsRead();
   const navigate = useNavigate();
-  const { messages, students, unreadCount, markMessageAsRead, markAllMessagesAsRead, settings } = useMessageStore();
-  const [notifications, setNotifications] = useState<DirectMessageNotification[]>([]);
   const { toast } = useToast();
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const previousMessagesRef = useRef<Message[]>([]);
 
-  // Initialize audio element
-  useEffect(() => {
-    audioRef.current = new Audio('/notification.mp3');
-    audioRef.current.preload = 'auto';
-  }, []);
+  const handleNotificationClick = async (notification: Notification) => {
+    try {
+      // Mark notification as read
+      await markAsRead.mutateAsync(notification._id);
 
-  // Request notification permission if needed
-  useEffect(() => {
-    if (settings.desktop && Notification.permission === 'default') {
-      Notification.requestPermission();
-    }
-  }, [settings.desktop]);
-
-  // Handle new messages and notifications
-  useEffect(() => {
-    // Check for new messages
-    const newMessages = messages.filter(message => {
-      const isNew = !previousMessagesRef.current.find(prev => prev._id === message._id);
-      const isUnread = !message.read;
-      return isNew && isUnread;
-    });
-
-    if (newMessages.length > 0 && settings.notifications) {
-      // Play sound for new messages
-      if (settings.sound && audioRef.current) {
-        audioRef.current.play().catch(error => {
-          console.warn('Failed to play notification sound:', error);
-        });
-      }
-
-      // Show desktop notifications
-      if (settings.desktop && Notification.permission === 'granted') {
-        newMessages.forEach(message => {
-          const sender = typeof message.senderId === 'string' 
-            ? students.find(s => s._id === message.senderId)?.name 
-            : (message.senderId as MessageUser).name;
-
-          if (sender) {
-            const notification = new Notification('New Message', {
-              body: settings.preview ? message.content : 'You have a new message',
-              icon: '/favicon.ico',
-            });
-
-            notification.onclick = () => {
-              window.focus();
-              const studentId = typeof message.senderId === 'string' 
-                ? message.senderId 
-                : message.senderId._id;
-              navigate(`/instructor/messages?student=${studentId}`);
-            };
+      // Navigate based on notification type
+      switch (notification.type) {
+        case 'course_update':
+          navigate(`/course/${notification.courseId}/weeks`);
+          break;
+        case 'assignment':
+          navigate(`/course/${notification.courseId}/assignments/${notification.assignmentId}`);
+          break;
+        case 'discussion':
+          navigate(`/course/${notification.courseId}/discussions${notification.discussionId ? `/${notification.discussionId}` : ''}`);
+          break;
+        case 'new_day':
+          navigate(`/course/${notification.courseId}`);
+          break;
+        default:
+          // If a custom link is provided, use it
+          if (notification.link) {
+            navigate(notification.link);
           }
-        });
       }
+    } catch (error) {
+      console.error('Failed to handle notification:', error);
     }
-
-    // Update previous messages reference
-    previousMessagesRef.current = messages;
-  }, [messages, settings, students, navigate]);
-
-  // Convert messages to notifications format
-  useEffect(() => {
-    const messageNotifications = messages.map(message => {
-      const student = students.find(s => s._id === (typeof message.senderId === 'string' ? message.senderId : message.senderId._id));
-      if (!student) return null;
-
-      const timestamp = typeof message.createdAt === 'string' 
-        ? message.createdAt 
-        : (message.createdAt instanceof Date 
-          ? message.createdAt.toISOString() 
-          : new Date().toISOString());
-
-      return {
-        id: message._id,
-        senderId: student._id,
-        senderName: student.name,
-        content: message.content,
-        timestamp,
-        read: message.read,
-        courseName: student.courseName,
-        avatar: student.avatar
-      } satisfies DirectMessageNotification;
-    }).filter((n): n is DirectMessageNotification => n !== null);
-
-    setNotifications(messageNotifications);
-  }, [messages, students]);
-
-  const handleNotificationClick = (notification: DirectMessageNotification) => {
-    markMessageAsRead(notification.id);
-    navigate(`/instructor/messages?student=${notification.senderId}`);
-
-    toast({
-      title: `Message from ${notification.senderName}`,
-      description: notification.content,
-    });
   };
 
-  const getInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map(part => part[0])
-      .join('')
-      .toUpperCase()
-      .substring(0, 2);
+  const handleMarkAllRead = async () => {
+    try {
+      await markAllRead.mutateAsync();
+      toast({
+        title: "Success",
+        description: "All notifications marked as read",
+      });
+    } catch (error) {
+      console.error('Failed to mark all notifications as read:', error);
+      toast({
+        title: "Error",
+        description: "Failed to mark all notifications as read",
+        variant: "destructive",
+      });
+    }
   };
 
-  if (!settings.notifications) {
-    return null;
+  const getNotificationIcon = (notification: Notification) => {
+    switch (notification.type) {
+      case 'course_update':
+        return '📚';
+      case 'assignment':
+        return '📝';
+      case 'discussion':
+        return '💬';
+      case 'new_day':
+        return '📅';
+      case 'message':
+        return '✉️';
+      default:
+        return '🔔';
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <Button variant="ghost" size="icon" className="relative">
+        <Bell className="h-5 w-5 animate-pulse" />
+      </Button>
+    );
   }
+
+  const hasUnreadNotifications = data?.unreadCount && data.unreadCount > 0;
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="icon" className="relative">
           <Bell className="h-5 w-5" />
-          {unreadCount > 0 && (
-            <Badge 
-              variant="destructive" 
-              className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs"
-            >
-              {unreadCount}
-            </Badge>
+          {hasUnreadNotifications && (
+            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+              {data.unreadCount}
+            </span>
           )}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-96">
-        <div className="flex items-center justify-between p-4">
-          <h4 className="font-medium">Direct Messages</h4>
-          {unreadCount > 0 && (
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={markAllMessagesAsRead}
-            >
-              Mark all read
-            </Button>
-          )}
-        </div>
-        <Separator />
-        <ScrollArea className="h-[400px]">
-          {notifications.length === 0 ? (
-            <div className="p-4 text-center text-muted-foreground">
-              No new messages
-            </div>
-          ) : (
-            notifications.map((notification) => (
-              <DropdownMenuItem
-                key={notification.id}
-                className="p-4 cursor-pointer hover:bg-accent"
-                onClick={() => handleNotificationClick(notification)}
+      <DropdownMenuContent align="end" className="w-80">
+        <div className="py-2">
+          <div className="px-2 mb-2 flex items-center justify-between">
+            <h3 className="font-semibold">Notifications</h3>
+            {hasUnreadNotifications && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 text-xs"
+                onClick={handleMarkAllRead}
+                disabled={markAllRead.isPending}
               >
-                <div className="flex gap-3">
-                  <Avatar className="h-10 w-10">
-                    <AvatarImage src={notification.avatar} />
-                    <AvatarFallback>{getInitials(notification.senderName)}</AvatarFallback>
-                  </Avatar>
-                  <div className="space-y-1 flex-1">
-                    <div className="flex items-center justify-between">
-                      <p className={`text-sm ${notification.read ? 'text-muted-foreground' : 'font-medium'}`}>
-                        {notification.senderName}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {formatDistanceToNow(new Date(notification.timestamp), { addSuffix: true })}
-                      </p>
+                <Check className="mr-1 h-3 w-3" />
+                Mark all read
+              </Button>
+            )}
+          </div>
+          <ScrollArea className="h-[400px]">
+            {!data?.notifications || data.notifications.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                No notifications
+              </p>
+            ) : (
+              <div className="px-2 space-y-2">
+                {data.notifications.map((notification) => (
+                  <DropdownMenuItem
+                    key={notification._id}
+                    className={`cursor-pointer text-sm ${!notification.read ? 'bg-primary/5' : ''}`}
+                    onClick={() => handleNotificationClick(notification)}
+                  >
+                    <div className="flex items-start gap-2">
+                      <span className="text-lg">{getNotificationIcon(notification)}</span>
+                      <div className="flex flex-col gap-1 flex-1">
+                        <p className="font-medium">{notification.title}</p>
+                        <p className="text-sm text-muted-foreground">{notification.message}</p>
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(notification.createdAt).toLocaleString()}
+                        </span>
+                      </div>
+                      {!notification.read && (
+                        <span className="w-2 h-2 rounded-full bg-primary mt-2" />
+                      )}
                     </div>
-                    {settings.preview ? (
-                      <p className="text-sm text-muted-foreground line-clamp-2">
-                        {notification.content}
-                      </p>
-                    ) : (
-                      <p className="text-sm text-muted-foreground italic">
-                        New message
-                      </p>
-                    )}
-                    <p className="text-xs text-primary">
-                      {notification.courseName}
-                    </p>
-                  </div>
-                  {!notification.read && (
-                    <div className="w-2 h-2 rounded-full bg-primary self-start mt-2" />
-                  )}
-                </div>
-              </DropdownMenuItem>
-            ))
-          )}
-        </ScrollArea>
+                  </DropdownMenuItem>
+                ))}
+              </div>
+            )}
+          </ScrollArea>
+        </div>
       </DropdownMenuContent>
     </DropdownMenu>
   );

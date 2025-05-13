@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { MessageCircle, Send, ThumbsUp, MessageSquare, Trash2, ChevronDown } from "lucide-react";
+import { MessageCircle, Send, ThumbsUp, MessageSquare, Trash2, ChevronDown, Star } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -40,14 +40,10 @@ const DiscussionCard = ({
 
   const isLiked = discussion.likes?.includes(user?.id || '') || false;
   
-  // Check if names match
-  const discussionCreatorName = discussion.userId.name;
-  const currentUserName = user?.name;
-  const isCreator = discussionCreatorName === currentUserName;
-
-  console.log('Discussion Creator Name:', discussionCreatorName);
-  console.log('Current User Name:', currentUserName);
-  console.log('Names Match:', isCreator);
+  // Check if user is creator or instructor
+  const isCreator = discussion.userId._id === user?._id;
+  const isInstructor = user?.role === 'instructor';
+  const canDelete = isCreator || isInstructor;
 
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -57,9 +53,17 @@ const DiscussionCard = ({
   };
 
   return (
-    <div className="p-6 border rounded-lg bg-card hover:bg-accent/5 transition-colors mb-4 last:mb-0">
+    <div className={`p-6 border rounded-lg transition-colors mb-4 last:mb-0 ${
+      discussion.isPinned 
+        ? 'bg-primary/5 border-primary/20 shadow-sm' 
+        : 'bg-card hover:bg-accent/5'
+    }`}>
       <div className="flex items-start gap-4">
-        <Avatar className="h-12 w-12 ring-2 ring-primary/10 rounded-full">
+        <Avatar className={`h-12 w-12 ring-2 rounded-full ${
+          discussion.isPinned 
+            ? 'ring-primary/30' 
+            : 'ring-primary/10'
+        }`}>
           <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${discussion.userId.name}`} />
           <AvatarFallback className="bg-primary/5">{discussion.userId.name[0]}</AvatarFallback>
         </Avatar>
@@ -67,12 +71,20 @@ const DiscussionCard = ({
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
-              <h3 className="text-lg font-semibold text-foreground">{discussion.title}</h3>
+              <div className="flex items-center gap-2">
+                <h3 className="text-lg font-semibold text-foreground">{discussion.title}</h3>
+                {discussion.isPinned && (
+                  <Badge variant="secondary" className="flex items-center">
+                    <Star className="h-3 w-3 mr-1 fill-yellow-500 text-yellow-500" />
+                    Instructor
+                  </Badge>
+                )}
+              </div>
               <p className="text-sm text-muted-foreground/80 truncate mt-0.5">
-                {discussionCreatorName} • {formatDistanceToNow(new Date(discussion.createdAt))} ago
+                {discussion.userId.name} • {formatDistanceToNow(new Date(discussion.createdAt))} ago
               </p>
             </div>
-            {isCreator && (
+            {canDelete && (
               <Button 
                 variant="destructive"
                 size="sm"
@@ -87,7 +99,7 @@ const DiscussionCard = ({
           
           <p className="text-sm mt-4 text-card-foreground leading-relaxed">{discussion.content}</p>
           
-          <div className="flex items-center gap-6 mt-6 pt-4 border-t">
+          <div className="flex items-center gap-2 mt-4">
             <Button 
               variant="ghost" 
               size="sm" 
@@ -95,7 +107,7 @@ const DiscussionCard = ({
               className={`hover:bg-primary/10 transition-colors ${isLiked ? 'text-primary bg-primary/5' : ''}`}
             >
               <ThumbsUp className="h-4 w-4 mr-2" />
-              {discussion.likes.length} {discussion.likes.length === 1 ? 'Like' : 'Likes'}
+              {discussion.likes?.length || 0} {discussion.likes?.length === 1 ? 'Like' : 'Likes'}
             </Button>
             <Button 
               variant="ghost" 

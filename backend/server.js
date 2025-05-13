@@ -62,7 +62,50 @@ const UserCourse = require('./models/UserCourse');
 const Discussion = require('./models/Discussion');
 const SupportTicket = require('./models/SupportTicket');
 const Notification = require('./models/Notification');
-const Message = require('./models/Message');
+
+// Create Message model schema
+const messageSchema = new mongoose.Schema({
+  senderId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  receiverId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  courseId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Course',
+    required: true
+  },
+  content: {
+    type: String,
+    required: true,
+    trim: true,
+    maxlength: 5000
+  },
+  read: {
+    type: Boolean,
+    default: false
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
+  }
+}, {
+  timestamps: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
+});
+
+// Add indexes for better query performance
+messageSchema.index({ senderId: 1, receiverId: 1 });
+messageSchema.index({ courseId: 1 });
+messageSchema.index({ createdAt: -1 });
+
+const Message = mongoose.model('Message', messageSchema);
 
 // Create EnrollmentRequest model
 const enrollmentRequestSchema = new mongoose.Schema({
@@ -1257,11 +1300,22 @@ app.delete('/api/discussions/:discussionId', authenticateToken, async (req, res)
     }
 
     // Check if user is the discussion creator or the course instructor
-    const course = await Course.findById(discussion.courseId);
+    const [course, enrollment] = await Promise.all([
+      Course.findById(discussion.courseId),
+      UserCourse.findOne({
+        userId: req.user.id,
+        courseId: discussion.courseId,
+        status: { $in: ['enrolled', 'started', 'completed'] }
+      })
+    ]);
+
     const isInstructor = course && course.instructorId.toString() === req.user.id.toString();
     const isCreator = discussion.userId.toString() === req.user.id.toString();
 
-    if (!isCreator && !isInstructor) {
+    // Allow deletion if user is either:
+    // 1. The discussion creator (student) AND enrolled in the course
+    // 2. The course instructor
+    if ((!isCreator || !enrollment) && !isInstructor) {
       return res.status(403).json({ message: 'Not authorized to delete this discussion' });
     }
 
@@ -1269,6 +1323,109 @@ app.delete('/api/discussions/:discussionId', authenticateToken, async (req, res)
     res.json({ message: 'Discussion deleted successfully' });
   } catch (error) {
     console.error('Delete discussion error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Send a message
+app.post('/api/messages', authenticateToken, async (req, res) => {
+  try {
+    const { receiverId, courseId, content } = req.body;
+    const senderId = req.user.id;
+
+    // Validate required fields
+    if (!receiverId || !courseId || !content) {
+      return res.status(400).json({ message: 'Missing required fields' });
+    }
+
+    // Find the course
+    const course = await Course.findById(courseId);
+    if (!course) {
+      return res.status(404).json({ message: 'Course not found' });
+    }
+
+    // Get both users
+    const [sender, receiver] = await Promise.all([
+      User.findById(senderId),
+      User.findById(receiverId)
+    ]);
+
+    if (!sender || !receiver) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Check permissions based on roles
+    const isInstructor = sender.role === 'instructor';
+    const isStudent = sender.role === 'student';
+
+    if (isInstructor) {
+      // Instructor sending message - verify receiver is enrolled in their course
+      const studentEnrollment = await UserCourse.findOne({
+        userId: receiverId,
+        courseId,
+        status: { $in: ['enrolled', 'started', 'completed'] }
+      });
+
+      if (!studentEnrollment) {
+        return res.status(403).json({ message: 'Student is not enrolled in this course' });
+      }
+
+      // Verify instructor owns the course
+      if (course.instructorId.toString() !== senderId) {
+        return res.status(403).json({ message: 'Not authorized to send messages in this course' });
+      }
+    } else if (isStudent) {
+      // Student sending message - verify they're messaging their course instructor
+      const enrollment = await UserCourse.findOne({
+        userId: senderId,
+        courseId,
+        status: { $in: ['enrolled', 'started', 'completed'] }
+      });
+
+      if (!enrollment) {
+        return res.status(403).json({ message: 'You are not enrolled in this course' });
+      }
+
+      // Verify receiver is the course instructor
+      if (course.instructorId.toString() !== receiverId) {
+        return res.status(403).json({ message: 'You can only message the course instructor' });
+      }
+    }
+
+    // Create and save the message
+    const message = new Message({
+      senderId,
+      receiverId,
+      courseId,
+      content: content.trim(),
+      read: false,
+      createdAt: new Date()
+    });
+
+    await message.save();
+
+    // Populate user info before sending response
+    await message.populate('senderId', 'name role');
+    await message.populate('receiverId', 'name role');
+    await message.populate('courseId', 'title');
+
+    // Create notification for receiver
+    const notification = new Notification({
+      userId: receiverId,
+      type: 'message',
+      title: `New message from ${sender.name}`,
+      message: `You have a new message in ${course.title}`,
+      courseId: course._id,
+      link: `/messages/${senderId}/${course._id}`,
+      read: false,
+      timestamp: new Date()
+    });
+
+    await notification.save();
+
+    res.status(201).json(message);
+  } catch (error) {
+    console.error('Send message error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -1983,19 +2140,51 @@ app.put('/api/instructor/courses/:courseId', authenticateToken, async (req, res)
   try {
     // Verify user is an instructor
     if (req.user.role !== 'instructor') {
+      console.log(`Access denied: User ${req.user.id} with role '${req.user.role}' attempted to update course`);
       return res.status(403).json({ message: 'Access denied. Only instructors can update courses.' });
     }
 
     const { courseId } = req.params;
+    
+    // Find the course
     const course = await Course.findById(courseId);
-
     if (!course) {
       return res.status(404).json({ message: 'Course not found' });
     }
 
-    // Verify instructor owns this course
-    if (course.instructorId.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: 'Access denied. You can only update your own courses.' });
+    // Verify the instructor owns this course
+    if (course.instructorId.toString() !== req.user.id) {
+      console.log(`Unauthorized: User ${req.user.id} attempted to update course ${courseId} owned by ${course.instructorId}`);
+      return res.status(403).json({ message: 'You can only update your own courses' });
+    }
+
+    // Validate required fields
+    const requiredFields = ['title', 'description', 'duration', 'level', 'category', 'image'];
+    const missingFields = requiredFields.filter(field => !req.body[field]);
+    if (missingFields.length > 0) {
+      return res.status(400).json({ 
+        message: `Missing required fields: ${missingFields.join(', ')}` 
+      });
+    }
+
+    // Validate level enum
+    const validLevels = ['Beginner', 'Intermediate', 'Advanced'];
+    if (!validLevels.includes(req.body.level)) {
+      return res.status(400).json({ 
+        message: `Invalid level. Must be one of: ${validLevels.join(', ')}` 
+      });
+    }
+
+    // Check if new days are being added
+    let newDaysAdded = false;
+    let newDayCount = 0;
+    if (req.body.roadmap && Array.isArray(req.body.roadmap)) {
+      const currentDays = course.roadmap ? course.roadmap.length : 0;
+      const newDays = req.body.roadmap.length;
+      if (newDays > currentDays) {
+        newDaysAdded = true;
+        newDayCount = newDays - currentDays;
+      }
     }
 
     // Validate roadmap if provided
@@ -2011,6 +2200,24 @@ app.put('/api/instructor/courses/:courseId', authenticateToken, async (req, res)
             message: `Day ${i + 1} in roadmap is missing required fields (topics and video)` 
           });
         }
+
+        // Validate MCQs if present
+        if (day.mcqs && Array.isArray(day.mcqs)) {
+          for (let j = 0; j < day.mcqs.length; j++) {
+            const mcq = day.mcqs[j];
+            if (!mcq.question || !Array.isArray(mcq.options) || mcq.options.length === 0) {
+              return res.status(400).json({
+                message: `Invalid MCQ format in Day ${i + 1}, MCQ ${j + 1}`
+              });
+            }
+            // Ensure at least one correct option
+            if (!mcq.options.some(opt => opt.isCorrect)) {
+              return res.status(400).json({
+                message: `MCQ ${j + 1} in Day ${i + 1} must have at least one correct option`
+              });
+            }
+          }
+        }
       }
     }
 
@@ -2020,36 +2227,92 @@ app.put('/api/instructor/courses/:courseId', authenticateToken, async (req, res)
       'level', 'category', 'skills', 'modules', 'roadmap', 'courseAccess'
     ];
 
+    // Log update attempt
+    console.log('Attempting to update course:', {
+      courseId,
+      instructorId: req.user.id,
+      updateFields: Object.keys(req.body)
+    });
+
     updateableFields.forEach(field => {
       if (req.body[field] !== undefined) {
         course[field] = req.body[field];
       }
     });
 
+    // Update timestamp
+    course.updatedAt = new Date();
+
     await course.save();
 
-    // Create notifications for enrolled students
-    const enrollments = await UserCourse.find({ courseId });
-    for (const enrollment of enrollments) {
-      if (enrollment.userId.toString() !== req.user.id) {
-        await createNotification({
-          userId: enrollment.userId,
-          type: 'course_update',
-          title: 'Course Content Updated',
-          message: `New content has been added to ${course.title}`,
-          courseId: course._id,
-          link: `/courses/${course._id}`
+    // Create notifications for enrolled students if new days were added
+    if (newDaysAdded) {
+      try {
+        const enrollments = await UserCourse.find({ 
+          courseId,
+          status: { $in: ['enrolled', 'started', 'completed'] }
         });
+
+        const notificationPromises = enrollments.map(enrollment => {
+          if (enrollment.userId.toString() !== req.user.id) {
+            return new Notification({
+              userId: enrollment.userId,
+              type: 'new_day',
+              title: `New Content Added to ${course.title}`,
+              message: `${newDayCount} new day${newDayCount > 1 ? 's' : ''} added to the course "${course.title}"`,
+              courseId: course._id,
+              link: `/courses/${course._id}`,
+              read: false,
+              timestamp: new Date()
+            }).save();
+          }
+        });
+
+        await Promise.all(notificationPromises);
+        console.log(`Created notifications for ${notificationPromises.length} enrolled students`);
+      } catch (notificationError) {
+        console.error('Error creating notifications:', notificationError);
       }
     }
+
+    // Log successful update
+    console.log('Course updated successfully:', {
+      courseId,
+      instructorId: req.user.id,
+      updatedFields: Object.keys(req.body),
+      newDaysAdded,
+      newDayCount
+    });
 
     res.json({ 
       message: 'Course updated successfully',
       course
     });
   } catch (error) {
-    console.error('Update course error:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error('Update course error:', {
+      error: error.message,
+      stack: error.stack,
+      courseId: req.params.courseId,
+      userId: req.user?.id
+    });
+    
+    // Handle specific MongoDB errors
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({ 
+        message: 'Validation error', 
+        errors: Object.values(error.errors).map(err => err.message)
+      });
+    }
+    if (error.name === 'CastError') {
+      return res.status(400).json({ 
+        message: 'Invalid course ID format'
+      });
+    }
+    
+    res.status(500).json({ 
+      message: 'Server error occurred while updating course',
+      error: error.message
+    });
   }
 });
 
@@ -2958,21 +3221,24 @@ app.put('/api/admin/support/tickets/:id', authenticateToken, adminMiddleware, as
 app.get('/api/notifications', authenticateToken, async (req, res) => {
   try {
     const notifications = await Notification.find({ 
-      userId: req.user.id 
+      userId: req.user._id 
     })
-    .sort({ createdAt: -1 })
-    .limit(20);
-
+    .sort({ timestamp: -1 })
+    .limit(10);
+    
     // Get unread count
     const unreadCount = await Notification.countDocuments({
-      userId: req.user.id,
+      userId: req.user._id,
       read: false
     });
     
-    res.json({ notifications, unreadCount });
+    res.json({
+      notifications,
+      unreadCount
+    });
   } catch (error) {
-    console.error('Get notifications error:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error('Error fetching notifications:', error);
+    res.status(500).json({ message: 'Failed to fetch notifications' });
   }
 });
 
@@ -2980,7 +3246,10 @@ app.get('/api/notifications', authenticateToken, async (req, res) => {
 app.put('/api/notifications/:id/read', authenticateToken, async (req, res) => {
   try {
     const notification = await Notification.findOneAndUpdate(
-      { _id: req.params.id, userId: req.user.id },
+      { 
+        _id: req.params.id, 
+        userId: req.user._id 
+      },
       { read: true },
       { new: true }
     );
@@ -2989,39 +3258,64 @@ app.put('/api/notifications/:id/read', authenticateToken, async (req, res) => {
       return res.status(404).json({ message: 'Notification not found' });
     }
     
-    res.json(notification);
-  } catch (error) {
-    console.error('Mark notification read error:', error);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
-// Mark all notifications as read
-app.put('/api/notifications/read-all', authenticateToken, async (req, res) => {
-  try {
-    await Notification.updateMany(
-      { userId: req.user.id, read: false },
-      { read: true }
-    );
+    // Get updated unread count
+    const unreadCount = await Notification.countDocuments({
+      userId: req.user._id,
+      read: false
+    });
     
-    res.json({ message: 'All notifications marked as read' });
+    res.json({
+      notification,
+      unreadCount
+    });
   } catch (error) {
-    console.error('Mark all notifications read error:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error('Error marking notification as read:', error);
+    res.status(500).json({ message: 'Failed to update notification' });
   }
 });
 
-// Helper function to create a notification
-const createNotification = async (data) => {
+// Create notification (internal function to be called when events occur)
+const createNotification = async (userId, type, courseName, title) => {
   try {
-    const notification = new Notification(data);
+    const notification = new Notification({
+      userId,
+      type,
+      courseName,
+      title,
+      read: false
+    });
     await notification.save();
     return notification;
   } catch (error) {
-    console.error('Create notification error:', error);
-    return null;
+    console.error('Error creating notification:', error);
+    throw error;
   }
 };
+
+// Example: Create notification when new video is uploaded
+app.post('/api/courses/:courseId/videos', authenticateToken, async (req, res) => {
+  try {
+    // ... existing video upload logic ...
+
+    // Create notifications for all enrolled students
+    const enrolledStudents = await Enrollment.find({ courseId: req.params.courseId });
+    const course = await Course.findById(req.params.courseId);
+    
+    for (const enrollment of enrolledStudents) {
+      await createNotification(
+        enrollment.userId,
+        'video',
+        course.title,
+        req.body.title
+      );
+    }
+
+    res.json({ message: 'Video uploaded successfully' });
+  } catch (error) {
+    console.error('Error uploading video:', error);
+    res.status(500).json({ message: 'Failed to upload video' });
+  }
+});
 
 // Start server
 const PORT = process.env.PORT || 5001;
@@ -3048,7 +3342,309 @@ app.get('/api/instructor/discussions', authenticateToken, async (req, res) => {
   }
 });
 
+// Get all conversations for the current user
+app.get('/api/messages/conversations', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const userRole = req.user.role;
+
+    let conversations = [];
+    
+    if (userRole === 'instructor') {
+      // Get all courses where user is instructor
+      const courses = await Course.find({ instructorId: userId });
+      
+      // Get all enrolled students in these courses
+      const enrollments = await UserCourse.find({
+        courseId: { $in: courses.map(c => c._id) },
+        status: { $in: ['enrolled', 'started', 'completed'] }
+      }).populate('userId', 'name role');
+
+      // Get latest message for each student-course pair
+      for (const enrollment of enrollments) {
+        const latestMessage = await Message.findOne({
+          $or: [
+            { senderId: userId, receiverId: enrollment.userId._id },
+            { senderId: enrollment.userId._id, receiverId: userId }
+          ],
+          courseId: enrollment.courseId
+        })
+        .sort({ createdAt: -1 })
+        .populate('courseId', 'title');
+
+        if (latestMessage) {
+          // Count unread messages
+          const unreadCount = await Message.countDocuments({
+            senderId: enrollment.userId._id,
+            receiverId: userId,
+            courseId: enrollment.courseId,
+            read: false
+          });
+
+          conversations.push({
+            partner: enrollment.userId,
+            course: latestMessage.courseId,
+            lastMessage: latestMessage,
+            unreadCount
+          });
+        }
+      }
+    } else {
+      // For students, get conversations with course instructors
+      const enrollments = await UserCourse.find({
+        userId,
+        status: { $in: ['enrolled', 'started', 'completed'] }
+      });
+
+      for (const enrollment of enrollments) {
+        const course = await Course.findById(enrollment.courseId)
+          .populate('instructorId', 'name role');
+
+        if (course && course.instructorId) {
+          const latestMessage = await Message.findOne({
+            $or: [
+              { senderId: userId, receiverId: course.instructorId._id },
+              { senderId: course.instructorId._id, receiverId: userId }
+            ],
+            courseId: course._id
+          })
+          .sort({ createdAt: -1 });
+
+          if (latestMessage) {
+            // Count unread messages
+            const unreadCount = await Message.countDocuments({
+              senderId: course.instructorId._id,
+              receiverId: userId,
+              courseId: course._id,
+              read: false
+            });
+
+            conversations.push({
+              partner: course.instructorId,
+              course: {
+                _id: course._id,
+                title: course.title
+              },
+              lastMessage: latestMessage,
+              unreadCount
+            });
+          }
+        }
+      }
+    }
+
+    // Sort conversations by latest message
+    conversations.sort((a, b) => 
+      new Date(b.lastMessage.createdAt).getTime() - new Date(a.lastMessage.createdAt).getTime()
+    );
+
+    res.json(conversations);
+  } catch (error) {
+    console.error('Get conversations error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get messages between two users for a specific course
+app.get('/api/messages/:partnerId/:courseId', authenticateToken, async (req, res) => {
+  try {
+    const { partnerId, courseId } = req.params;
+    const userId = req.user.id;
+
+    // Verify the course exists
+    const course = await Course.findById(courseId);
+    if (!course) {
+      return res.status(404).json({ message: 'Course not found' });
+    }
+
+    // Verify the user has access to these messages
+    const isInstructor = course.instructorId.toString() === userId;
+    const isStudent = await UserCourse.findOne({
+      userId,
+      courseId,
+      status: { $in: ['enrolled', 'started', 'completed'] }
+    });
+
+    if (!isInstructor && !isStudent) {
+      return res.status(403).json({ message: 'Not authorized to view these messages' });
+    }
+
+    // Get messages
+    const messages = await Message.find({
+      $or: [
+        { senderId: userId, receiverId: partnerId },
+        { senderId: partnerId, receiverId: userId }
+      ],
+      courseId
+    })
+    .sort({ createdAt: 1 })
+    .populate('senderId', 'name role')
+    .populate('receiverId', 'name role')
+    .populate('courseId', 'title');
+
+    // Mark messages as read
+    await Message.updateMany({
+      senderId: partnerId,
+      receiverId: userId,
+      courseId,
+      read: false
+    }, {
+      read: true
+    });
+
+    res.json(messages);
+  } catch (error) {
+    console.error('Get messages error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // Message Routes
+// Send a new message
+app.post('/api/messages', authenticateToken, async (req, res) => {
+  try {
+    const { receiverId, courseId, content } = req.body;
+    const senderId = req.user.id;
+
+    console.log('Attempting to send message:', {
+      senderId,
+      receiverId,
+      courseId,
+      contentLength: content?.length
+    });
+
+    // Validate required fields
+    if (!receiverId || !courseId || !content?.trim()) {
+      console.log('Missing required fields:', { receiverId, courseId, content });
+      return res.status(400).json({ 
+        message: 'Missing required fields',
+        details: {
+          receiverId: !receiverId ? 'Receiver ID is required' : null,
+          courseId: !courseId ? 'Course ID is required' : null,
+          content: !content ? 'Message content is required' : null
+        }
+      });
+    }
+
+    // Verify the course exists
+    const course = await Course.findById(courseId);
+    if (!course) {
+      console.log('Course not found:', courseId);
+      return res.status(404).json({ message: 'Course not found' });
+    }
+
+    // Verify sender has access to send messages in this course
+    const isInstructor = course.instructorId.toString() === senderId;
+    const isStudent = await UserCourse.findOne({
+      userId: senderId,
+      courseId,
+      status: { $in: ['enrolled', 'started', 'completed'] }
+    });
+
+    console.log('Sender verification:', {
+      isInstructor,
+      isStudent: !!isStudent,
+      courseInstructorId: course.instructorId,
+      senderId
+    });
+
+    if (!isInstructor && !isStudent) {
+      return res.status(403).json({ message: 'Not authorized to send messages in this course' });
+    }
+
+    // Verify receiver exists and has access to the course
+    const receiver = await User.findById(receiverId);
+    if (!receiver) {
+      console.log('Receiver not found:', receiverId);
+      return res.status(404).json({ message: 'Receiver not found' });
+    }
+
+    const receiverIsInstructor = course.instructorId.toString() === receiverId;
+    const receiverIsStudent = await UserCourse.findOne({
+      userId: receiverId,
+      courseId,
+      status: { $in: ['enrolled', 'started', 'completed'] }
+    });
+
+    console.log('Receiver verification:', {
+      receiverIsInstructor,
+      receiverIsStudent: !!receiverIsStudent,
+      receiverId
+    });
+
+    if (!receiverIsInstructor && !receiverIsStudent) {
+      return res.status(403).json({ message: 'Receiver does not have access to this course' });
+    }
+
+    // Create and save the message
+    const message = new Message({
+      senderId,
+      receiverId,
+      courseId,
+      content: content.trim(),
+      read: false,
+      createdAt: new Date()
+    });
+
+    await message.save();
+
+    // Populate the message with sender and receiver details
+    await message.populate([
+      { path: 'senderId', select: 'name role' },
+      { path: 'receiverId', select: 'name role' },
+      { path: 'courseId', select: 'title' }
+    ]);
+
+    console.log('Message created successfully:', {
+      messageId: message._id,
+      senderId: message.senderId,
+      receiverId: message.receiverId,
+      courseId: message.courseId
+    });
+
+    // Create notification for receiver
+    try {
+      const notification = new Notification({
+        userId: receiverId,
+        type: 'message',
+        title: 'New Message',
+        message: `You have a new message from ${req.user.name}`,
+        courseId: courseId,
+        link: `/messages/${senderId}/${courseId}`,
+        read: false,
+        timestamp: new Date()
+      });
+
+      await notification.save();
+      console.log('Notification created for message:', notification._id);
+    } catch (notificationError) {
+      console.error('Failed to create notification:', notificationError);
+      // Continue with the response even if notification creation fails
+    }
+
+    res.status(201).json(message);
+  } catch (error) {
+    console.error('Send message error:', {
+      error: error.message,
+      stack: error.stack,
+      userId: req.user?.id,
+      body: req.body
+    });
+
+    // Handle specific validation errors
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({ 
+        message: 'Validation error', 
+        errors: Object.values(error.errors).map(err => err.message)
+      });
+    }
+
+    res.status(500).json({ 
+      message: 'Failed to send message',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
 
 // Get conversations for a user (either instructor or student)
 app.get('/api/messages/conversations', authenticateToken, async (req, res) => {
@@ -3132,6 +3728,18 @@ app.post('/api/messages', authenticateToken, async (req, res) => {
   try {
     const { receiverId, courseId, content } = req.body;
 
+    // Validate required fields
+    if (!receiverId || !courseId || !content) {
+      return res.status(400).json({ 
+        message: 'Missing required fields',
+        details: {
+          receiverId: !receiverId ? 'Receiver ID is required' : null,
+          courseId: !courseId ? 'Course ID is required' : null,
+          content: !content ? 'Message content is required' : null
+        }
+      });
+    }
+
     // Verify that the users are connected through the course
     const course = await Course.findById(courseId);
     if (!course) {
@@ -3150,23 +3758,92 @@ app.post('/api/messages', authenticateToken, async (req, res) => {
       return res.status(403).json({ message: 'Not authorized to send messages in this course' });
     }
 
+    // Verify receiver exists and is connected to the course
+    const receiver = await User.findById(receiverId);
+    if (!receiver) {
+      return res.status(404).json({ message: 'Receiver not found' });
+    }
+
+    // If sender is student, verify receiver is course instructor
+    if (!isInstructor) {
+      if (receiver._id.toString() !== course.instructorId.toString()) {
+        return res.status(403).json({ message: 'Students can only message course instructors' });
+      }
+    }
+
+    // If sender is instructor, verify receiver is enrolled in the course
+    if (isInstructor) {
+      const receiverEnrollment = await UserCourse.findOne({
+        userId: receiverId,
+        courseId,
+        status: { $in: ['enrolled', 'started', 'completed'] }
+      });
+
+      if (!receiverEnrollment) {
+        return res.status(403).json({ message: 'Receiver is not enrolled in this course' });
+      }
+    }
+
     // Create and save the message
     const message = new Message({
       senderId: req.user.id,
       receiverId,
       courseId,
-      content,
-      read: false
+      content: content.trim(),
+      read: false,
+      createdAt: new Date()
     });
 
     await message.save();
     await message.populate('senderId', 'name role');
     await message.populate('receiverId', 'name role');
 
+    // Create notification if sender is instructor
+    if (isInstructor) {
+      const notification = new Notification({
+        userId: receiverId,
+        type: 'message',
+        title: 'New Message from Instructor',
+        message: `${req.user.name} sent you a message in ${course.title}`,
+        courseId: course._id,
+        link: `/messages/${req.user.id}/${course._id}`,
+        read: false,
+        timestamp: new Date()
+      });
+
+      await notification.save();
+    }
+
+    // Log successful message creation
+    console.log('Message sent successfully:', {
+      messageId: message._id,
+      senderId: req.user.id,
+      receiverId,
+      courseId,
+      isInstructor
+    });
+
     res.status(201).json(message);
   } catch (error) {
-    console.error('Send message error:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error('Send message error:', {
+      error: error.message,
+      stack: error.stack,
+      userId: req.user?.id,
+      body: req.body
+    });
+
+    // Handle specific validation errors
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({ 
+        message: 'Validation error', 
+        errors: Object.values(error.errors).map(err => err.message)
+      });
+    }
+
+    res.status(500).json({ 
+      message: 'Failed to send message',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
   }
 });
 
@@ -3210,6 +3887,51 @@ app.get('/api/instructor/students', authenticateToken, async (req, res) => {
     res.json(Object.values(studentsByCourse));
   } catch (error) {
     console.error('Get enrolled students error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Delete a course (instructor only)
+app.delete('/api/instructor/courses/:courseId', authenticateToken, async (req, res) => {
+  try {
+    // Verify user is an instructor
+    if (req.user.role !== 'instructor') {
+      return res.status(403).json({ message: 'Access denied. Only instructors can delete courses.' });
+    }
+
+    const { courseId } = req.params;
+    
+    // Find the course
+    const course = await Course.findById(courseId);
+    if (!course) {
+      return res.status(404).json({ message: 'Course not found' });
+    }
+
+    // Verify the instructor owns this course
+    if (course.instructorId.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'You can only delete your own courses' });
+    }
+
+    // Delete all enrollments for this course
+    await UserCourse.deleteMany({ courseId: courseId });
+
+    // Delete all notifications related to this course
+    await Notification.deleteMany({ courseId: courseId });
+
+    // Delete all discussions related to this course
+    await Discussion.deleteMany({ courseId: courseId });
+
+    // Remove course from instructor's profile
+    await User.findByIdAndUpdate(req.user.id, {
+      $pull: { 'instructorProfile.courses': courseId }
+    });
+
+    // Finally, delete the course
+    await Course.findByIdAndDelete(courseId);
+
+    res.json({ message: 'Course deleted successfully' });
+  } catch (error) {
+    console.error('Delete course error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -3269,5 +3991,20 @@ app.get('/api/student/instructors', authenticateToken, async (req, res) => {
       message: 'Failed to fetch instructor information',
       error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
     });
+  }
+});
+
+// Mark all notifications as read
+app.put('/api/notifications/mark-all-read', authenticateToken, async (req, res) => {
+  try {
+    await Notification.updateMany(
+      { userId: req.user._id, read: false },
+      { read: true }
+    );
+
+    res.json({ message: 'All notifications marked as read' });
+  } catch (error) {
+    console.error('Error marking all notifications as read:', error);
+    res.status(500).json({ message: 'Failed to mark all notifications as read' });
   }
 });

@@ -36,8 +36,8 @@ const UserMenu = ({ user, onLogout }: { user: any; onLogout: () => void }) => {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative h-8 w-8 rounded-full">
-          <Avatar className="h-8 w-8">
+        <Button variant="ghost" size="icon" className="relative h-10 w-10 rounded-full">
+          <Avatar className="h-10 w-10 border-2 border-black">
             <AvatarFallback>
               {user?.name ? getInitials(user.name) : 'U'}
             </AvatarFallback>
@@ -61,6 +61,10 @@ const UserMenu = ({ user, onLogout }: { user: any; onLogout: () => void }) => {
         <DropdownMenuItem onClick={() => navigate('/profile')}>
           <UserCircle className="mr-2 h-4 w-4" />
           <span>Profile</span>
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => navigate('/my-courses')}>
+          <BookOpen className="mr-2 h-4 w-4" />
+          <span>My Courses</span>
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => navigate('/settings')}>
           <Settings className="mr-2 h-4 w-4" />
@@ -118,7 +122,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
             </Link>
           </div>
           <div className="flex items-center gap-2">
-            {user?.role === 'instructor' && <NotificationBell />}
+            <NotificationBell />
             <UserMenu user={user} onLogout={handleLogout} />
           </div>
         </div>
@@ -202,7 +206,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
         {/* Desktop Header */}
         <div className="sticky top-0 z-10 h-16 border-b bg-white shadow hidden lg:flex items-center justify-end px-6">
           <div className="flex items-center gap-4">
-            {user?.role === 'instructor' && <NotificationBell />}
+            <NotificationBell />
             <UserMenu user={user} onLogout={handleLogout} />
           </div>
         </div>

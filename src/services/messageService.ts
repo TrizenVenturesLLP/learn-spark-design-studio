@@ -16,9 +16,9 @@ export interface MessageCourse {
 
 export interface Message {
   _id: string;
-  senderId: MessageUser | string;
-  receiverId: MessageUser | string;
-  courseId?: MessageCourse;
+  senderId: MessageUser;
+  receiverId: MessageUser;
+  courseId: MessageCourse;
   content: string;
   read: boolean;
   createdAt: string | Date;
@@ -111,15 +111,19 @@ export const useSendMessage = () => {
       const response = await axios.post<Message>('/api/messages', {
         receiverId,
         courseId,
-        content
+        content: content.trim()
       });
       return response.data;
     },
     onSuccess: (_, variables) => {
-      // Invalidate relevant queries
-      queryClient.invalidateQueries({ queryKey: ['messages', variables.receiverId, variables.courseId] });
-      queryClient.invalidateQueries({ queryKey: ['conversations'] });
-    }
+      // Invalidate and refetch messages
+      queryClient.invalidateQueries({
+        queryKey: ['messages', variables.receiverId, variables.courseId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['conversations'],
+      });
+    },
   });
 };
 
@@ -204,6 +208,10 @@ export const useMessageStore = create<MessageStore>()(
             name: 'Professor Smith',
             role: 'instructor'
           },
+          courseId: {
+            _id: 'course1',
+            title: 'Advanced Mathematics'
+          },
           content: 'Hello professor, I have a question about the upcoming exam.',
           createdAt: new Date(Date.now() - 1000 * 60 * 5).toISOString(),
           read: false,
@@ -220,6 +228,10 @@ export const useMessageStore = create<MessageStore>()(
             name: 'Professor Smith',
             role: 'instructor'
           },
+          courseId: {
+            _id: 'course2',
+            title: 'Introduction to Physics'
+          },
           content: 'Could you review my latest assignment submission?',
           createdAt: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
           read: false,
@@ -235,6 +247,10 @@ export const useMessageStore = create<MessageStore>()(
             _id: 'instructor1',
             name: 'Professor Smith',
             role: 'instructor'
+          },
+          courseId: {
+            _id: 'course3',
+            title: 'Data Structures'
           },
           content: 'Thank you for the feedback on my project!',
           createdAt: new Date(Date.now() - 1000 * 60 * 60).toISOString(),

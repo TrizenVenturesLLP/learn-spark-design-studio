@@ -5,7 +5,7 @@ import { Discussion } from '@/types/discussion';
 interface CreateDiscussionData {
   title: string;
   content: string;
-  isPinned: boolean;
+  isPinned?: boolean;
 }
 
 // Get discussions for a course
@@ -98,3 +98,5 @@ export const useDeleteDiscussion = () => {
     },
   });
 };
+
+export type { Discussion };
