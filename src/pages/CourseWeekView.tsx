@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -8,12 +7,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Video, CheckCircle, AlertCircle, Menu } from "lucide-react";
+import { Video, CheckCircle, AlertCircle, Menu, Lock, Unlock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { useUpdateProgress, Course, RoadmapDay } from '@/services/courseService';
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import MCQQuiz from '@/components/MCQQuiz';
 
 // Import your logo image
@@ -204,6 +204,15 @@ const CourseWeekView = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showQuiz, setShowQuiz] = useState(false);
   const [quizCompleted, setQuizCompleted] = useState<number[]>([]);
+  const [contentSections, setContentSections] = useState<{
+    transcript: boolean;
+    topics: boolean;
+    mcqs: boolean;
+  }>({
+    transcript: false,
+    topics: false,
+    mcqs: false
+  });
   const { token, isAuthenticated, loading } = useAuth();
   const { toast } = useToast();
   const updateProgressMutation = useUpdateProgress();
@@ -290,12 +299,6 @@ const CourseWeekView = () => {
   const handleVideoComplete = (day: number) => {
     console.log(`Video ${day} completed`);
     setWatchedVideos(prev => [...prev, day]);
-    
-    // Show quiz if available for this day
-    const currentDay = course?.roadmap.find(d => d.day === day);
-    if (currentDay?.mcqs && currentDay.mcqs.length > 0) {
-      setShowQuiz(true);
-    }
   };
 
   const handleQuizComplete = (score: number) => {
@@ -317,6 +320,10 @@ const CourseWeekView = () => {
   const isVideoEnabled = (day: number) => {
     if (day === 1) return true;
     return watchedVideos.includes(day - 1) || completedDays.includes(day - 1);
+  };
+
+  const isMCQsEnabled = (day: number) => {
+    return watchedVideos.includes(day) || completedDays.includes(day);
   };
 
   const SidebarContent = () => (
@@ -465,28 +472,113 @@ const CourseWeekView = () => {
                     </Card>
                   )}
 
-                  <TranscriptSection transcript={currentDay.transcript} />
+                  {/* Collapsible sections for Transcript */}
+                  <Collapsible 
+                    open={contentSections.transcript} 
+                    onOpenChange={(open) => setContentSections(prev => ({ ...prev, transcript: open }))}
+                    className="rounded-md border shadow-sm"
+                  >
+                    <CollapsibleTrigger asChild>
+                      <div className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/50 rounded-t-md">
+                        <CardTitle className="text-lg md:text-xl">Video Transcript</CardTitle>
+                        <Button variant="ghost" size="sm">
+                          {contentSections.transcript ? "Hide" : "Show"}
+                        </Button>
+                      </div>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="p-4 border-t space-y-2">
+                      {currentDay.transcript ? (
+                        <p className="text-sm md:text-base text-muted-foreground whitespace-pre-wrap">
+                          {currentDay.transcript}
+                        </p>
+                      ) : (
+                        <p className="text-sm text-muted-foreground italic">No transcript available for this video.</p>
+                      )}
+                    </CollapsibleContent>
+                  </Collapsible>
 
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-lg md:text-xl">Topics Covered</CardTitle>
-                    </CardHeader>
-                    <CardContent>
+                  {/* Collapsible sections for Topics */}
+                  <Collapsible 
+                    open={contentSections.topics} 
+                    onOpenChange={(open) => setContentSections(prev => ({ ...prev, topics: open }))}
+                    className="rounded-md border shadow-sm"
+                  >
+                    <CollapsibleTrigger asChild>
+                      <div className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/50 rounded-t-md">
+                        <CardTitle className="text-lg md:text-xl">Topics Covered</CardTitle>
+                        <Button variant="ghost" size="sm">
+                          {contentSections.topics ? "Hide" : "Show"}
+                        </Button>
+                      </div>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="p-4 border-t">
                       <p className="text-sm md:text-base text-muted-foreground">
                         {currentDay.topics}
                       </p>
-                    </CardContent>
-                  </Card>
+                    </CollapsibleContent>
+                  </Collapsible>
 
-                  {/* Show quiz button if there are MCQs for this day */}
-                  {currentDay.mcqs && currentDay.mcqs.length > 0 && watchedVideos.includes(currentDay.day) && !quizCompleted.includes(currentDay.day) && (
-                    <Button
-                      onClick={() => setShowQuiz(true)}
-                      className="w-full mb-4"
-                    >
-                      Take Quiz ({currentDay.mcqs.length} questions)
-                    </Button>
-                  )}
+                  {/* Collapsible sections for MCQs - Locked until video is watched */}
+                  <Collapsible 
+                    open={contentSections.mcqs && isMCQsEnabled(currentDay.day)} 
+                    onOpenChange={(open) => {
+                      if (isMCQsEnabled(currentDay.day)) {
+                        setContentSections(prev => ({ ...prev, mcqs: open }))
+                      }
+                    }}
+                    className={cn(
+                      "rounded-md border shadow-sm",
+                      !isMCQsEnabled(currentDay.day) && "opacity-80"
+                    )}
+                  >
+                    <CollapsibleTrigger asChild>
+                      <div className={cn(
+                        "flex items-center justify-between p-4 cursor-pointer hover:bg-muted/50 rounded-t-md",
+                        !isMCQsEnabled(currentDay.day) && "cursor-not-allowed"
+                      )}>
+                        <div className="flex items-center gap-2">
+                          <CardTitle className="text-lg md:text-xl">Quiz Questions</CardTitle>
+                          {!isMCQsEnabled(currentDay.day) && <Lock className="h-4 w-4 text-muted-foreground" />}
+                          {isMCQsEnabled(currentDay.day) && <Unlock className="h-4 w-4 text-green-500" />}
+                        </div>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          disabled={!isMCQsEnabled(currentDay.day)}
+                        >
+                          {contentSections.mcqs && isMCQsEnabled(currentDay.day) ? "Hide" : "Show"}
+                        </Button>
+                      </div>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="p-4 border-t">
+                      {!isMCQsEnabled(currentDay.day) ? (
+                        <div className="flex flex-col items-center justify-center py-6 text-center">
+                          <Lock className="h-10 w-10 text-muted-foreground mb-2" />
+                          <p className="text-muted-foreground">Complete the video to unlock quiz questions</p>
+                        </div>
+                      ) : currentDay.mcqs && currentDay.mcqs.length > 0 ? (
+                        <div className="space-y-4">
+                          <p className="text-sm text-muted-foreground mb-4">
+                            Take this quiz to test your understanding of the material covered in today's lesson.
+                          </p>
+                          <Button 
+                            onClick={() => setShowQuiz(true)}
+                            className="w-full"
+                          >
+                            Start Quiz ({currentDay.mcqs.length} questions)
+                          </Button>
+                          {quizCompleted.includes(currentDay.day) && (
+                            <div className="flex items-center justify-center gap-2 text-green-500 mt-2">
+                              <CheckCircle className="h-4 w-4" />
+                              <span>You've completed this quiz</span>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground italic">No quiz questions available for this lesson.</p>
+                      )}
+                    </CollapsibleContent>
+                  </Collapsible>
 
                   <Button
                     onClick={() => handleDayComplete(currentDay.day)}
