@@ -11,9 +11,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Alert, AlertDescription } from './ui/alert';
 import { Separator } from './ui/separator';
 
+type UserRole = 'student' | 'instructor';
+
 const SignupForm = () => {
   const [name, setName] = useState('');
-  const [selectedRole, setSelectedRole] = useState<'student' | null>(null);
+  const [selectedRole, setSelectedRole] = useState<UserRole>('student');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
