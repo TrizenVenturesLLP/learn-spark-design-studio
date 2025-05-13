@@ -3,9 +3,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { GraduationCap } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+type UserRole = 'student' | 'instructor';
+
 interface SignupChoiceProps {
-  selected: 'student' | null;
-  onSelect: (role: 'student') => void;
+  selected: UserRole;
+  onSelect: (role: UserRole) => void;
 }
 
 const SignupChoice = ({ selected, onSelect }: SignupChoiceProps) => {
