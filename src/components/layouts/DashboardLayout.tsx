@@ -118,7 +118,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
             </Link>
           </div>
           <div className="flex items-center gap-2">
-            <NotificationBell />
+            {user?.role === 'instructor' && <NotificationBell />}
             <UserMenu user={user} onLogout={handleLogout} />
           </div>
         </div>
@@ -202,7 +202,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
         {/* Desktop Header */}
         <div className="sticky top-0 z-10 h-16 border-b bg-white shadow hidden lg:flex items-center justify-end px-6">
           <div className="flex items-center gap-4">
-            <NotificationBell />
+            {user?.role === 'instructor' && <NotificationBell />}
             <UserMenu user={user} onLogout={handleLogout} />
           </div>
         </div>
