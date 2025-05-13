@@ -29,7 +29,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 import axios from '@/lib/axios';
-import { User, safelyAccessUser } from '@/types/auth.d';
+import { User, safelyAccessUser } from '@/types/auth';
 
 // Update the AuthContextType to match what's in contexts/AuthContext.tsx
 interface AuthContextType {
