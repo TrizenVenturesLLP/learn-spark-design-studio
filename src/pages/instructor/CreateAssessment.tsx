@@ -1,10 +1,18 @@
-import { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { useForm, useFieldArray } from 'react-hook-form';
+
+import { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
+import { useCourseDetails } from '@/services/courseService';
+import { useCreateAssessment } from '@/services/assessmentService';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Calendar } from '@/components/ui/calendar';
+import { format } from 'date-fns';
+import { Check, Plus, Trash2, ArrowLeft } from 'lucide-react';
 import {
   Form,
   FormControl,
@@ -13,8 +21,6 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
@@ -22,175 +28,160 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { 
-  useCreateAssessment, 
-  useUploadAssessmentPDF, 
-  AssessmentType,
-  MCQQuestion,
-  CodingQuestion,
-  Assessment,
-  Question,
-} from '@/services/assessmentService';
-import { MultiSelect } from '@/components/ui/multi-select';
-import { Editor } from '@/components/Editor';
+import { cn } from '@/lib/utils';
 
-// Create a type for the form that doesn't include _id
-type FormQuestion = Omit<MCQQuestion, '_id'> | Omit<CodingQuestion, '_id'>;
-
-const mcqQuestionSchema = z.object({
-  type: z.literal('MCQ'),
-  questionText: z.string().min(1, 'Question text is required'),
-  options: z.array(z.string()).length(4, 'Exactly 4 options are required'),
-  correctAnswer: z.string().min(1, 'Correct answer is required'),
-  marks: z.number().int().positive(),
+// Define form schema for assessment creation
+const formSchema = z.object({
+  title: z.string().min(3, 'Title must be at least 3 characters'),
+  description: z.string().min(10, 'Description must be at least 10 characters'),
+  dayNumber: z.coerce.number().int().positive('Day number must be positive'),
+  dueDate: z.date({
+    required_error: 'Please select a due date',
+  }),
+  questions: z.array(
+    z.object({
+      questionText: z.string().min(5, 'Question must be at least 5 characters'),
+      options: z.array(
+        z.object({
+          text: z.string().min(1, 'Option cannot be empty'),
+          isCorrect: z.boolean().default(false),
+        })
+      ).min(2, 'At least 2 options are required').refine(
+        options => options.some(option => option.isCorrect),
+        {
+          message: 'At least one option must be marked as correct',
+        }
+      ),
+      explanation: z.string().optional(),
+    })
+  ).min(1, 'At least one question is required'),
 });
 
-const codingQuestionSchema = z.object({
-  type: z.literal('CODING'),
-  problemStatement: z.string().min(1, 'Problem statement is required'),
-  inputFormat: z.string().min(1, 'Input format is required'),
-  outputFormat: z.string().min(1, 'Output format is required'),
-  testCases: z.array(z.object({
-    input: z.string().min(1, 'Input is required'),
-    expectedOutput: z.string().min(1, 'Expected output is required'),
-    isHidden: z.boolean().optional(),
-  })).min(1, 'At least one test case is required'),
-  marks: z.number().int().positive(),
-  sampleCode: z.string().optional(),
-});
-
-const assessmentSchema = z.object({
-  title: z.string().min(1, 'Title is required'),
-  description: z.string().min(1, 'Description is required'),
-  type: z.enum(['MCQ', 'CODING'] as const),
-  questions: z.array(z.discriminatedUnion('type', [
-    mcqQuestionSchema,
-    codingQuestionSchema,
-  ])),
-  assignedDays: z.array(z.number()).min(1, 'At least one day must be selected'),
-  dueDate: z.string().min(1, 'Due date is required'),
-});
-
-type AssessmentFormValues = z.infer<typeof assessmentSchema>;
+type FormValues = z.infer<typeof formSchema>;
 
 const CreateAssessment = () => {
-  const { courseId } = useParams<{ courseId: string }>();
   const navigate = useNavigate();
-  const { toast } = useToast();
-  const [assessmentType, setAssessmentType] = useState<AssessmentType>('MCQ');
+  const { courseId } = useParams<{ courseId: string }>();
+  const { data: course } = useCourseDetails(courseId);
   const createAssessment = useCreateAssessment();
-  const uploadPDF = useUploadAssessmentPDF();
-
-  const form = useForm<AssessmentFormValues>({
-    resolver: zodResolver(assessmentSchema),
+  const { toast } = useToast();
+  
+  // Set up form with default values
+  const form = useForm<FormValues>({
+    resolver: zodResolver(formSchema),
     defaultValues: {
-    title: '',
-    description: '',
-      type: 'MCQ',
-      questions: [],
-      assignedDays: [],
-      dueDate: new Date().toISOString().split('T')[0] + 'T23:59',
+      title: '',
+      description: '',
+      dayNumber: 1,
+      dueDate: new Date(),
+      questions: [
+        {
+          questionText: '',
+          explanation: '',
+          options: [
+            { text: '', isCorrect: false },
+            { text: '', isCorrect: false },
+            { text: '', isCorrect: false },
+            { text: '', isCorrect: false },
+          ],
+        },
+      ],
     },
   });
 
-  const { fields, append, remove } = useFieldArray({
-    control: form.control,
-    name: 'questions',
-  });
-
-  const handlePDFUpload = async (file: File) => {
+  // Handle form submission
+  const onSubmit = async (values: FormValues) => {
     if (!courseId) return;
-    
+
     try {
-      await uploadPDF.mutateAsync({
-        file,
+      await createAssessment.mutateAsync({
+        ...values,
         courseId,
-        assignedDays: form.getValues('assignedDays'),
+        isPublished: false,
       });
-      
+
       toast({
-        title: 'Success',
-        description: 'Assessment questions have been uploaded and parsed successfully.',
+        title: "Assessment created",
+        description: "The assessment has been created successfully.",
       });
+
+      navigate(`/instructor/assessments`);
     } catch (error) {
       toast({
-        title: 'Error',
-        description: 'Failed to upload and parse the PDF file.',
-        variant: 'destructive',
+        title: "Error creating assessment",
+        description: "Failed to create assessment. Please try again.",
+        variant: "destructive",
       });
     }
   };
 
-  const onSubmit = async (data: AssessmentFormValues) => {
-    if (!courseId) return;
-
-    try {
-      const assessmentData: Omit<Assessment, '_id'> = {
-        courseId,
-        title: data.title,
-        description: data.description,
-        type: data.type,
-        questions: data.questions.map(q => ({
-          ...q,
-          _id: crypto.randomUUID(), // Generate a temporary ID that will be replaced by the server
-        })) as Question[],
-        assignedDays: data.assignedDays,
-        dueDate: data.dueDate,
-        totalMarks: data.questions.reduce((sum, q) => sum + q.marks, 0),
-        status: 'pending',
-      };
-
-      await createAssessment.mutateAsync(assessmentData);
-
-      toast({
-        title: 'Success',
-        description: 'Assessment has been created successfully.',
-      });
-
-      navigate(`/instructor/courses/${courseId}/assessments`);
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to create the assessment.',
-        variant: 'destructive',
-      });
-    }
-  };
-
+  // Function to add a new question
   const addQuestion = () => {
-    if (assessmentType === 'MCQ') {
-      append({
-        type: 'MCQ',
+    const questions = form.getValues('questions') || [];
+    form.setValue('questions', [
+      ...questions,
+      {
         questionText: '',
-        options: ['', '', '', ''],
-        correctAnswer: '',
-        marks: 1,
-      } as FormQuestion);
-    } else {
-      append({
-        type: 'CODING',
-        problemStatement: '',
-        inputFormat: '',
-        outputFormat: '',
-        testCases: [{ input: '', expectedOutput: '', isHidden: false }],
-        marks: 10,
-        sampleCode: '',
-      } as FormQuestion);
-    }
+        explanation: '',
+        options: [
+          { text: '', isCorrect: false },
+          { text: '', isCorrect: false },
+          { text: '', isCorrect: false },
+          { text: '', isCorrect: false },
+        ],
+      },
+    ]);
+  };
+
+  // Function to remove a question
+  const removeQuestion = (index: number) => {
+    const questions = form.getValues('questions');
+    form.setValue(
+      'questions',
+      questions.filter((_, i) => i !== index)
+    );
+  };
+
+  // Function to set an option as correct and clear others
+  const setCorrectOption = (questionIndex: number, optionIndex: number) => {
+    const questions = form.getValues('questions');
+    const updatedOptions = questions[questionIndex].options.map((option, idx) => ({
+      ...option,
+      isCorrect: idx === optionIndex,
+    }));
+
+    form.setValue(`questions.${questionIndex}.options`, updatedOptions);
   };
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
+    <div className="container py-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <Button 
+          variant="ghost" 
+          onClick={() => navigate('/instructor/assessments')}
+          className="flex items-center gap-2"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to Assessments
+        </Button>
+        <h1 className="text-2xl font-bold">Create Assessment</h1>
+      </div>
+
       <Card>
         <CardHeader>
-          <CardTitle>Create Assessment</CardTitle>
+          <CardTitle>Assessment Details</CardTitle>
         </CardHeader>
         <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid gap-6 md:grid-cols-2">
                 <FormField
                   control={form.control}
                   name="title"
@@ -198,11 +189,7 @@ const CreateAssessment = () => {
                     <FormItem>
                       <FormLabel>Title</FormLabel>
                       <FormControl>
-                        <Input 
-                          placeholder="Enter assessment title"
-                          {...field} 
-                          value={field.value || ''} 
-                        />
+                        <Input placeholder="Enter assessment title" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -211,31 +198,34 @@ const CreateAssessment = () => {
 
                 <FormField
                   control={form.control}
-                  name="type"
+                  name="dayNumber"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Assessment Type</FormLabel>
-          <Select
-                        onValueChange={(value: AssessmentType) => {
-                          field.onChange(value);
-                          setAssessmentType(value);
-                          form.setValue('questions', []);
-                        }}
-                        value={field.value}
-          >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select type" />
-            </SelectTrigger>
-            <SelectContent>
-                          <SelectItem value="MCQ">Multiple Choice Questions</SelectItem>
-                          <SelectItem value="CODING">Coding Questions</SelectItem>
-            </SelectContent>
-          </Select>
+                      <FormLabel>Day Number</FormLabel>
+                      <Select 
+                        onValueChange={(value) => field.onChange(parseInt(value))}
+                        defaultValue={field.value.toString()}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select day" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {course?.roadmap?.map((day) => (
+                            <SelectItem key={day.day} value={day.day.toString()}>
+                              Day {day.day}: {day.topics.substring(0, 30)}...
+                            </SelectItem>
+                          )) || (
+                            <SelectItem value="1">Day 1</SelectItem>
+                          )}
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-        </div>
+              </div>
 
               <FormField
                 control={form.control}
@@ -245,30 +235,9 @@ const CreateAssessment = () => {
                     <FormLabel>Description</FormLabel>
                     <FormControl>
                       <Textarea 
-                        placeholder="Enter assessment description"
+                        placeholder="Enter assessment description" 
+                        className="h-24" 
                         {...field} 
-                        value={field.value || ''} 
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="assignedDays"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Assigned Days</FormLabel>
-                    <FormControl>
-                      <MultiSelect
-                        selected={field.value || []}
-                        options={Array.from({ length: 30 }, (_, i) => ({
-                          value: i + 1,
-                          label: `Day ${i + 1}`,
-                        }))}
-                        onValuesChange={field.onChange}
                       />
                     </FormControl>
                     <FormMessage />
@@ -280,256 +249,166 @@ const CreateAssessment = () => {
                 control={form.control}
                 name="dueDate"
                 render={({ field }) => (
-                  <FormItem>
+                  <FormItem className="flex flex-col">
                     <FormLabel>Due Date</FormLabel>
-                    <FormControl>
-          <Input
-                        type="datetime-local" 
-                        {...field} 
-                        value={field.value || new Date().toISOString().split('T')[0] + 'T23:59'} 
-                      />
-                    </FormControl>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant={"outline"}
+                            className={cn(
+                              "w-[240px] pl-3 text-left font-normal",
+                              !field.value && "text-muted-foreground"
+                            )}
+                          >
+                            {field.value ? (
+                              format(field.value, "PPP")
+                            ) : (
+                              <span>Pick a date</span>
+                            )}
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={field.value}
+                          onSelect={field.onChange}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
                     <FormMessage />
                   </FormItem>
                 )}
               />
 
               <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <h3 className="text-lg font-semibold">Questions</h3>
-                  <div className="space-x-2">
-                    {assessmentType === 'MCQ' && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => document.getElementById('pdfUpload')?.click()}
-                      >
-                        Upload PDF
-                        <input
-                          id="pdfUpload"
-                          type="file"
-                          accept=".pdf"
-                          className="hidden"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) handlePDFUpload(file);
-                          }}
-                        />
-                      </Button>
-                    )}
-                    <Button type="button" onClick={addQuestion}>
-                      Add Question
-                    </Button>
-                  </div>
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-medium">Questions</h3>
+                  <Button
+                    type="button"
+                    onClick={addQuestion}
+                    className="flex items-center gap-2"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Add Question
+                  </Button>
                 </div>
 
-                {fields.map((field, index) => (
-                  <Card key={field.id}>
-                    <CardHeader className="flex flex-row items-center justify-between">
-                      <CardTitle className="text-base">
-                        Question {index + 1}
-                      </CardTitle>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => remove(index)}
-                      >
-                        Remove
-                      </Button>
+                {form.watch('questions').map((question, questionIndex) => (
+                  <Card key={questionIndex} className="overflow-hidden">
+                    <CardHeader className="bg-muted/50">
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-base">Question {questionIndex + 1}</CardTitle>
+                        {questionIndex > 0 && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => removeQuestion(questionIndex)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
                     </CardHeader>
-                    <CardContent>
-                      {field.type === 'MCQ' ? (
-                        <div className="space-y-4">
-                          <FormField
-                            control={form.control}
-                            name={`questions.${index}.questionText`}
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Question Text</FormLabel>
-                                <FormControl>
-                                  <Textarea {...field} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
+                    <CardContent className="p-4 space-y-4">
+                      <FormField
+                        control={form.control}
+                        name={`questions.${questionIndex}.questionText`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Question Text</FormLabel>
+                            <FormControl>
+                              <Textarea
+                                placeholder="Enter your question"
+                                className="h-20"
+                                {...field}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
 
-                          {[0, 1, 2, 3].map((optionIndex) => (
+                      <div className="space-y-2">
+                        <FormLabel>Options (select the correct answer)</FormLabel>
+                        {question.options.map((option, optionIndex) => (
+                          <div
+                            key={optionIndex}
+                            className="flex items-center gap-3 my-2"
+                          >
+                            <Checkbox
+                              checked={option.isCorrect}
+                              onCheckedChange={() => 
+                                setCorrectOption(questionIndex, optionIndex)
+                              }
+                              className="h-5 w-5"
+                            />
                             <FormField
-                              key={optionIndex}
                               control={form.control}
-                              name={`questions.${index}.options.${optionIndex}`}
+                              name={`questions.${questionIndex}.options.${optionIndex}.text`}
                               render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Option {optionIndex + 1}</FormLabel>
+                                <FormItem className="flex-1 m-0">
                                   <FormControl>
-                                    <Input {...field} />
+                                    <Input
+                                      placeholder={`Option ${optionIndex + 1}`}
+                                      {...field}
+                                    />
                                   </FormControl>
                                   <FormMessage />
                                 </FormItem>
                               )}
                             />
-                          ))}
-
-                          <FormField
-                            control={form.control}
-                            name={`questions.${index}.correctAnswer`}
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Correct Answer</FormLabel>
-                                <Select
-                                  onValueChange={field.onChange}
-                                  value={field.value}
-                                >
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Select correct answer" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {form.watch(`questions.${index}.options`).map(
-                                      (option, i) => (
-                                        <SelectItem key={i} value={option}>
-                                          {option}
-                                        </SelectItem>
-                                      )
-                                    )}
-                                  </SelectContent>
-                                </Select>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-          />
-        </div>
-                      ) : (
-                        <div className="space-y-4">
-                          <FormField
-                            control={form.control}
-                            name={`questions.${index}.problemStatement`}
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Problem Statement</FormLabel>
-                                <FormControl>
-                                  <Textarea {...field} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <FormField
-                              control={form.control}
-                              name={`questions.${index}.inputFormat`}
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Input Format</FormLabel>
-                                  <FormControl>
-                                    <Textarea {...field} />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-
-                            <FormField
-                              control={form.control}
-                              name={`questions.${index}.outputFormat`}
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Output Format</FormLabel>
-                                  <FormControl>
-                                    <Textarea {...field} />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-          />
-        </div>
-
-                          <FormField
-                            control={form.control}
-                            name={`questions.${index}.sampleCode`}
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Sample Code (Optional)</FormLabel>
-                                <FormControl>
-                                  <Editor
-                                    value={field.value || ''}
-                                    onChange={field.onChange}
-                                    language="javascript"
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-
-                          {/* Test Cases */}
-                          <div className="space-y-2">
-                            <FormLabel>Test Cases</FormLabel>
-                            {form.watch(`questions.${index}.testCases`)?.map(
-                              (_, testIndex) => (
-                                <div key={testIndex} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                  <FormField
-                                    control={form.control}
-                                    name={`questions.${index}.testCases.${testIndex}.input`}
-                                    render={({ field }) => (
-                                      <FormItem>
-                                        <FormLabel>Input</FormLabel>
-                                        <FormControl>
-                                          <Textarea {...field} />
-                                        </FormControl>
-                                        <FormMessage />
-                                      </FormItem>
-                                    )}
-                                  />
-
-                                  <FormField
-                                    control={form.control}
-                                    name={`questions.${index}.testCases.${testIndex}.expectedOutput`}
-                                    render={({ field }) => (
-                                      <FormItem>
-                                        <FormLabel>Expected Output</FormLabel>
-                                        <FormControl>
-                                          <Textarea {...field} />
-                                        </FormControl>
-                                        <FormMessage />
-                                      </FormItem>
-                                    )}
-                                  />
-                                </div>
-                              )
-                            )}
-                            <Button
-                              type="button"
-                              variant="outline"
-                              onClick={() => {
-                                const testCases = form.getValues(
-                                  `questions.${index}.testCases`
-                                );
-                                form.setValue(
-                                  `questions.${index}.testCases`,
-                                  [
-                                    ...testCases,
-                                    { input: '', expectedOutput: '', isHidden: false },
-                                  ]
-                                );
-                              }}
-                            >
-                              Add Test Case
-                            </Button>
                           </div>
-                        </div>
-                      )}
+                        ))}
+                        {form.formState.errors.questions?.[questionIndex]?.options?.message && (
+                          <p className="text-sm font-medium text-destructive">
+                            {form.formState.errors.questions[questionIndex].options.message}
+                          </p>
+                        )}
+                      </div>
+
+                      <FormField
+                        control={form.control}
+                        name={`questions.${questionIndex}.explanation`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Explanation (Optional)</FormLabel>
+                            <FormControl>
+                              <Textarea
+                                placeholder="Explain the correct answer"
+                                className="h-20"
+                                {...field}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
                     </CardContent>
                   </Card>
                 ))}
-        </div>
+              </div>
 
-              <Button type="submit" className="w-full">
-                Create Assessment
-              </Button>
-      </form>
+              <div className="flex justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => navigate('/instructor/assessments')}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit"
+                  disabled={createAssessment.isPending}
+                  className="flex items-center gap-2"
+                >
+                  {createAssessment.isPending ? 'Creating...' : 'Create Assessment'}
+                </Button>
+              </div>
+            </form>
           </Form>
         </CardContent>
       </Card>

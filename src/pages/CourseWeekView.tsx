@@ -7,12 +7,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Video, CheckCircle, AlertCircle, Menu, X } from "lucide-react";
+import { Video, CheckCircle, AlertCircle, Menu, X, FileCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { useUpdateProgress, Course, RoadmapDay } from '@/services/courseService';
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { useStudentAssessments, useSubmitAssessment } from '@/services/assessmentService';
 
 // Import your logo image
 import companyLogo from '/logo_footer.png'; // Adjust path as needed
@@ -194,12 +197,169 @@ const TranscriptSection = ({ transcript }: { transcript?: string }) => {
   );
 };
 
+const DayAssessment = ({ day, courseId }: { day: number; courseId: string }) => {
+  const { data: assessments } = useStudentAssessments(courseId, day);
+  const [selectedAnswers, setSelectedAnswers] = useState<Record<string, string>>({});
+  const [submittedAssessmentId, setSubmittedAssessmentId] = useState<string | null>(null);
+  const [submissionResult, setSubmissionResult] = useState<any>(null);
+  const submitAssessment = useSubmitAssessment();
+  const { toast } = useToast();
+
+  if (!assessments || assessments.length === 0) return null;
+
+  const assessment = assessments[0]; // For simplicity, we're showing the first assessment
+  
+  if (submittedAssessmentId === assessment._id) {
+    return (
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <FileCheck className="mr-2 h-5 w-5 text-green-500" />
+            Assessment Completed
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="text-center py-4">
+              <p className="text-2xl font-bold">{submissionResult?.score || 0}/{assessment.questions.length}</p>
+              <p className="text-muted-foreground">Your score</p>
+            </div>
+            
+            <div className="space-y-6">
+              {(assessment.questions as any[]).map((question, qIndex) => {
+                const userAnswer = selectedAnswers[question._id];
+                const correctOption = question.options.find((o: any) => o.isCorrect);
+                const isCorrect = userAnswer === correctOption?.text;
+                
+                return (
+                  <div key={question._id} className="border p-4 rounded-md">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className={cn(
+                        "flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold",
+                        isCorrect ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+                      )}>
+                        {isCorrect ? '✓' : '✗'}
+                      </span>
+                      <p className="font-medium">{question.questionText}</p>
+                    </div>
+                    
+                    <div className="ml-8 space-y-1">
+                      <p>Your answer: <span className={isCorrect ? "text-green-600 font-medium" : "text-red-600 font-medium"}>{userAnswer}</span></p>
+                      {!isCorrect && <p>Correct answer: <span className="text-green-600 font-medium">{correctOption?.text}</span></p>}
+                      {question.explanation && <p className="text-sm text-muted-foreground mt-2">{question.explanation}</p>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            
+            <Button 
+              className="w-full" 
+              variant="outline" 
+              onClick={() => {
+                setSubmittedAssessmentId(null);
+                setSubmissionResult(null);
+              }}
+            >
+              Review Again
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const handleSubmit = async () => {
+    try {
+      // Convert our selected answers to the format expected by the API
+      const answers = Object.entries(selectedAnswers).map(([questionId, selectedAnswer]) => ({
+        type: 'MCQ' as const,
+        questionId,
+        selectedAnswer,
+      }));
+      
+      // Submit the assessment
+      const result = await submitAssessment.mutateAsync({
+        assessmentId: assessment._id,
+        answers,
+      });
+      
+      // Set submission results to show feedback
+      setSubmittedAssessmentId(assessment._id);
+      setSubmissionResult(result);
+      
+      toast({
+        title: "Assessment submitted",
+        description: "Your answers have been submitted successfully.",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to submit assessment. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const isAllQuestionsAnswered = (assessment.questions as any[]).every(
+    q => !!selectedAnswers[q._id]
+  );
+
+  return (
+    <Card className="mt-6">
+      <CardHeader>
+        <CardTitle>{assessment.title}</CardTitle>
+        <p className="text-sm text-muted-foreground">{assessment.description}</p>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-6">
+          {(assessment.questions as any[]).map((question, index) => (
+            <div key={question._id} className="space-y-3">
+              <h3 className="font-medium">Question {index + 1}: {question.questionText}</h3>
+              <RadioGroup
+                value={selectedAnswers[question._id]}
+                onValueChange={(value) => {
+                  setSelectedAnswers(prev => ({
+                    ...prev,
+                    [question._id]: value
+                  }));
+                }}
+              >
+                <div className="space-y-2">
+                  {question.options.map((option: any, optionIndex: number) => (
+                    <div key={optionIndex} className="flex items-center space-x-2">
+                      <RadioGroupItem 
+                        value={option.text} 
+                        id={`q${question._id}-o${optionIndex}`} 
+                      />
+                      <Label htmlFor={`q${question._id}-o${optionIndex}`}>{option.text}</Label>
+                    </div>
+                  ))}
+                </div>
+              </RadioGroup>
+            </div>
+          ))}
+          
+          <Button 
+            onClick={handleSubmit} 
+            disabled={!isAllQuestionsAnswered}
+            className="w-full"
+          >
+            Submit Answers
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
 const CourseWeekView = () => {
   const { courseId } = useParams<{ courseId: string }>();
   const [selectedDay, setSelectedDay] = useState<number>(0);
   const [completedDays, setCompletedDays] = useState<number[]>([]);
   const [watchedVideos, setWatchedVideos] = useState<number[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [showAssessment, setShowAssessment] = useState(false);
   const { token, isAuthenticated, loading } = useAuth();
   const { toast } = useToast();
   const updateProgressMutation = useUpdateProgress();
@@ -286,6 +446,7 @@ const CourseWeekView = () => {
   const handleVideoComplete = (day: number) => {
     console.log(`Video ${day} completed`);
     setWatchedVideos(prev => [...prev, day]);
+    setShowAssessment(true);
   };
 
   const isVideoEnabled = (day: number) => {
@@ -307,6 +468,7 @@ const CourseWeekView = () => {
               onClick={() => {
                 setSelectedDay(day.day);
                 setIsSidebarOpen(false);
+                setShowAssessment(false);
               }}
               className={cn(
                 "flex flex-col w-full p-3 rounded-lg text-sm gap-1 transition-colors text-left",
@@ -398,56 +560,80 @@ const CourseWeekView = () => {
                 <p className="text-sm md:text-base text-muted-foreground">{currentDay.topics}</p>
               </div>
 
-              <Card>
-                <CardContent className="p-4 md:p-6">
-                  <VideoPlayer 
-                    videoUrl={currentDay.video} 
-                    onVideoComplete={() => handleVideoComplete(currentDay.day)}
-                    isEnabled={isVideoEnabled(currentDay.day)}
-                  />
-                </CardContent>
-              </Card>
+              {!showAssessment ? (
+                <>
+                  <Card>
+                    <CardContent className="p-4 md:p-6">
+                      <VideoPlayer 
+                        videoUrl={currentDay.video} 
+                        onVideoComplete={() => handleVideoComplete(currentDay.day)}
+                        isEnabled={isVideoEnabled(currentDay.day)}
+                      />
+                    </CardContent>
+                  </Card>
 
-              {currentDay.notes && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg md:text-xl">Notes</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm md:text-base text-muted-foreground whitespace-pre-wrap">
-                      {currentDay.notes}
-                    </p>
-                  </CardContent>
-                </Card>
+                  {currentDay.notes && (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-lg md:text-xl">Notes</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-sm md:text-base text-muted-foreground whitespace-pre-wrap">
+                          {currentDay.notes}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  <TranscriptSection transcript={currentDay.transcript} />
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-lg md:text-xl">Topics Covered</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-sm md:text-base text-muted-foreground">
+                        {currentDay.topics}
+                      </p>
+                    </CardContent>
+                  </Card>
+
+                  <Button
+                    onClick={() => handleDayComplete(currentDay.day)}
+                    variant="default"
+                    className={cn(
+                      "w-full",
+                      completedDays.includes(currentDay.day)
+                        ? "bg-green-500 hover:bg-green-600 text-white"
+                        : "bg-primary text-primary-foreground hover:bg-primary/90"
+                    )}
+                  >
+                    {completedDays.includes(currentDay.day)
+                      ? "Mark as Incomplete"
+                      : "Mark as Complete"}
+                  </Button>
+                </>
+              ) : (
+                <>
+                  {/* Show assessments here after video completion */}
+                  <DayAssessment day={currentDay.day} courseId={courseId || ''} />
+                  
+                  <div className="flex justify-between mt-6">
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowAssessment(false)}
+                    >
+                      Go Back to Video
+                    </Button>
+                    
+                    <Button
+                      onClick={() => navigate(`/student/assessments/${courseId}`)}
+                    >
+                      View All Assessments
+                    </Button>
+                  </div>
+                </>
               )}
-
-              <TranscriptSection transcript={currentDay.transcript} />
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg md:text-xl">Topics Covered</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm md:text-base text-muted-foreground">
-                    {currentDay.topics}
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Button
-                onClick={() => handleDayComplete(currentDay.day)}
-                variant="default"
-                className={cn(
-                  "w-full",
-                  completedDays.includes(currentDay.day)
-                    ? "bg-green-500 hover:bg-green-600 text-white"
-                    : "bg-primary text-primary-foreground hover:bg-primary/90"
-                )}
-              >
-                {completedDays.includes(currentDay.day)
-                  ? "Mark as Incomplete"
-                  : "Mark as Complete"}
-              </Button>
             </div>
           )}
         </div>
