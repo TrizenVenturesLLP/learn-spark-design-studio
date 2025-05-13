@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -7,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { Edit, Star, Mail, Phone, MapPin, BookOpen, Users, Clock } from 'lucide-react';
+import { Edit, Star, Mail, Phone, MapPin, BookOpen, Users, Clock, FileCheck, Upload } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -29,52 +28,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 import axios from '@/lib/axios';
-import { User, safelyAccessUser } from '@/types/auth';
-
-// Update the AuthContextType to match what's in contexts/AuthContext.tsx
-interface AuthContextType {
-  isAuthenticated: boolean;
-  user: User | null;
-  token: string | null;
-  loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  signup: (data: any) => Promise<void>;
-  logout: () => void;
-}
-
-// Define API response types
-interface InstructorProfileResponse {
-  id: string;
-  name: string;
-  displayName?: string;
-  email: string;
-  instructorProfile?: {
-    phone?: string;
-    location?: string;
-    specialty?: string;
-    experience?: number;
-    bio?: string;
-    avatar?: string;
-    socialLinks?: {
-      linkedin?: string;
-      twitter?: string;
-      website?: string;
-    };
-  };
-  profileCompletion: number;
-  stats?: {
-    totalStudents: number;
-    totalCourses: number;
-    averageRating: number;
-    teachingHours: number;
-  };
-  recentReviews?: Array<{
-    student: string;
-    rating: number;
-    comment: string;
-    date: string;
-  }>;
-}
 
 // Mock data as fallback if API fails
 const mockProfileData = {
@@ -126,7 +79,7 @@ const profileFormSchema = z.object({
 });
 
 const InstructorProfile: React.FC = () => {
-  const auth = useAuth();
+  const { user } = useAuth();
   const { toast } = useToast();
   const [profileData, setProfileData] = useState(mockProfileData);
   const [isLoading, setIsLoading] = useState(false);
@@ -157,7 +110,7 @@ const InstructorProfile: React.FC = () => {
       try {
         // Use the new API endpoint to fetch profile data
         const response = await axios.get('/api/instructor/profile');
-        const data = response.data as InstructorProfileResponse;
+        const data = response.data;
 
         // Transform the API response to match our component's data structure
         const transformedData = {
@@ -165,22 +118,22 @@ const InstructorProfile: React.FC = () => {
           name: data.name,
           role: data.displayName || 'Instructor',
           email: data.email,
-          phone: safelyAccessUser(data, user => user.instructorProfile?.phone, ''),
-          location: safelyAccessUser(data, user => user.instructorProfile?.location, ''),
-          specialty: safelyAccessUser(data, user => user.instructorProfile?.specialty, ''),
-          experience: safelyAccessUser(data, user => user.instructorProfile?.experience, 0),
-          bio: safelyAccessUser(data, user => user.instructorProfile?.bio, ''),
-          profileCompletion: data.profileCompletion,
-          totalStudents: safelyAccessUser(data, user => user.stats?.totalStudents, 0),
-          totalCourses: safelyAccessUser(data, user => user.stats?.totalCourses, 0),
-          averageRating: safelyAccessUser(data, user => user.stats?.averageRating, 0),
-          teachingHours: safelyAccessUser(data, user => user.stats?.teachingHours, 0),
+          phone: data.instructorProfile.phone || '',
+          location: data.instructorProfile.location || '',
+          specialty: data.instructorProfile.specialty || '',
+          experience: data.instructorProfile.experience || 0,
+          bio: data.instructorProfile.bio || '',
+          profileCompletion: data.profileCompletion || 0,
+          totalStudents: data.stats?.totalStudents || 0,
+          totalCourses: data.stats?.totalCourses || 0,
+          averageRating: data.stats?.averageRating || 0,
+          teachingHours: data.stats?.teachingHours || 0,
           recentReviews: data.recentReviews || [],
-          avatar: safelyAccessUser(data, user => user.instructorProfile?.avatar, null),
+          avatar: data.instructorProfile.avatar || null,
           socialLinks: {
-            linkedin: safelyAccessUser(data, user => user.instructorProfile?.socialLinks?.linkedin, ''),
-            twitter: safelyAccessUser(data, user => user.instructorProfile?.socialLinks?.twitter, ''),
-            website: safelyAccessUser(data, user => user.instructorProfile?.socialLinks?.website, '')
+            linkedin: data.instructorProfile.socialLinks?.linkedin || '',
+            twitter: data.instructorProfile.socialLinks?.twitter || '',
+            website: data.instructorProfile.socialLinks?.website || ''
           }
         };
 
@@ -189,17 +142,11 @@ const InstructorProfile: React.FC = () => {
         console.error('Error fetching profile data:', error);
         
         // Fallback to using user data from auth context if available
-        if (auth.user) {
+        if (user) {
           setProfileData({
             ...mockProfileData,
-            name: auth.user.name || mockProfileData.name,
-            email: auth.user.email || mockProfileData.email,
-            profileCompletion: safelyAccessUser(auth.user, u => u.profileCompletion, mockProfileData.profileCompletion),
-            totalStudents: safelyAccessUser(auth.user, u => u.stats?.totalStudents, mockProfileData.totalStudents),
-            totalCourses: safelyAccessUser(auth.user, u => u.stats?.totalCourses, mockProfileData.totalCourses),
-            averageRating: safelyAccessUser(auth.user, u => u.stats?.averageRating, mockProfileData.averageRating),
-            teachingHours: safelyAccessUser(auth.user, u => u.stats?.teachingHours, mockProfileData.teachingHours),
-            recentReviews: safelyAccessUser(auth.user, u => u.recentReviews, mockProfileData.recentReviews),
+            name: user.name || mockProfileData.name,
+            email: user.email || mockProfileData.email,
           });
         }
         
@@ -214,7 +161,7 @@ const InstructorProfile: React.FC = () => {
     };
 
     fetchProfile();
-  }, [auth, toast]);
+  }, [user, toast]);
 
   // Update form values when profile data changes
   useEffect(() => {
@@ -270,7 +217,38 @@ const InstructorProfile: React.FC = () => {
           try {
             // Refetch profile to get latest data
             const profileResponse = await axios.get('/api/instructor/profile');
-            const data = profileResponse.data as InstructorProfileResponse;
+            const data = profileResponse.data as {
+              id: string;
+              name: string;
+              displayName?: string;
+              email: string;
+              instructorProfile: {
+                specialty: string;
+                experience: number;
+                bio?: string;
+                phone?: string;
+                location?: string;
+                avatar?: string;
+                socialLinks?: {
+                  linkedin?: string;
+                  twitter?: string;
+                  website?: string;
+                };
+              };
+              profileCompletion: number;
+              stats?: {
+                totalStudents: number;
+                totalCourses: number;
+                averageRating: number;
+                teachingHours: number;
+              };
+              recentReviews?: Array<{
+                student: string;
+                rating: number;
+                comment: string;
+                date: string;
+              }>;
+            };
             
             // Transform the API response to match our component's data structure
             const transformedData = {
@@ -278,46 +256,65 @@ const InstructorProfile: React.FC = () => {
               name: data.name,
               role: data.displayName || 'Instructor',
               email: data.email,
-              phone: safelyAccessUser(data, user => user.instructorProfile?.phone, ''),
-              location: safelyAccessUser(data, user => user.instructorProfile?.location, ''),
-              specialty: safelyAccessUser(data, user => user.instructorProfile?.specialty, ''),
-              experience: safelyAccessUser(data, user => user.instructorProfile?.experience, 0),
-              bio: safelyAccessUser(data, user => user.instructorProfile?.bio, ''),
-              profileCompletion: safelyAccessUser(data, user => user.profileCompletion, 0),
-              totalStudents: safelyAccessUser(data, user => user.stats?.totalStudents, 0),
-              totalCourses: safelyAccessUser(data, user => user.stats?.totalCourses, 0),
-              averageRating: safelyAccessUser(data, user => user.stats?.averageRating, 0),
-              teachingHours: safelyAccessUser(data, user => user.stats?.teachingHours, 0),
-              recentReviews: safelyAccessUser(data, user => user.recentReviews, []),
-              avatar: safelyAccessUser(data, user => user.instructorProfile?.avatar, null),
+              phone: data.instructorProfile.phone || '',
+              location: data.instructorProfile.location || '',
+              specialty: data.instructorProfile.specialty || '',
+              experience: data.instructorProfile.experience || 0,
+              bio: data.instructorProfile.bio || '',
+              profileCompletion: data.profileCompletion || 0,
+              totalStudents: data.stats?.totalStudents || 0,
+              totalCourses: data.stats?.totalCourses || 0,
+              averageRating: data.stats?.averageRating || 0,
+              teachingHours: data.stats?.teachingHours || 0,
+              recentReviews: data.recentReviews || [],
+              avatar: data.instructorProfile.avatar || null,
               socialLinks: {
-                linkedin: safelyAccessUser(data, user => user.instructorProfile?.socialLinks?.linkedin, ''),
-                twitter: safelyAccessUser(data, user => user.instructorProfile?.socialLinks?.twitter, ''),
-                website: safelyAccessUser(data, user => user.instructorProfile?.socialLinks?.website, '')
+                linkedin: data.instructorProfile.socialLinks?.linkedin || '',
+                twitter: data.instructorProfile.socialLinks?.twitter || '',
+                website: data.instructorProfile.socialLinks?.website || ''
               }
             };
 
             setProfileData(transformedData);
           } catch (refetchError: any) {
             console.error('Error refetching profile after update:', refetchError);
+            console.log('Response status:', refetchError.response?.status);
+            console.log('Response data:', refetchError.response?.data);
             
             // Fall back to using the user data from the update response
-            const responseData = response.data.user as InstructorProfileResponse;
+            const userData = response.data.user as {
+              id: string;
+              name: string;
+              email: string;
+              displayName?: string;
+              instructorProfile?: {
+                specialty?: string;
+                experience?: number;
+                bio?: string;
+                phone?: string;
+                location?: string;
+                socialLinks?: {
+                  linkedin?: string;
+                  twitter?: string;
+                  website?: string;
+                }
+              }
+            };
             
             setProfileData({
               ...profileData,
-              name: safelyAccessUser(responseData, u => u.name, profileData.name),
-              email: safelyAccessUser(responseData, u => u.email, profileData.email),
-              role: safelyAccessUser(responseData, u => u.displayName, profileData.role),
-              specialty: safelyAccessUser(responseData, u => u.instructorProfile?.specialty, profileData.specialty),
-              experience: safelyAccessUser(responseData, u => u.instructorProfile?.experience, profileData.experience),
-              phone: safelyAccessUser(responseData, u => u.instructorProfile?.phone, profileData.phone),
-              location: safelyAccessUser(responseData, u => u.instructorProfile?.location, profileData.location),
-              bio: safelyAccessUser(responseData, u => u.instructorProfile?.bio, profileData.bio),
+              name: userData.name,
+              email: userData.email,
+              role: userData.displayName || profileData.role,
+              specialty: userData.instructorProfile?.specialty || profileData.specialty,
+              experience: userData.instructorProfile?.experience || profileData.experience,
+              phone: userData.instructorProfile?.phone || profileData.phone,
+              location: userData.instructorProfile?.location || profileData.location,
+              bio: userData.instructorProfile?.bio || profileData.bio,
               socialLinks: {
-                linkedin: safelyAccessUser(responseData, u => u.instructorProfile?.socialLinks?.linkedin, profileData.socialLinks.linkedin),
-                twitter: safelyAccessUser(responseData, u => u.instructorProfile?.socialLinks?.twitter, profileData.socialLinks.twitter),
-                website: safelyAccessUser(responseData, u => u.instructorProfile?.socialLinks?.website, profileData.socialLinks.website)
+                linkedin: userData.instructorProfile?.socialLinks?.linkedin || profileData.socialLinks.linkedin,
+                twitter: userData.instructorProfile?.socialLinks?.twitter || profileData.socialLinks.twitter,
+                website: userData.instructorProfile?.socialLinks?.website || profileData.socialLinks.website
               }
             });
           }
@@ -348,6 +345,9 @@ const InstructorProfile: React.FC = () => {
         });
       } catch (axiosError: any) {
         console.error('Error updating profile (axios):', axiosError);
+        console.log('Response status:', axiosError.response?.status);
+        console.log('Response data:', axiosError.response?.data);
+        console.log('Request config:', axiosError.config);
         
         // Check for 401/403 errors which might indicate auth issues
         if (axiosError.response?.status === 401) {
@@ -740,4 +740,4 @@ const InstructorProfile: React.FC = () => {
   );
 };
 
-export default InstructorProfile;
+export default InstructorProfile; 

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -18,7 +17,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from '@/lib/utils';
-import { getUserId } from '@/utils/messageHelpers';
 
 const ContactInstructorsPage: React.FC = () => {
   const [selectedInstructor, setSelectedInstructor] = useState<string | null>(null);
@@ -216,10 +214,10 @@ const ContactInstructorsPage: React.FC = () => {
                               key={message._id}
                               className={cn(
                                 "flex",
-                                getUserId(message.senderId) === selectedInstructor ? "justify-start" : "justify-end"
+                                message.senderId._id === selectedInstructor ? "justify-start" : "justify-end"
                               )}
                             >
-                              {getUserId(message.senderId) === selectedInstructor && (
+                              {message.senderId._id === selectedInstructor && (
                                 <Avatar className="h-8 w-8 mr-2 self-end mb-1">
                                   <AvatarFallback>
                                     {filteredInstructors.find(i => i.instructor.id === selectedInstructor)?.instructor.name.split(' ').map(n => n[0]).join('')}
@@ -229,7 +227,7 @@ const ContactInstructorsPage: React.FC = () => {
                               <div
                                 className={cn(
                                   "max-w-[70%] p-3 rounded-lg shadow-sm relative",
-                                  getUserId(message.senderId) === selectedInstructor
+                                  message.senderId._id === selectedInstructor
                                     ? "bg-white rounded-tl-none"
                                     : "bg-primary text-primary-foreground rounded-tr-none"
                                 )}
@@ -299,4 +297,4 @@ const ContactInstructorsPage: React.FC = () => {
   );
 };
 
-export default ContactInstructorsPage;
+export default ContactInstructorsPage; 

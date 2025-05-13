@@ -1,36 +1,8 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from '@/lib/axios';
+import { Discussion } from '@/types/discussion';
 
-export interface Discussion {
-  _id: string;
-  title: string;
-  content: string;
-  author: {
-    _id: string;
-    name: string;
-    avatar?: string;
-  };
-  courseId: string;
-  courseName?: string;
-  createdAt: string;
-  updatedAt: string;
-  isPinned: boolean;
-  likes: number;
-  likedByUser: boolean;
-  replies: Array<{
-    _id: string;
-    content: string;
-    author: {
-      _id: string;
-      name: string;
-      avatar?: string;
-    };
-    createdAt: string;
-  }>;
-}
-
-export interface CreateDiscussionData {
+interface CreateDiscussionData {
   title: string;
   content: string;
   isPinned: boolean;

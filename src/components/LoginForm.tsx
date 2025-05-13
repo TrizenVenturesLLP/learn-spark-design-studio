@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -48,6 +47,7 @@ const LoginForm = () => {
           title: "Application Under Review",
           description: "Your instructor application is still pending approval. We'll notify you once it's approved.",
           variant: "default",
+          duration: 5000,
         });
         // Redirect to pending approval page
         setTimeout(() => {

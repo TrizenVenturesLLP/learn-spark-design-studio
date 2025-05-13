@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import axios from '../lib/axios';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -117,6 +116,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             title: "Application Under Review",
             description: "Your instructor application is still pending approval. We'll notify you once it's approved.",
             variant: "default",
+            duration: 5000,
           });
         }
       } else {
@@ -130,6 +130,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         toast({
           title: "Login Successful",
           description: "Welcome back!",
+          duration: 3000,
         });
       }
       
@@ -141,6 +142,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           title: "Application Under Review",
           description: "Your instructor application is still pending approval. We'll notify you once it's approved.",
           variant: "default",
+          duration: 5000,
         });
       }
       const errorMessage = error.response?.data?.message || 'Login failed';
@@ -167,12 +169,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         toast({
           title: "Application submitted",
           description: "Your instructor application is being reviewed. We'll notify you once it's approved.",
+          duration: 5000,
         });
       } else {
         navigate('/dashboard');
         toast({
           title: "Account created",
           description: "Your account has been created successfully!",
+          duration: 3000,
         });
       }
     } catch (error: any) {
