@@ -57,7 +57,7 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
     formData.append('dayNumber', dayNumber.toString());
 
     try {
-      const response = await axios.post('/api/instructor/videos/upload', formData, {
+      const response = await axios.post('/api/videos/upload', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },

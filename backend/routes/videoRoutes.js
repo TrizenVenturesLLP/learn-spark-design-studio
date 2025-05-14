@@ -69,8 +69,8 @@ async function ensureBucketExists() {
 
 ensureBucketExists();
 
-// Route for video upload by instructors
-router.post('/instructor/videos/upload', auth, upload.single('video'), async (req, res) => {
+// Route for video upload (accessible by instructors)
+router.post('/videos/upload', auth, upload.single('video'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ message: 'No video file uploaded' });
