@@ -473,7 +473,7 @@ const MessagesPage = () => {
                       )}
                     </div>
                     
-                    <ScrollArea className="h-[500px] pr-4">
+                    <ScrollArea className="h-[300px] pr-4">
                       <div className="space-y-4">
                         {/* Initial discussion post */}
                         <div className="flex justify-start">
@@ -553,7 +553,7 @@ const MessagesPage = () => {
                     </div>
                   </div>
                 ) : (
-                  <ScrollArea className="h-[500px]">
+                  <ScrollArea className="h-[300px]">
                     <div className="space-y-4">
                       {filteredDiscussions.map((discussion) => (
                         <div
@@ -623,7 +623,7 @@ const MessagesPage = () => {
             </TabsContent>
 
             <TabsContent value="messages">
-              <div className="flex h-[700px] gap-4">
+              <div className="flex h-[500px] gap-4">
                 {/* Left sidebar: Conversations list */}
                 <Card className="w-80 flex flex-col bg-white">
                   <div className="p-4 border-b space-y-2">

@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import CourseCard from "./CourseCard";
@@ -16,12 +15,16 @@ interface FilterableCoursesSectionProps {
 // Course categories
 const categories = [
   { id: "all", name: "All" },
-  { id: "ai", name: "AI & Machine Learning" },
-  { id: "cloud", name: "Cloud & DevOps" },
-  { id: "web", name: "Web & Mobile Development" },
-  { id: "security", name: "Cybersecurity" },
-  { id: "data", name: "Data Science" },
-  { id: "soft", name: "Soft Skills & Communication" }
+  { id: "Web Development", name: "Web Development" },
+  { id: "Mobile Development", name: "Mobile Development" },
+  { id: "Data Science", name: "Data Science" },
+  { id: "Machine Learning", name: "Machine Learning" },
+  { id: "Cloud Computing", name: "Cloud Computing" },
+  { id: "DevOps", name: "DevOps" },
+  { id: "Cybersecurity", name: "Cybersecurity" },
+  { id: "Blockchain", name: "Blockchain" },
+  { id: "Design", name: "Design" },
+  { id: "Digital Marketing", name: "Digital Marketing" }
 ];
 
 const FilterableCoursesSection = ({ 
@@ -36,7 +39,10 @@ const FilterableCoursesSection = ({
   // Filter courses based on selected category
   const filteredCourses = activeCategory === "all" 
     ? courses 
-    : courses.filter(course => course.category === activeCategory);
+    : courses.filter(course => {
+        // Case-insensitive comparison of categories
+        return course.category && course.category.toLowerCase() === activeCategory.toLowerCase();
+      });
 
   return (
     <section id="courses-section" className="section-padding">

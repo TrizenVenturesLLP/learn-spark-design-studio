@@ -72,8 +72,8 @@ const Support = () => {
                     <div className="space-y-2 text-sm">
                       <div className="flex items-center">
                         <Mail className="w-4 h-4 mr-2 text-muted-foreground" />
-                        <a href="mailto:projects.trizen@gmail.com" className="text-primary hover:underline">
-                          projects.trizen@gmail.com
+                        <a href="mailto:courses@trizenventures.com" className="text-primary hover:underline">
+                        courses@trizenventures.com
                         </a>
                       </div>
                       <div className="flex items-center">

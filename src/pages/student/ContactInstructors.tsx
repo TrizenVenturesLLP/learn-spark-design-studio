@@ -105,7 +105,7 @@ const ContactInstructorsPage: React.FC = () => {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="flex h-[700px] gap-4">
+            <div className="flex h-[500px] gap-4">
               {/* Left sidebar: Instructors list */}
               <Card className="w-80 flex flex-col bg-white">
                 <div className="p-4 border-b">

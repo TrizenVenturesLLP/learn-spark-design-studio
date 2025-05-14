@@ -6,6 +6,40 @@ import { useToast } from "@/hooks/use-toast";
 import { useCourseDetails, useEnrollCourse, useUpdateProgress } from '@/services/courseService';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/contexts/AuthContext';
+import DashboardLayout from "@/components/layouts/DashboardLayout";
+
+interface RoadmapDay {
+  topics: string;
+  video?: string;
+  notes?: string;
+  duration?: string;
+  description?: string;
+  completed?: boolean;
+}
+
+interface Course {
+  _id: string;
+  title: string;
+  description: string;
+  longDescription?: string;
+  instructor: string;
+  instructorAvatar?: string;
+  thumbnail: string;
+  price: number;
+  originalPrice?: number;
+  students: number;
+  rating: number;
+  enrollmentStatus?: string;
+  duration?: string;
+  days?: number;
+  level?: string;
+  learningObjectives?: string[];
+  requirements?: string[];
+  targetAudience?: string[];
+  roadmap?: RoadmapDay[];
+  content?: any[];
+  skills?: string[];
+}
 
 interface EnrollFormProps {
   courseId?: string;
@@ -64,258 +98,274 @@ const EnrollForm: React.FC<EnrollFormProps> = ({ courseId }) => {
   };
 
   const handleResumeCourse = () => {
-    navigate('/my-courses');
+    navigate(`/course/${courseId}/weeks`);
   };
 
   if (isLoading) {
     return (
-      <div className="min-h-screen">
-        <Header />
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-          <Skeleton className="h-8 sm:h-12 w-3/4 mb-3 sm:mb-4" />
-          <Skeleton className="h-16 sm:h-24 w-full mb-4 sm:mb-6" />
-          <div className="flex items-center gap-2 mb-4 sm:mb-6">
-            <Skeleton className="h-4 sm:h-6 w-24 sm:w-32" />
-          </div>
-          <Skeleton className="h-8 sm:h-10 w-28 sm:w-36 mb-3 sm:mb-4" />
-          <div className="flex flex-col sm:flex-row gap-3 sm:gap-6 mb-8 sm:mb-10">
-            <Skeleton className="h-4 sm:h-6 w-32 sm:w-40" />
-            <Skeleton className="h-4 sm:h-6 w-36 sm:w-48" />
-          </div>
-          {/* Course Highlights Skeleton */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-6">
-            {[...Array(5)].map((_, i) => (
-              <Skeleton key={i} className="h-20 sm:h-24 w-full" />
-            ))}
+      <DashboardLayout>
+        <div className="min-h-screen">
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+            <Skeleton className="h-8 sm:h-12 w-3/4 mb-3 sm:mb-4" />
+            <Skeleton className="h-16 sm:h-24 w-full mb-4 sm:mb-6" />
+            <div className="flex items-center gap-2 mb-4 sm:mb-6">
+              <Skeleton className="h-4 sm:h-6 w-24 sm:w-32" />
+            </div>
+            <Skeleton className="h-8 sm:h-10 w-28 sm:w-36 mb-3 sm:mb-4" />
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-6 mb-8 sm:mb-10">
+              <Skeleton className="h-4 sm:h-6 w-32 sm:w-40" />
+              <Skeleton className="h-4 sm:h-6 w-36 sm:w-48" />
+            </div>
+            {/* Course Highlights Skeleton */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-6">
+              {[...Array(5)].map((_, i) => (
+                <Skeleton key={i} className="h-20 sm:h-24 w-full" />
+              ))}
+            </div>
           </div>
         </div>
-      </div>
+      </DashboardLayout>
     );
   }
 
   if (isError || !course) {
     return (
-      <div className="min-h-screen">
-        <Header />
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 text-center">
-          <h1 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4">Course Not Found</h1>
-          <p className="text-sm sm:text-base text-muted-foreground mb-4 sm:mb-6">
-            The course you're looking for doesn't seem to exist.
-          </p>
-          <Button onClick={() => navigate('/explore-courses')}>
-            Browse Courses
-          </Button>
+      <DashboardLayout>
+        <div className="min-h-screen">
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 text-center">
+            <h1 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4">Course Not Found</h1>
+            <p className="text-sm sm:text-base text-muted-foreground mb-4 sm:mb-6">
+              The course you're looking for doesn't seem to exist.
+            </p>
+            <Button onClick={() => navigate('/explore-courses')}>
+              Browse Courses
+            </Button>
+          </div>
         </div>
-      </div>
+      </DashboardLayout>
     );
   }
   
-  // Determine button type based on enrollment status
+  // Determine button type based on enrollment status and authentication
   let actionButton;
-  if (!course.enrollmentStatus) {
+  const isUserEnrolled = course?.enrollmentStatus && ['enrolled', 'started', 'completed'].includes(course.enrollmentStatus);
+
+  if (!isAuthenticated) {
     actionButton = (
       <Button 
         size="lg" 
         onClick={handleEnroll} 
-        className="mb-4"
+        className="mb-4 w-full bg-primary hover:bg-primary/90"
+      >
+        Enroll Now
+      </Button>
+    );
+  } else if (!isUserEnrolled) {
+    actionButton = (
+      <Button 
+        size="lg" 
+        onClick={handleEnroll} 
+        className="mb-4 w-full bg-primary hover:bg-primary/90"
         disabled={enrollMutation.isPending}
       >
         {enrollMutation.isPending ? "Enrolling..." : "Enroll Now"}
       </Button>
     );
-  } else if (course.enrollmentStatus === 'enrolled') {
-    actionButton = (
-      <Button 
-        size="lg" 
-        onClick={handleStartCourse} 
-        className="mb-4 bg-green-600 hover:bg-green-700"
-        disabled={updateProgressMutation.isPending}
-      >
-        {updateProgressMutation.isPending ? "Starting..." : "Start Course"}
-      </Button>
-    );
-  } else if (course.enrollmentStatus === 'started') {
+  } else if (course.enrollmentStatus === 'enrolled' || course.enrollmentStatus === 'started') {
     actionButton = (
       <Button 
         size="lg" 
         onClick={handleResumeCourse} 
-        className="mb-4 bg-blue-600 hover:bg-blue-700"
+        className="mb-4 w-full bg-blue-600 hover:bg-blue-700"
       >
         Resume Course
       </Button>
     );
-  } else {
+  } else if (course.enrollmentStatus === 'completed') {
     actionButton = (
-      <Badge className="mb-4 text-lg py-2 px-4 bg-green-600">
+      <Badge className="mb-4 text-lg py-2 px-4 bg-green-600 w-full flex justify-center">
         Course Completed
       </Badge>
     );
   }
 
   return (
-    <div className="min-h-screen">
-      <Header />
-
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-        {/* Hero Section */}
-        <div className="mb-8 sm:mb-10">
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-3 sm:mb-4">
-            {course?.title}
-          </h1>
-          <p className="text-base sm:text-lg text-muted-foreground mb-4 sm:mb-6 max-w-3xl">
-            {course?.longDescription}
-          </p>
-          <div className="flex items-center gap-2 mb-4 sm:mb-6">
-            <span className="text-sm sm:text-base text-muted-foreground">Instructor:</span>
-            <span className="text-sm sm:text-base font-medium">{course?.instructor}</span>
-          </div>
-          
-          <div className="mb-4 sm:mb-6">
-            {actionButton}
-          </div>
-          
-          <div className="flex flex-col sm:flex-row gap-2 sm:gap-6 text-xs sm:text-sm text-muted-foreground">
-            <span>{course?.students?.toLocaleString()} already enrolled</span>
-            <span>Included with <strong>TRIZEN Premium</strong></span>
-          </div>
-        </div>
-
-        {/* Course Highlights */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-6 mb-8 sm:mb-10">
-          <div className="bg-card rounded-lg p-3 sm:p-4 shadow-sm">
-            <h3 className="text-sm sm:text-base font-medium mb-1">
-              {course.courses?.length || 3} course series
-            </h3>
-            <p className="text-xs sm:text-sm text-muted-foreground">
-              Get in-depth knowledge
-            </p>
-          </div>
-          
-          <div className="bg-card rounded-lg p-3 sm:p-4 shadow-sm">
-            <div className="flex items-center gap-1 mb-1">
-              <span className="text-yellow-500">★★★★</span><span>☆</span>
-              <span className="text-sm sm:text-base font-medium">{course.rating}</span>
-            </div>
-            <p className="text-xs sm:text-sm text-muted-foreground">
-              ({Math.floor(course.students / 15)} reviews)
-            </p>
-          </div>
-          
-          <div className="bg-card rounded-lg p-3 sm:p-4 shadow-sm">
-            <h3 className="text-sm sm:text-base font-medium mb-1">
-              {course.level} level
-            </h3>
-            <p className="text-xs sm:text-sm text-muted-foreground">
-              Recommended experience
-            </p>
-          </div>
-          
-          <div className="bg-card rounded-lg p-3 sm:p-4 shadow-sm">
-            <h3 className="text-sm sm:text-base font-medium mb-1">
-              {Math.ceil(parseInt(course.duration) / 12)} months
-            </h3>
-            <p className="text-xs sm:text-sm text-muted-foreground">
-              at 3 hours a week
-            </p>
-          </div>
-          
-          <div className="bg-card rounded-lg p-3 sm:p-4 shadow-sm">
-            <h3 className="text-sm sm:text-base font-medium mb-1">
-              Certificate
-            </h3>
-            <p className="text-xs sm:text-sm text-muted-foreground">
-              Upon completion
-            </p>
-          </div>
-        </div>
-
-        {/* Course Content Preview */}
-        <div className="space-y-6 sm:space-y-8">
-          <div>
-            <h2 className="text-xl sm:text-2xl font-semibold mb-3 sm:mb-4">
-              What you'll learn
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-              {course.skills?.map((skill, index) => (
-                <div 
-                  key={index}
-                  className="flex items-start gap-2 p-2 sm:p-3 rounded-md bg-muted/50"
-                >
-                  <span className="text-sm sm:text-base">{skill}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {course.roadmap && course.roadmap.length > 0 && (
-            <div>
-              <h2 className="text-xl sm:text-2xl font-semibold mb-3 sm:mb-4">
-                Course Roadmap
-              </h2>
-              <div className="space-y-3 sm:space-y-4">
-                {course.roadmap.map((day, index) => (
-                  <div 
-                    key={index}
-                    className="p-3 sm:p-4 rounded-lg border bg-card"
-                  >
-                    <h3 className="text-base sm:text-lg font-medium mb-2">
-                      Day {index + 1}
-                    </h3>
-                    <div className="space-y-2">
-                      <div className="flex items-start gap-2">
-                        <span className="text-sm sm:text-base">Topics:</span>
-                        <p className="text-sm sm:text-base text-muted-foreground">
-                          {day.topics}
-                        </p>
-                      </div>
-                      <div className="flex items-start gap-2">
-                        <span className="text-sm sm:text-base">Video:</span>
-                        <p className="text-sm sm:text-base text-muted-foreground">
-                          {day.video}
-                        </p>
-                      </div>
-                      {day.notes && (
-                        <div className="flex items-start gap-2 mt-2 pt-2 border-t">
-                          <span className="text-sm sm:text-base">Notes:</span>
-                          <p className="text-sm sm:text-base text-muted-foreground">
-                            {day.notes}
-                          </p>
-                        </div>
-                      )}
-                    </div>
+    <DashboardLayout>
+      <div className="min-h-screen bg-gradient-to-b from-background to-gray-50">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+          {/* Hero Section */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
+            <div className="lg:col-span-2">
+              <div className="space-y-6">
+                <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight">
+                  {course?.title}
+                </h1>
+                
+                <div className="flex items-center gap-4 text-sm">
+                  <div className="flex items-center gap-2">
+                    <span className="text-yellow-500 flex">★★★★☆</span>
+                    <span className="font-medium">{course?.rating}</span>
+                    <span className="text-muted-foreground">({Math.floor(course?.students / 15)} reviews)</span>
                   </div>
-                ))}
+                  <div className="text-muted-foreground">•</div>
+                  <div className="text-muted-foreground">{course?.students?.toLocaleString()} students</div>
+                </div>
+
+                {/* Short Description */}
+                              <div className="bg-muted/30 rounded-lg p-3 border border-border/50">
+                <p className="text-sm font-semibold text-foreground">
+                  {course?.description}
+                </p>
+              </div>
+
+                {/* Long Description */}
+                              <div className="bg-card rounded-xl p-6 border space-y-4">
+                <h2 className="text-lg font-semibold flex items-center gap-2">
+                  <svg className="w-5 h-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  About This Course
+                </h2>
+                <div className="prose prose-gray dark:prose-invert max-w-none">
+                  <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                    {course?.longDescription}
+                  </p>
+                </div>
+              </div>
+
+                {/* Instructor Info */}
+                <div className="flex items-center gap-4 p-4 bg-card rounded-lg border">
+                  <img 
+                    src={course?.instructorAvatar || 'https://ui-avatars.com/api/?name=' + course?.instructor}
+                    alt={course?.instructor}
+                    className="w-16 h-16 rounded-full border-2 border-border"
+                  />
+                  <div>
+                    <p className="font-semibold text-lg">{course?.instructor}</p>
+                    <p className="text-sm text-muted-foreground">Course Instructor</p>
+                  </div>
+                </div>
               </div>
             </div>
-          )}
+
+            {/* Enrollment Card */}
+            <div className="lg:col-span-1">
+              <div className="bg-card rounded-xl shadow-lg p-6 sticky top-24">
+                <div className="space-y-4">
+                <img
+                    src={course?.image}
+                    alt={course?.title}
+                    className="w-full h-100 object-cover rounded-lg mb-4"
+                  />
+                  {/* <div className="flex items-baseline justify-between">
+                    <span className="text-3xl font-bold">{course?.price}</span>
+                    {course?.originalPrice && (
+                      <span className="text-lg text-muted-foreground line-through">
+                        {course?.originalPrice}
+                      </span>
+                    )}
+                  </div> */}
+
+                  {actionButton}
+
+                  <div className="text-sm text-muted-foreground">
+                    <p className="mb-2">This course includes:</p>
+                    <ul className="space-y-2">
+                      <li className="flex items-center gap-2">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        {course?.duration || '10 hours'} of video content
+                      </li>
+                      
+                      <li className="flex items-center gap-2">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        Certificate of completion
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        Lifetime access
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Course Content Preview */}
+          <div className="-mx-4 sm:-mx-6 lg:-mx-8">
+            <div className="grid grid-cols-1 lg:grid-cols-8 gap-8 px-4 sm:px-6 lg:px-8">
+              <div className="lg:col-span-8 space-y-8">
+                {/* What you'll learn */}
+                <div className="bg-card rounded-xl p-8">
+                  <h2 className="text-xl font-semibold mb-6">What you'll learn</h2>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    {(course?.skills || [
+                      "No skills specified for this course"
+                    ]).map((skill, index) => (
+                      <div key={index} className="flex items-start gap-3">
+                        <svg className="w-6 h-6 mt-0.5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        <span className="text-base">{skill}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Course Content */}
+                <div className="bg-card rounded-xl p-8">
+                  <h2 className="text-xl font-semibold mb-8">Course Content</h2>
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3 gap-6">
+                  {(course?.roadmap || []).map((day, index) => {
+                    const handleDayClick = () => {
+                      if (course?.enrollmentStatus === 'enrolled' || course?.enrollmentStatus === 'started') {
+                        // Scroll to top smoothly
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }
+                    };
+
+                    return (
+                      <div 
+                        key={index} 
+                        onClick={handleDayClick}
+                        className="bg-white border rounded-lg p-6 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.07),0_10px_20px_-2px_rgba(0,0,0,0.04)] hover:shadow-[0_8px_25px_-5px_rgba(0,0,0,0.1),0_10px_10px_-5px_rgba(0,0,0,0.04)] transition-all duration-10 ease-in w-full min-h-[220px] cursor-pointer hover:scale-[1.02]"
+                        >
+                          <div className="flex items-center mb-6">
+                            <div className="w-12 h-12 rounded-full bg-primary/10 text-primary flex items-center justify-center font-semibold text-lg">
+                              {index + 1}
+                            </div>
+                          </div>
+                          <h3 className="font-medium text-base mb-3">{day.topics}</h3>
+                          {day.description && (
+                            <p className="text-xs text-muted-foreground mb-3">
+                              {day.description}
+                            </p>
+                          )}
+                          {day.notes && (
+                            <div className="mt-4 pt-4 border-t">
+                              <p className="text-xs text-muted-foreground italic line-clamp-2">
+                                {day.notes}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
+    </DashboardLayout>
   );
 };
-
-// Helper component for the header to avoid repetition
-function Header() {
-  return (
-    <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-16 max-w-7xl items-center">
-        <div className="flex items-center mr-8">
-          <Link to="/" className="flex items-center">
-            <img 
-              src="/lovable-uploads/b66cad1a-9e89-49b0-a481-bbbb0a2bbded.png" 
-              alt="Trizen Logo" 
-              className="h-14" 
-            />
-          </Link>
-        </div>
-        <div className="flex-1 flex justify-end">
-          <Link to="/explore-courses" className="text-sm font-medium hover:text-primary mr-4">
-            Back to Courses
-          </Link>
-        </div>
-      </div>
-    </header>
-  );
-}
 
 export default EnrollForm;

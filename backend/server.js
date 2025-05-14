@@ -2494,6 +2494,41 @@ app.get('/api/instructor/dashboard/overview', authenticateToken, async (req, res
   }
 });
 
+// Admin: Delete course
+app.delete('/api/admin/courses/:courseId', authenticateToken, adminMiddleware, async (req, res) => {
+  try {
+    const { courseId } = req.params;
+    
+    // Find the course
+    const course = await Course.findById(courseId);
+    if (!course) {
+      return res.status(404).json({ message: 'Course not found' });
+    }
+
+    // Delete all enrollments for this course
+    await UserCourse.deleteMany({ courseId: courseId });
+
+    // Delete all notifications related to this course
+    await Notification.deleteMany({ courseId: courseId });
+
+    // Delete all discussions related to this course
+    await Discussion.deleteMany({ courseId: courseId });
+
+    // Remove course from instructor's profile
+    await User.findByIdAndUpdate(course.instructorId, {
+      $pull: { 'instructorProfile.courses': courseId }
+    });
+
+    // Finally, delete the course
+    await Course.findByIdAndDelete(courseId);
+
+    res.json({ message: 'Course deleted successfully' });
+  } catch (error) {
+    console.error('Delete course error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // Admin: Get dashboard statistics
 app.get('/api/admin/dashboard/stats', authenticateToken, adminMiddleware, async (req, res) => {
   try {

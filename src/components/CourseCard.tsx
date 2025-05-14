@@ -1,4 +1,4 @@
-
+import React from "react";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -47,20 +47,19 @@ const CourseCard = ({
   };
   
   return (
-    
     <Card 
       className="overflow-hidden transition-all duration-300 hover:shadow-md flex flex-col"
       onClick={onClick}
     >
-      <div className="aspect-video w-full overflow-hidden">
+      <div className="relative w-full pt-[56.25%]">
         <img 
           src={image} 
           alt={title} 
-          className="h-full w-full object-cover transition-transform duration-300 hover:scale-105"
+          className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 hover:scale-105"
         />
       </div>
       
-      <CardHeader className="p-4">
+      <CardHeader className="flex-1">
         <div className="flex items-center justify-between">
           <Badge variant={
             level === "Beginner" ? "outline" : 
@@ -95,7 +94,7 @@ const CourseCard = ({
         )}
       </CardHeader>
       
-      <CardContent className="p-4 pt-0 flex-grow">
+      <CardContent className="flex-1">
         <div className="flex items-center gap-4 text-sm text-muted-foreground">
           <div className="flex items-center gap-1">
             <svg
@@ -135,9 +134,9 @@ const CourseCard = ({
           </div>
         </div>
         
-        <div className="mt-4 flex flex-col gap-4">
+        <CardFooter className="px-0 pb-0 pt-4">
           {enrollmentStatus && (
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 w-full">
               <div className="flex-1">
                 <div className="flex justify-between text-xs mb-1">
                   <span>Progress</span>
@@ -190,7 +189,7 @@ const CourseCard = ({
           )}
 
           {!enrollmentStatus && onEnrollClick && (
-            <div className="flex justify-end">
+            <div className="flex justify-end w-full">
               <Button 
                 variant="outline"
                 size="sm"
@@ -202,7 +201,7 @@ const CourseCard = ({
               </Button>
             </div>
           )}
-        </div>
+        </CardFooter>
       </CardContent>
     </Card>
   );
