@@ -72,7 +72,7 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
 
       setIsUploading(false);
       
-      // Handle the response from MinIO storage
+      // Handle the response
       if (response.data && response.data.videoUrl) {
         setVideoPreview(response.data.videoUrl);
         

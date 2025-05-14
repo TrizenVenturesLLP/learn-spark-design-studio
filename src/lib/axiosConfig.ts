@@ -1,5 +1,5 @@
 
-import axios, { AxiosRequestConfig } from 'axios';
+import axios from 'axios';
 
 // Base URL from environment or default to localhost
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
@@ -24,13 +24,5 @@ axiosInstance.interceptors.request.use(
     return Promise.reject(error);
   }
 );
-
-// Extend AxiosRequestConfig to include onUploadProgress
-export interface ExtendedAxiosRequestConfig extends AxiosRequestConfig {
-  onUploadProgress?: (progressEvent: {
-    loaded: number;
-    total?: number;
-  }) => void;
-}
 
 export default axiosInstance;
