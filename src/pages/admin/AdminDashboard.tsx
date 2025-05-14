@@ -8,13 +8,13 @@ import {
   Users, 
   BookOpen, 
   UserCheck, 
-  UserX, 
   Bell,
-  Loader2,
   AlertTriangle,
   UserCog,
+  GraduationCap
 } from "lucide-react";
 import { useAdminDashboard } from '@/hooks/use-admin-dashboard';
+import { PageLoader } from '@/components/loaders';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -25,12 +25,7 @@ const AdminDashboard = () => {
   if (isLoading) {
     return (
       <AdminLayout>
-        <div className="flex items-center justify-center h-[600px]">
-          <div className="text-center">
-            <Loader2 className="h-12 w-12 animate-spin mx-auto text-primary" />
-            <p className="mt-4 text-lg">Loading dashboard data...</p>
-          </div>
-        </div>
+        <PageLoader message="Loading dashboard data..." />
       </AdminLayout>
     );
   }
@@ -52,8 +47,7 @@ const AdminDashboard = () => {
   const statCards = [
     { title: "Total Students", value: data.userStats.totalStudents, icon: Users, color: "bg-blue-100 text-blue-600" },
     { title: "Total Courses", value: data.courseStats.totalCourses, icon: BookOpen, color: "bg-green-100 text-green-600" },
-    { title: "Active Users", value: data.userStats.activeUsers, icon: UserCheck, color: "bg-purple-100 text-purple-600" },
-    { title: "Inactive Users", value: data.userStats.inactiveUsers, icon: UserX, color: "bg-orange-100 text-orange-600" },
+    { title: "Total Instructors", value: data.userStats.totalInstructors, icon: GraduationCap, color: "bg-purple-100 text-purple-600" },
   ];
 
   return (
@@ -121,7 +115,7 @@ const AdminDashboard = () => {
         </div>
         
         {/* Stats Grid */}
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {statCards.map((card, index) => (
             <Card key={index}>
               <CardContent className="p-6 flex items-center space-x-4">

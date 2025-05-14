@@ -36,6 +36,7 @@ import { useSendMessage } from '@/services/chatService';
 import { cn } from '@/lib/utils';
 import { isValidObjectId } from '@/utils/validation';
 import { useAuth } from '@/contexts/AuthContext';
+import { ContentLoader } from '@/components/loaders';
 
 interface Course {
   _id: string;
@@ -391,9 +392,7 @@ const MessagesPage = () => {
                 </div>
 
                 {isLoadingDiscussions || isLoadingCourses ? (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                  </div>
+                  <ContentLoader message="Loading discussions..." size="md" />
                 ) : isCreatingDiscussion ? (
                   <div className="space-y-4">
                     {selectedCourse === 'all' && (

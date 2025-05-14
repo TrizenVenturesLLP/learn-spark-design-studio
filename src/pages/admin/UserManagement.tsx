@@ -39,6 +39,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { TableLoader } from '@/components/loaders';
 
 interface User {
   _id: string;
@@ -292,14 +293,7 @@ const UserManagement = () => {
                 </TableHeader>
                 <TableBody>
                   {isLoading ? (
-                    <TableRow>
-                      <TableCell colSpan={7} className="h-24 text-center">
-                        <div className="flex justify-center items-center">
-                          <Loader2 className="h-6 w-6 animate-spin mr-2" />
-                          <span>Loading users...</span>
-                        </div>
-                      </TableCell>
-                    </TableRow>
+                    <TableLoader colSpan={7} message="Loading users..." />
                   ) : error ? (
                     <TableRow>
                       <TableCell colSpan={7} className="h-24 text-center text-red-500">

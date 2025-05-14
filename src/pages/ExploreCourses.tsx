@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { CardLoader } from '@/components/loaders';
 
 const ExploreCourses = () => {
   const navigate = useNavigate();
@@ -79,11 +80,7 @@ const ExploreCourses = () => {
             ))}
           </div>
           
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[...Array(6)].map((_, i) => (
-              <Skeleton key={i} className="h-80 rounded-md" />
-            ))}
-          </div>
+          <CardLoader count={6} />
         </main>
       </DashboardLayout>
     );

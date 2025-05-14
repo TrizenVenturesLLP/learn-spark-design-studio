@@ -40,6 +40,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import axios from '@/lib/axios';
 import { useNavigate } from 'react-router-dom';
+import AdminCourseView from './AdminCourseView';
 
 // Extended course status type to include admin statuses
 type CourseStatus = 'enrolled' | 'started' | 'completed' | 'pending' | 'active' | 'draft' | 'archived';
@@ -56,6 +57,10 @@ const CourseManagement = () => {
   const [confirmAction, setConfirmAction] = useState<string>('');
   const [isActionLoading, setIsActionLoading] = useState(false);
   
+  // New state for course view dialog
+  const [isCourseViewOpen, setIsCourseViewOpen] = useState(false);
+  const [viewCourseId, setViewCourseId] = useState<string | null>(null);
+  
   // Fetch courses from the API
   const { data: coursesData, isLoading, error, refetch } = useAllCourses();
   
@@ -69,7 +74,9 @@ const CourseManagement = () => {
     
     switch (action) {
       case 'View':
-        navigate(`/admin/courses/${course._id || course.id}`);
+        // Open the course view dialog instead of navigating
+        setViewCourseId(course._id || course.id);
+        setIsCourseViewOpen(true);
         break;
       case 'Edit':
         navigate(`/admin/courses/${course._id || course.id}/edit`);
@@ -177,6 +184,11 @@ const CourseManagement = () => {
   const getLastUpdated = (course: CourseType) => {
     // Return createdAt as fallback if no lastModified date available
     return formatDate(course.createdAt);
+  };
+
+  const handleCloseCourseView = () => {
+    setIsCourseViewOpen(false);
+    setViewCourseId(null);
   };
 
   return (
@@ -362,6 +374,15 @@ const CourseManagement = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      
+      {/* Course View Dialog */}
+      {viewCourseId && (
+        <AdminCourseView
+          courseId={viewCourseId}
+          isOpen={isCourseViewOpen}
+          onClose={handleCloseCourseView}
+        />
+      )}
     </AdminLayout>
   );
 };

@@ -69,7 +69,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50/50 flex flex-col">
+    <div className="min-h-screen bg-gray-50/50">
       {/* Top Navigation for Mobile */}
       <header className="sticky top-0 z-30 h-16 border-b bg-background/95 backdrop-blur lg:hidden">
         <div className="flex items-center justify-between px-4 h-full">
@@ -82,12 +82,12 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
         </div>
       </header>
 
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex">
         {/* Sidebar for desktop */}
         <aside 
-          className={`bg-white border-r fixed top-0 left-0 h-full shadow-sm z-40 transition-all duration-300 lg:static lg:block ${
-            collapsed ? 'w-20' : 'w-64'
-          } ${mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}
+          className={`bg-white border-r fixed inset-y-0 left-0 z-40 transition-all duration-300
+            ${collapsed ? 'w-20' : 'w-64'}
+            ${mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}
         >
           <div className="flex flex-col h-full">
             {/* Logo Area */}
@@ -107,40 +107,43 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
               </Button>
             </div>
             
-            {/* Menu Items */}
-            <nav className="flex-1 overflow-y-auto py-4">
-              {menuSections.map((section, sectionIndex) => (
-                <div key={sectionIndex} className="mb-4">
-                  {!collapsed && (
-                    <h3 className="px-4 mb-1 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                      {section.title}
-                    </h3>
-                  )}
-                  <ul className="space-y-1 px-2">
-                    {section.items.map((item) => (
-                      <li key={item.name}>
-                        <Link 
-                          to={item.path}
-                          className={`flex items-center p-2 rounded-md hover:bg-gray-100 transition-colors group ${
-                            isActive(item.path) ? 'bg-gray-100' : ''
-                          }`}
-                        >
-                          <item.icon className={`h-5 w-5 text-primary ${collapsed ? 'mx-auto' : 'mr-3'}`} />
-                          {!collapsed && <span>{item.name}</span>}
-                          {collapsed && (
-                            <span className="absolute left-16 p-2 bg-primary text-white rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity text-sm whitespace-nowrap">
-                              {item.name}
-                            </span>
-                          )}
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-            </nav>
+            {/* Menu Items - Scrollable Area */}
+            <div className="flex-1 overflow-y-auto">
+              <nav className="py-4">
+                {menuSections.map((section, sectionIndex) => (
+                  <div key={sectionIndex} className="mb-4">
+                    {!collapsed && (
+                      <h3 className="px-4 mb-1 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                        {section.title}
+                      </h3>
+                    )}
+                    <ul className="space-y-1 px-2">
+                      {section.items.map((item) => (
+                        <li key={item.name}>
+                          <Link 
+                            to={item.path}
+                            className={`flex items-center p-2 rounded-md hover:bg-gray-100 transition-colors group ${
+                              isActive(item.path) ? 'bg-gray-100' : ''
+                            }`}
+                          >
+                            <item.icon className={`h-5 w-5 text-primary ${collapsed ? 'mx-auto' : 'mr-3'}`} />
+                            {!collapsed && <span>{item.name}</span>}
+                            {collapsed && (
+                              <span className="absolute left-16 p-2 bg-primary text-white rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity text-sm whitespace-nowrap">
+                                {item.name}
+                              </span>
+                            )}
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </nav>
+            </div>
             
-            <div className="px-4 py-4 border-t space-y-2">
+            {/* Logout Button - Fixed at Bottom */}
+            <div className="border-t p-4">
               <Button 
                 variant="ghost" 
                 className={`text-red-500 hover:text-red-600 hover:bg-red-50 ${collapsed ? 'p-2 w-full justify-center' : 'w-full'}`}
@@ -154,11 +157,11 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
         </aside>
 
         {/* Main Content Area */}
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <div className="p-6 overflow-y-auto">
+        <main className={`flex-1 ${collapsed ? 'lg:ml-20' : 'lg:ml-64'}`}>
+          <div className="p-6">
             {children}
           </div>
-        </div>
+        </main>
 
         {/* Mobile sidebar overlay */}
         {mobileOpen && (
