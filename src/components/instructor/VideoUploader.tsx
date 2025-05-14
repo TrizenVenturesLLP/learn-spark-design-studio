@@ -5,7 +5,7 @@ import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import axios from "@/lib/axios";
 import { useAuth } from "@/contexts/AuthContext";
-import { upload } from "lucide-react";
+import { Upload } from "lucide-react";
 
 interface VideoUploaderProps {
   courseId: string;
@@ -65,7 +65,7 @@ const VideoUploader: React.FC<VideoUploaderProps> = ({ courseId, onUploadComplet
           'Content-Type': 'multipart/form-data',
           'Authorization': `Bearer ${token}`
         },
-        onUploadProgress: (progressEvent) => {
+        onUploadProgress: (progressEvent: any) => {
           const percentCompleted = Math.round((progressEvent.loaded * 100) / (progressEvent.total || 1));
           setUploadProgress(percentCompleted);
         }
@@ -99,7 +99,7 @@ const VideoUploader: React.FC<VideoUploaderProps> = ({ courseId, onUploadComplet
       <div className="flex items-center space-x-2">
         <input
           type="file"
-          accept="video/*"
+          accept="video/mp4"
           onChange={handleFileSelect}
           className="hidden"
           ref={fileInputRef}
@@ -110,7 +110,7 @@ const VideoUploader: React.FC<VideoUploaderProps> = ({ courseId, onUploadComplet
           onClick={() => fileInputRef.current?.click()}
           disabled={uploading}
         >
-          <upload className="mr-2 h-4 w-4" />
+          <Upload className="mr-2 h-4 w-4" />
           Select Video
         </Button>
         <span className="text-sm text-muted-foreground truncate max-w-[250px]">

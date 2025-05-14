@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useRef } from 'react';
-import { video, play, pause } from 'lucide-react';
+import { Video, Play, Pause } from 'lucide-react';
 
 interface VideoPlayerProps {
   videoUrl: string;
@@ -89,7 +89,7 @@ const VideoPlayer = ({
     return (
       <div className="aspect-video w-full rounded-lg overflow-hidden bg-black/90 flex items-center justify-center text-white">
         <div className="text-center space-y-2">
-          <video className="h-8 w-8 mx-auto" />
+          <Video className="h-8 w-8 mx-auto" />
           <p>Complete the previous day's content to unlock this video</p>
         </div>
       </div>
@@ -101,7 +101,7 @@ const VideoPlayer = ({
     return (
       <div className="aspect-video w-full rounded-lg overflow-hidden bg-black flex items-center justify-center text-white">
         <div className="text-center space-y-2">
-          <video className="h-8 w-8 mx-auto animate-pulse" />
+          <Video className="h-8 w-8 mx-auto animate-pulse" />
           <p>Loading video...</p>
         </div>
       </div>
@@ -127,9 +127,9 @@ const VideoPlayer = ({
             className="text-white hover:text-primary-foreground"
           >
             {isPlaying ? (
-              <pause className="h-6 w-6" />
+              <Pause className="h-6 w-6" />
             ) : (
-              <play className="h-6 w-6" />
+              <Play className="h-6 w-6" />
             )}
           </button>
           

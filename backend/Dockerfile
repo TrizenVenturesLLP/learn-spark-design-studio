@@ -1,3 +1,4 @@
+
 FROM node:20-alpine
 
 WORKDIR /app
@@ -6,4 +7,5 @@ RUN npm install
 COPY backend/ ./
 
 EXPOSE 5000
-CMD ["node", "/server.js"]  # Adjust path if your entry point is different
+CMD ["node", "server.js"]  # Changed the path to match the correct entry point
+
