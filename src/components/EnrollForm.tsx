@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -7,6 +7,7 @@ import { useCourseDetails, useEnrollCourse, useUpdateProgress } from '@/services
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/contexts/AuthContext';
 import DashboardLayout from "@/components/layouts/DashboardLayout";
+import { useQueryClient } from '@tanstack/react-query';
 
 interface RoadmapDay {
   topics: string;
@@ -49,10 +50,22 @@ const EnrollForm: React.FC<EnrollFormProps> = ({ courseId }) => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const { user, token, isAuthenticated } = useAuth();
-  const { data: course, isLoading, isError } = useCourseDetails(courseId);
+  const queryClient = useQueryClient();
+  
+  const { data: course, isLoading, isError, refetch } = useCourseDetails(courseId, token);
   const enrollMutation = useEnrollCourse();
   const updateProgressMutation = useUpdateProgress();
-  
+
+  useEffect(() => {
+    refetch();
+  }, [isAuthenticated, token, refetch]);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      queryClient.invalidateQueries(['course', courseId]);
+    }
+  }, [isAuthenticated, courseId, queryClient]);
+
   const handleEnroll = async () => {
     if (!isAuthenticated) {
       toast({
@@ -148,7 +161,8 @@ const EnrollForm: React.FC<EnrollFormProps> = ({ courseId }) => {
   
   // Determine button type based on enrollment status and authentication
   let actionButton;
-  const isUserEnrolled = course?.enrollmentStatus && ['enrolled', 'started', 'completed'].includes(course.enrollmentStatus);
+  const isUserEnrolled = isAuthenticated && course?.enrollmentStatus && 
+    ['enrolled', 'started', 'completed'].includes(course.enrollmentStatus);
 
   if (!isAuthenticated) {
     actionButton = (
@@ -171,7 +185,7 @@ const EnrollForm: React.FC<EnrollFormProps> = ({ courseId }) => {
         {enrollMutation.isPending ? "Enrolling..." : "Enroll Now"}
       </Button>
     );
-  } else if (course.enrollmentStatus === 'enrolled' || course.enrollmentStatus === 'started') {
+  } else if (course?.enrollmentStatus === 'enrolled' || course?.enrollmentStatus === 'started') {
     actionButton = (
       <Button 
         size="lg" 
@@ -181,7 +195,7 @@ const EnrollForm: React.FC<EnrollFormProps> = ({ courseId }) => {
         Resume Course
       </Button>
     );
-  } else if (course.enrollmentStatus === 'completed') {
+  } else if (course?.enrollmentStatus === 'completed') {
     actionButton = (
       <Badge className="mb-4 text-lg py-2 px-4 bg-green-600 w-full flex justify-center">
         Course Completed
