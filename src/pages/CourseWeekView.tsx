@@ -20,6 +20,7 @@ import { format } from 'date-fns';
 
 // Import your logo image
 import companyLogo from '/logo_footer.png'; // Adjust path as needed
+import VideoPlayer from '@/components/VideoPlayer';
 
 interface CourseData extends Course {
   _id: string;
@@ -34,143 +35,6 @@ interface QuizResults {
   completedAt: Date;
   totalQuestions: number;
 }
-
-const VideoPlayer = ({ 
-  videoUrl, 
-  onVideoComplete,
-  isEnabled = true 
-}: { 
-  videoUrl: string;
-  onVideoComplete: () => void;
-  isEnabled?: boolean;
-}) => {
-  const [isVideoCompleted, setIsVideoCompleted] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [lastValidTime, setLastValidTime] = useState(0);
-  const iframeRef = useRef<HTMLIFrameElement>(null);
-
-  const getDriveFileId = (url: string) => {
-    try {
-      const pattern = /(?:https?:\/\/)?(?:drive\.google\.com\/)?(?:file\/d\/|open\?id=|uc\?id=)([a-zA-Z0-9_-]+)/;
-      const match = url.match(pattern);
-      return match ? match[1] : '';
-    } catch (error) {
-      console.error('Error parsing Google Drive URL:', error);
-      return '';
-    }
-  };
-
-  const fileId = getDriveFileId(videoUrl);
-  
-  useEffect(() => {
-    let timer: NodeJS.Timeout;
-
-    const checkVideoProgress = () => {
-      if (iframeRef.current) {
-        iframeRef.current.contentWindow?.postMessage(
-          JSON.stringify({
-            event: 'requesting',
-            func: 'getCurrentTime'
-          }),
-          '*'
-        );
-      }
-    };
-
-    timer = setInterval(checkVideoProgress, 500);
-
-    const handleMessage = (event: MessageEvent) => {
-      if (event.origin === 'https://drive.google.com') {
-        try {
-          const data = JSON.parse(event.data);
-          
-          if (data.currentTime) {
-            const newTime = parseFloat(data.currentTime);
-            
-            if (newTime > lastValidTime + 1 && newTime - lastValidTime < 10) {
-              console.log('User tried to skip forward', newTime, lastValidTime);
-              iframeRef.current?.contentWindow?.postMessage(
-                JSON.stringify({
-                  event: 'command',
-                  func: 'seekTo',
-                  args: [lastValidTime]
-                }),
-                '*'
-              );
-              setCurrentTime(lastValidTime);
-            } else {
-              setLastValidTime(newTime);
-              setCurrentTime(newTime);
-            }
-          }
-
-          if (data.percentPlayed >= 95 && !isVideoCompleted) {
-            setIsVideoCompleted(true);
-            onVideoComplete();
-            clearInterval(timer);
-          }
-        } catch (e) {
-          // Ignore parsing errors
-        }
-      }
-    };
-
-    window.addEventListener('message', handleMessage);
-
-    return () => {
-      clearInterval(timer);
-      window.removeEventListener('message', handleMessage);
-    };
-  }, [onVideoComplete, isVideoCompleted, lastValidTime]);
-
-  if (!fileId) {
-    return (
-      <div className="aspect-video w-full rounded-lg overflow-hidden bg-black flex items-center justify-center text-white">
-        Invalid video URL
-      </div>
-    );
-  }
-
-  if (!isEnabled) {
-    return (
-      <div className="aspect-video w-full rounded-lg overflow-hidden bg-black/90 flex items-center justify-center text-white">
-        <div className="text-center space-y-2">
-          <AlertCircle className="h-8 w-8 mx-auto" />
-          <p>Complete the previous day's content to unlock this video</p>
-        </div>
-      </div>
-    );
-  }
-
-  const driveEmbedUrl = `https://drive.google.com/file/d/${fileId}/preview?controls=0&disablekb=1&modestbranding=1&rel=0&showinfo=0&enablejsapi=1&widgetid=1&fs=0&iv_load_policy=3&playsinline=1&autohide=1&html5=1&cc_load_policy=0`;
-
-  return (
-    <div className="aspect-video w-full rounded-lg overflow-hidden bg-black relative">
-      <iframe
-        ref={iframeRef}
-        title="Course Video"
-        width="100%"
-        height="100%"
-        src={driveEmbedUrl}
-        allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
-        allowFullScreen
-        className="w-full h-full"
-      />
-      
-      {/* Logo with overlay background - Updated with responsive classes */}
-      <div className="absolute top-2 md:top-4 z-5 flex items-center" style={{ right: '-3px' }}>
-        <div className="absolute inset-0 bg-black/0 rounded-lg -z-5" />
-        <div className="px-2 py-1 md:px-3 md:py-2">
-          <img 
-            src={companyLogo}
-            alt="Company Logo"
-            className="h-5 w-auto md:h-7" // Smaller height on mobile, larger on desktop
-          />
-        </div>
-      </div>
-    </div>
-  );
-};
 
 const TranscriptSection = ({ transcript }: { transcript?: string }) => {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -587,6 +451,7 @@ const CourseWeekView = () => {
                         videoUrl={currentDay.video} 
                         onVideoComplete={() => handleVideoComplete(currentDay.day)}
                         isEnabled={isVideoEnabled(currentDay.day)}
+                        title={`Day ${currentDay.day} - ${currentDay.topics}`}
                       />
                     </CardContent>
                   </Card>

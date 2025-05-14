@@ -38,6 +38,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import MCQForm from '@/components/MCQForm';
 import { DayCodeEditor } from '@/components/instructor/DayCodeEditor';
+import VideoUploader from '@/components/instructor/VideoUploader';
 
 const convertGoogleDriveLink = (url: string): string => {
   try {
@@ -627,17 +628,31 @@ const CourseForm = () => {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor={`video-${index}`}>Video Link *</Label>
-                      <Input
-                        id={`video-${index}`}
-                        value={day.video}
-                        onChange={(e) => updateRoadmapDay(index, 'video', e.target.value)}
-                        placeholder="YouTube or Google Drive video link"
-                        required
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Supported formats: YouTube or Google Drive video links
-                      </p>
+                      <Label htmlFor={`video-${index}`}>Video</Label>
+                      <div className="flex flex-col gap-4">
+                        {day.video && (
+                          <div className="p-2 bg-muted rounded-lg">
+                            <p className="text-sm font-medium mb-1">Current Video:</p>
+                            <code className="text-xs break-all">{day.video}</code>
+                          </div>
+                        )}
+                        
+                        <VideoUploader 
+                          courseId={courseId || 'new-course'}
+                          onUploadComplete={(fileUrl) => updateRoadmapDay(index, 'video', fileUrl)}
+                        />
+                        
+                        <p className="text-xs text-muted-foreground">
+                          Upload your video directly or paste a video URL
+                        </p>
+                        
+                        <Input
+                          id={`video-${index}`}
+                          value={day.video}
+                          onChange={(e) => updateRoadmapDay(index, 'video', e.target.value)}
+                          placeholder="Or paste video URL manually"
+                        />
+                      </div>
                     </div>
 
                     <div className="space-y-2">
@@ -783,4 +798,3 @@ const CourseForm = () => {
 };
 
 export default CourseForm;
-
