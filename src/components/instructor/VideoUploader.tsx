@@ -62,21 +62,30 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
           'Content-Type': 'multipart/form-data',
         },
         onUploadProgress: (progressEvent) => {
-          const percentCompleted = Math.round((progressEvent.loaded * 100) / (progressEvent.total || 1));
-          setUploadProgress(percentCompleted);
+          const totalLength = progressEvent.total || 0;
+          if (totalLength > 0) {
+            const percentCompleted = Math.round((progressEvent.loaded * 100) / totalLength);
+            setUploadProgress(percentCompleted);
+          }
         },
       });
 
       setIsUploading(false);
-      setVideoPreview(response.data.videoUrl);
       
-      toast({
-        title: "Upload successful",
-        description: "Video has been uploaded successfully",
-      });
+      // Handle the response from MinIO storage
+      if (response.data && response.data.videoUrl) {
+        setVideoPreview(response.data.videoUrl);
+        
+        toast({
+          title: "Upload successful",
+          description: "Video has been uploaded successfully to cloud storage",
+        });
 
-      // Pass the URL back to parent component
-      onUploadComplete(response.data.videoUrl);
+        // Pass the URL back to parent component
+        onUploadComplete(response.data.videoUrl);
+      } else {
+        throw new Error("Invalid response from server");
+      }
     } catch (error) {
       setIsUploading(false);
       console.error('Upload error:', error);
@@ -143,7 +152,7 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
         )}
         
         <p className="text-xs text-muted-foreground">
-          Upload an MP4 video file (max 100MB). Higher resolution videos may take longer to upload.
+          Upload an MP4 video file (max 100MB). Videos are stored securely in cloud storage.
         </p>
       </div>
     </div>
