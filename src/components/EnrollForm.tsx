@@ -14,7 +14,7 @@ interface RoadmapDay {
   video?: string;
   notes?: string;
   duration?: string;
-  description?: string;
+  description?: string; // Added this field to match usage
   completed?: boolean;
 }
 
@@ -24,7 +24,8 @@ interface Course {
   description: string;
   longDescription?: string;
   instructor: string;
-  instructorAvatar?: string;
+  instructorAvatar?: string; // Added this field to match usage
+  image?: string;
   thumbnail: string;
   price: number;
   originalPrice?: number;
@@ -62,7 +63,8 @@ const EnrollForm: React.FC<EnrollFormProps> = ({ courseId }) => {
 
   useEffect(() => {
     if (!isAuthenticated) {
-      queryClient.invalidateQueries(['course', courseId]);
+      // Fix: Use the correct invalidation format for queryClient
+      queryClient.invalidateQueries({queries: [['course', courseId]]});
     }
   }, [isAuthenticated, courseId, queryClient]);
 
@@ -226,26 +228,26 @@ const EnrollForm: React.FC<EnrollFormProps> = ({ courseId }) => {
                 </div>
 
                 {/* Short Description */}
-                              <div className="bg-muted/30 rounded-lg p-3 border border-border/50">
-                <p className="text-sm font-semibold text-foreground">
-                  {course?.description}
-                </p>
-              </div>
-
-                {/* Long Description */}
-                              <div className="bg-card rounded-xl p-6 border space-y-4">
-                <h2 className="text-lg font-semibold flex items-center gap-2">
-                  <svg className="w-5 h-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  About This Course
-                </h2>
-                <div className="prose prose-gray dark:prose-invert max-w-none">
-                  <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
-                    {course?.longDescription}
+                <div className="bg-muted/30 rounded-lg p-3 border border-border/50">
+                  <p className="text-sm font-semibold text-foreground">
+                    {course?.description}
                   </p>
                 </div>
-              </div>
+
+                {/* Long Description */}
+                <div className="bg-card rounded-xl p-6 border space-y-4">
+                  <h2 className="text-lg font-semibold flex items-center gap-2">
+                    <svg className="w-5 h-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    About This Course
+                  </h2>
+                  <div className="prose prose-gray dark:prose-invert max-w-none">
+                    <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                      {course?.longDescription}
+                    </p>
+                  </div>
+                </div>
 
                 {/* Instructor Info */}
                 <div className="flex items-center gap-4 p-4 bg-card rounded-lg border">
@@ -267,18 +269,10 @@ const EnrollForm: React.FC<EnrollFormProps> = ({ courseId }) => {
               <div className="bg-card rounded-xl shadow-lg p-6 sticky top-24">
                 <div className="space-y-4">
                 <img
-                    src={course?.image}
+                    src={course?.image || course?.thumbnail}
                     alt={course?.title}
                     className="w-full h-100 object-cover rounded-lg mb-4"
                   />
-                  {/* <div className="flex items-baseline justify-between">
-                    <span className="text-3xl font-bold">{course?.price}</span>
-                    {course?.originalPrice && (
-                      <span className="text-lg text-muted-foreground line-through">
-                        {course?.originalPrice}
-                      </span>
-                    )}
-                  </div> */}
 
                   {actionButton}
 
@@ -335,7 +329,7 @@ const EnrollForm: React.FC<EnrollFormProps> = ({ courseId }) => {
                 {/* Course Content */}
                 <div className="bg-card rounded-xl p-8">
                   <h2 className="text-xl font-semibold mb-8">Course Content</h2>
-                                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3 gap-6">
                   {(course?.roadmap || []).map((day, index) => {
                     const handleDayClick = () => {
                       if (course?.enrollmentStatus === 'enrolled' || course?.enrollmentStatus === 'started') {

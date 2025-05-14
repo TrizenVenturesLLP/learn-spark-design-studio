@@ -65,18 +65,23 @@ const VideoUploader: React.FC<VideoUploaderProps> = ({ courseId, onUploadComplet
           'Content-Type': 'multipart/form-data',
           'Authorization': `Bearer ${token}`
         },
-        onUploadProgress: (progressEvent: any) => {
-          const percentCompleted = Math.round((progressEvent.loaded * 100) / (progressEvent.total || 1));
-          setUploadProgress(percentCompleted);
+        // Fix: Use proper type for onUploadProgress
+        onUploadProgress: (progressEvent) => {
+          if (progressEvent.total) {
+            const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+            setUploadProgress(percentCompleted);
+          }
         }
       });
       
-      if (response.data && response.data.fileUrl) {
+      if (response.data) {
+        // Fix: properly type check and access fileUrl
+        const fileUrl = response.data.fileUrl as string;
         toast({
           title: "Upload complete",
           description: "Video was uploaded successfully",
         });
-        onUploadComplete(response.data.fileUrl);
+        onUploadComplete(fileUrl);
         setSelectedFile(null);
         if (fileInputRef.current) {
           fileInputRef.current.value = '';
