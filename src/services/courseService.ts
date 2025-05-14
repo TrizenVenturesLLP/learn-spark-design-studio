@@ -252,6 +252,7 @@ export interface CourseStudent {
   progress: number;
   status: string;
   lastActive: string;
+  courseTitle?: string; // Optional since it's only present in "all students" view
 }
 
 export interface CourseWithStudents {
@@ -260,22 +261,62 @@ export interface CourseWithStudents {
   students: CourseStudent[];
 }
 
+// Get all students for all courses
+export const useAllCourseStudents = () => {
+  return useQuery<CourseWithStudents[]>({
+    queryKey: ['all-course-students'],
+    queryFn: async (): Promise<CourseWithStudents[]> => {
+      try {
+        const response = await axios.get('/api/instructor/students');
+        if (!Array.isArray(response.data)) {
+          throw new Error('Invalid response format: expected an array of courses with students');
+        }
+        return response.data as CourseWithStudents[];
+      } catch (error) {
+        console.error('Error fetching all course students:', error);
+        throw error;
+      }
+    },
+  });
+};
+
+// Get students for a specific course
 export const useCourseStudents = (courseId: string | undefined) => {
   return useQuery<CourseWithStudents>({
     queryKey: ['course-students', courseId],
     queryFn: async (): Promise<CourseWithStudents> => {
       if (!courseId) throw new Error("Course ID is required");
       try {
-        const response = await axios.get(`/api/instructor/courses/${courseId}/students`);
-        // Ensure the response matches the expected type
+        // If courseId is 'all', use the endpoint for all students
+        const endpoint = courseId === 'all' 
+          ? '/api/instructor/students'
+          : `/api/instructor/courses/${courseId}/students`;
+        
+        const response = await axios.get(endpoint);
+        
+        // Handle different response formats based on endpoint
+        if (courseId === 'all') {
+          // The /api/instructor/students endpoint returns an array of courses
+          const coursesWithStudents = response.data as CourseWithStudents[];
+          return {
+            id: 'all',
+            title: 'All Students',
+            students: coursesWithStudents.reduce((allStudents: CourseStudent[], course) => {
+              return [...allStudents, ...course.students];
+            }, [])
+          };
+        }
+        
+        // For specific course endpoint
         const data = response.data as CourseWithStudents;
         if (!data.id || !data.title || !Array.isArray(data.students)) {
-          throw new Error("Invalid course data format received from server");
+          throw new Error('Invalid response format: missing required course student data');
         }
         return data;
-      } catch (error) {
-        console.error('Error fetching course students:', error);
-        throw error;
+      } catch (error: any) {
+        const errorMessage = error.response?.data?.message || 'Failed to fetch course students';
+        console.error('Error fetching course students:', errorMessage);
+        throw new Error(errorMessage);
       }
     },
     enabled: !!courseId,

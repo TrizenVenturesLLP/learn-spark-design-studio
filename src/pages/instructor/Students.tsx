@@ -39,7 +39,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useCourseStudents, useInstructorCourses } from '@/services/courseService';
+import { useCourseStudents, useInstructorCourses, useAllCourseStudents } from '@/services/courseService';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 const Students = () => {
@@ -48,41 +48,52 @@ const Students = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   
-  // Log the courseId to debug
-  useEffect(() => {
-    console.log('Course ID from params:', courseId);
-  }, [courseId]);
-  
-  // Fetch real data
-  const { data: courseData, isLoading, error } = useCourseStudents(courseId);
-  
-  // Fetch all instructor courses for the dropdown
+  // Fetch data based on whether we're viewing all students or a specific course
+  const isAllStudents = !courseId || courseId === 'all';
+  const { data: allStudentsData, isLoading: isLoadingAllStudents } = useAllCourseStudents();
+  const { data: courseData, isLoading: isLoadingCourse, error: courseError } = useCourseStudents(isAllStudents ? undefined : courseId);
   const { data: instructorCourses, isLoading: isLoadingCourses } = useInstructorCourses();
-  
-  // Log the retrieved data
-  useEffect(() => {
-    if (courseData) {
-      console.log('Course data received:', courseData);
-      console.log('Students count:', courseData.students?.length || 0);
+
+  // Combine loading states
+  const isLoading = isAllStudents ? isLoadingAllStudents : isLoadingCourse;
+  const error = courseError;
+
+  // Process data based on view type
+  const processedData = React.useMemo(() => {
+    if (isAllStudents && allStudentsData) {
+      // Combine students from all courses
+      return {
+        id: 'all',
+        title: 'All Enrolled Students',
+        students: allStudentsData.reduce((allStudents, course) => {
+          return [...allStudents, ...course.students.map(student => ({
+            ...student,
+            courseTitle: course.title
+          }))];
+        }, [])
+      };
     }
-  }, [courseData]);
+    return courseData;
+  }, [isAllStudents, allStudentsData, courseData]);
   
   // Filter students based on search and status
   const filteredStudents = React.useMemo(() => {
-    if (!courseData?.students) return [];
+    if (!processedData?.students) return [];
     
-    return courseData.students.filter(student => {
+    return processedData.students.filter(student => {
       // Filter by search query
       const matchesSearch = 
         student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         student.email.toLowerCase().includes(searchQuery.toLowerCase());
       
       // Filter by status
-      const matchesStatus = statusFilter === 'all' || student.status === statusFilter;
+      const matchesStatus = statusFilter === 'all' || 
+        (statusFilter === 'enrolled' && ['enrolled', 'started', 'completed'].includes(student.status)) ||
+        student.status === statusFilter;
       
       return matchesSearch && matchesStatus;
     });
-  }, [courseData, searchQuery, statusFilter]);
+  }, [processedData, searchQuery, statusFilter]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -105,7 +116,11 @@ const Students = () => {
   
   // Function to handle course selection change
   const handleCourseChange = (selectedCourseId: string) => {
-    navigate(`/instructor/courses/${selectedCourseId}/students`);
+    if (selectedCourseId === 'all') {
+      navigate('/instructor/students');
+    } else {
+      navigate(`/instructor/courses/${selectedCourseId}/students`);
+    }
   };
 
   return (
@@ -122,39 +137,25 @@ const Students = () => {
         </div>
         
         {/* Course selector */}
-        <div className="flex items-center space-x-2">
-          <BookOpen className="h-5 w-5 text-muted-foreground" />
-          <Select 
-            value={courseId} 
-            onValueChange={handleCourseChange}
-            disabled={isLoadingCourses}
-          >
-            <SelectTrigger className="w-[250px]">
-              <SelectValue placeholder="Select a course" />
-            </SelectTrigger>
-            <SelectContent>
-              {instructorCourses?.map((course) => (
-                <SelectItem key={course._id || course.id} value={course._id || course.id}>
-                  {course.title}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        
       </div>
       
       <h1 className="text-3xl font-bold">
-        {isLoading ? 'Loading...' : courseData?.title || 'Course Students'}
+        {isLoading ? 'Loading...' : processedData?.title || 'Course Students'}
       </h1>
 
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle>Students</CardTitle>
-            <Button onClick={handleExport}>
-              <Download className="w-4 h-4 mr-2" />
-              Export List
-            </Button>
+            <div>
+              <CardTitle>Students</CardTitle>
+              {isAllStudents && (
+                <p className="text-sm text-muted-foreground mt-1">
+                  Showing all students enrolled across your courses
+                </p>
+              )}
+            </div>
+            
           </div>
         </CardHeader>
         <CardContent>
@@ -168,20 +169,39 @@ const Students = () => {
                 className="pl-10"
               />
             </div>
+            
             <Select
               value={statusFilter}
               onValueChange={setStatusFilter}
             >
-              <SelectTrigger className="w-full md:w-[180px]">
+              <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Filter by status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Students</SelectItem>
-                <SelectItem value="enrolled">Active</SelectItem>
+                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="started">In Progress</SelectItem>
                 <SelectItem value="completed">Completed</SelectItem>
-                <SelectItem value="inactive">Inactive</SelectItem>
               </SelectContent>
             </Select>
+            <div className="flex items-center space-x-2">
+          <Select 
+            value={courseId || 'all'} 
+            onValueChange={handleCourseChange}
+            disabled={isLoadingCourses}
+          >
+            <SelectTrigger className="w-[250px]">
+              <SelectValue placeholder="Select a course" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Students</SelectItem>
+              {instructorCourses?.map((course) => (
+                <SelectItem key={course._id || course.id} value={course._id || course.id}>
+                  {course.title}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
           </div>
 
           {isLoading ? (
@@ -202,11 +222,12 @@ const Students = () => {
                 ? 'No students match your filters.' 
                 : 'No students enrolled in this course yet.'}
             </div>
-          ) : (
+          ) :
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Student</TableHead>
+                  {isAllStudents && <TableHead>Course</TableHead>}
                   <TableHead>Enrolled Date</TableHead>
                   <TableHead>Progress</TableHead>
                   <TableHead>Status</TableHead>
@@ -216,7 +237,7 @@ const Students = () => {
               </TableHeader>
               <TableBody>
                 {filteredStudents.map((student) => (
-                  <TableRow key={student.id}>
+                  <TableRow key={`${student.id}-${student.courseTitle || ''}`}>
                     <TableCell>
                       <div>
                         <div className="font-medium">{student.name}</div>
@@ -225,6 +246,11 @@ const Students = () => {
                         </div>
                       </div>
                     </TableCell>
+                    {isAllStudents && (
+                      <TableCell>
+                        <div className="font-medium">{student.courseTitle}</div>
+                      </TableCell>
+                    )}
                     <TableCell>{new Date(student.enrolledDate).toLocaleDateString()}</TableCell>
                     <TableCell>
                       <div className="w-full bg-gray-200 rounded-full h-2.5">
@@ -269,7 +295,7 @@ const Students = () => {
                 ))}
               </TableBody>
             </Table>
-          )}
+          }
         </CardContent>
       </Card>
     </div>

@@ -39,6 +39,39 @@ import { Separator } from '@/components/ui/separator';
 import MCQForm from '@/components/MCQForm';
 import { DayCodeEditor } from '@/components/instructor/DayCodeEditor';
 
+const convertGoogleDriveLink = (url: string): string => {
+  try {
+    if (!url) return url;
+
+    // Check if it's a Google Drive URL
+    if (url.includes('drive.google.com')) {
+      let fileId = '';
+
+      // Format: https://drive.google.com/file/d/FILE_ID/view
+      if (url.includes('/file/d/')) {
+        fileId = url.split('/file/d/')[1].split('/')[0];
+      }
+      // Format: https://drive.google.com/open?id=FILE_ID
+      else if (url.includes('id=')) {
+        fileId = url.split('id=')[1].split('&')[0];
+      }
+
+      if (fileId) {
+        return `https://images.weserv.nl/?url=https://drive.google.com/uc?export=view%26id=${fileId}`;
+      }
+    }
+
+    // If it's already a direct image URL, return as is
+    if (url.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
+      return url;
+    }
+
+    return url;
+  } catch (error) {
+    return url;
+  }
+};
+
 interface CourseFormData {
   title: string;
   description: string;
@@ -678,25 +711,42 @@ const CourseForm = () => {
                   <Input
                     id="imageUrl"
                     value={courseData.image}
-                    onChange={(e) => setCourseData(prev => ({ ...prev, image: e.target.value }))}
-                    placeholder="Enter image URL"
+                    onChange={(e) => {
+                      const inputUrl = e.target.value.trim();
+                      const convertedUrl = convertGoogleDriveLink(inputUrl);
+                      setCourseData(prev => ({ ...prev, image: convertedUrl }));
+                    }}
+                    placeholder="Enter image URL (Google Drive or direct link)"
                   />
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground font-medium">
+                      For Google Drive images:
+                    </p>
+                    <ol className="text-xs text-muted-foreground list-decimal list-inside space-y-1">
+                      <li>Upload image to Google Drive</li>
+                      <li>Right-click the image → Share</li>
+                      <li>Set access to "Anyone with the link"</li>
+                      <li>Copy link and paste here</li>
+                    </ol>
+                    
+                  </div>
                   {courseData.image && (
                     <div className="mt-2">
-                      <p className="text-sm text-muted-foreground mb-2">Preview:</p>
-                      <img 
-                        src={courseData.image} 
-                        alt="Course thumbnail preview" 
-                        className="w-full max-w-md h-48 object-cover rounded-md"
-                        onError={(e) => {
-                          e.currentTarget.src = 'data:image/svg+xml;charset=UTF-8,%3Csvg xmlns="http://www.w3.org/2000/svg" width="300" height="200" viewBox="0 0 300 200" preserveAspectRatio="none"%3E%3Crect width="300" height="200" fill="%23CCCCCC"%3E%3C/rect%3E%3Ctext x="150" y="100" fill="%23333333" font-size="14" font-family="Arial" text-anchor="middle"%3EImage not available%3C/text%3E%3C/svg%3E';
-                          toast({
-                            title: "Image Error",
-                            description: "The provided image URL is not valid",
-                            variant: "destructive",
-                          });
-                        }}
-                      />
+                      <div className="relative">
+                        <img 
+                          src={courseData.image} 
+                          alt="Course thumbnail preview" 
+                          className="w-full max-w-md h-48 object-cover rounded-md"
+                          onError={(e) => {
+                            e.currentTarget.src = 'data:image/svg+xml;charset=UTF-8,%3Csvg xmlns="http://www.w3.org/2000/svg" width="300" height="200" viewBox="0 0 300 200" preserveAspectRatio="none"%3E%3Crect width="300" height="200" fill="%23CCCCCC"%3E%3C/rect%3E%3Ctext x="150" y="100" fill="%23333333" font-size="14" font-family="Arial" text-anchor="middle"%3EImage not available%3C/text%3E%3C/svg%3E';
+                            toast({
+                              title: "Image Error",
+                              description: "Unable to load image. For best results, please use ImgBB to host your image.",
+                              variant: "destructive",
+                            });
+                          }}
+                        />
+                      </div>
                     </div>
                   )}
                 </div>
@@ -733,3 +783,4 @@ const CourseForm = () => {
 };
 
 export default CourseForm;
+

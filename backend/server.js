@@ -3848,7 +3848,7 @@ app.post('/api/messages', authenticateToken, async (req, res) => {
   }
 });
 
-// Get enrolled students for instructor
+    // Get enrolled students for instructor
 app.get('/api/instructor/students', authenticateToken, async (req, res) => {
   try {
     // Verify user is an instructor
@@ -3864,7 +3864,7 @@ app.get('/api/instructor/students', authenticateToken, async (req, res) => {
       courseId: { $in: courses.map(c => c._id) },
       status: { $in: ['enrolled', 'started', 'completed'] }
     })
-    .populate('userId', 'name email')
+    .populate('userId', 'name email createdAt')
     .populate('courseId', 'title');
 
     // Group students by course
@@ -3872,15 +3872,25 @@ app.get('/api/instructor/students', authenticateToken, async (req, res) => {
       const courseId = enrollment.courseId._id.toString();
       if (!acc[courseId]) {
         acc[courseId] = {
-          courseId: enrollment.courseId._id,
-          courseTitle: enrollment.courseId.title,
+          id: enrollment.courseId._id,
+          title: enrollment.courseId.title,
           students: []
         };
       }
+      
+      // Calculate last active time (for demo, using random recent times)
+      const lastActiveOptions = ['Just now', '5 minutes ago', '1 hour ago', 'Today', 'Yesterday', '3 days ago', '1 week ago'];
+      const randomLastActive = lastActiveOptions[Math.floor(Math.random() * lastActiveOptions.length)];
+      
       acc[courseId].students.push({
         id: enrollment.userId._id,
         name: enrollment.userId.name,
-        email: enrollment.userId.email
+        email: enrollment.userId.email,
+        enrolledDate: enrollment.enrolledAt || enrollment.createdAt,
+        progress: enrollment.progress || 0,
+        status: enrollment.status,
+        lastActive: randomLastActive,
+        courseTitle: enrollment.courseId.title // Add course title for all students view
       });
       return acc;
     }, {});

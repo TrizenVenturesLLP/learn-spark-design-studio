@@ -118,7 +118,6 @@ const Courses = () => {
             className="pl-10"
           />
         </div>
-        <Button variant="outline">Filter</Button>
       </div>
 
       {/* Course Grid */}
