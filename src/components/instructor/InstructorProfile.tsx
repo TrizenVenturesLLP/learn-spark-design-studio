@@ -29,41 +29,6 @@ import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 import axios from '@/lib/axios';
 
-// Define proper types for API responses
-interface InstructorProfileData {
-  id: string;
-  name: string;
-  displayName?: string;
-  email: string;
-  instructorProfile: {
-    specialty: string;
-    experience: number;
-    bio?: string;
-    phone?: string;
-    location?: string;
-    avatar?: string;
-    socialLinks?: {
-      linkedin?: string;
-      twitter?: string;
-      website?: string;
-    };
-    teachingHours?: number;
-  };
-  profileCompletion: number;
-  stats?: {
-    totalStudents: number;
-    totalCourses: number;
-    averageRating: number;
-    teachingHours: number;
-  };
-  recentReviews?: Array<{
-    student: string;
-    rating: number;
-    comment: string;
-    date: string;
-  }>;
-}
-
 // Mock data as fallback if API fails
 const mockProfileData = {
   id: '1234',
@@ -145,7 +110,7 @@ const InstructorProfile: React.FC = () => {
       try {
         // Use the new API endpoint to fetch profile data
         const response = await axios.get('/api/instructor/profile');
-        const data = response.data as InstructorProfileData;
+        const data = response.data;
 
         // Transform the API response to match our component's data structure
         const transformedData = {
@@ -153,22 +118,22 @@ const InstructorProfile: React.FC = () => {
           name: data.name,
           role: data.displayName || 'Instructor',
           email: data.email,
-          phone: data.instructorProfile?.phone || '',
-          location: data.instructorProfile?.location || '',
-          specialty: data.instructorProfile?.specialty || '',
-          experience: data.instructorProfile?.experience || 0,
-          bio: data.instructorProfile?.bio || '',
+          phone: data.instructorProfile.phone || '',
+          location: data.instructorProfile.location || '',
+          specialty: data.instructorProfile.specialty || '',
+          experience: data.instructorProfile.experience || 0,
+          bio: data.instructorProfile.bio || '',
           profileCompletion: data.profileCompletion || 0,
           totalStudents: data.stats?.totalStudents || 0,
           totalCourses: data.stats?.totalCourses || 0,
           averageRating: data.stats?.averageRating || 0,
           teachingHours: data.stats?.teachingHours || 0,
           recentReviews: data.recentReviews || [],
-          avatar: data.instructorProfile?.avatar || null,
+          avatar: data.instructorProfile.avatar || null,
           socialLinks: {
-            linkedin: data.instructorProfile?.socialLinks?.linkedin || '',
-            twitter: data.instructorProfile?.socialLinks?.twitter || '',
-            website: data.instructorProfile?.socialLinks?.website || ''
+            linkedin: data.instructorProfile.socialLinks?.linkedin || '',
+            twitter: data.instructorProfile.socialLinks?.twitter || '',
+            website: data.instructorProfile.socialLinks?.website || ''
           }
         };
 
@@ -252,7 +217,38 @@ const InstructorProfile: React.FC = () => {
           try {
             // Refetch profile to get latest data
             const profileResponse = await axios.get('/api/instructor/profile');
-            const data = profileResponse.data as InstructorProfileData;
+            const data = profileResponse.data as {
+              id: string;
+              name: string;
+              displayName?: string;
+              email: string;
+              instructorProfile: {
+                specialty: string;
+                experience: number;
+                bio?: string;
+                phone?: string;
+                location?: string;
+                avatar?: string;
+                socialLinks?: {
+                  linkedin?: string;
+                  twitter?: string;
+                  website?: string;
+                };
+              };
+              profileCompletion: number;
+              stats?: {
+                totalStudents: number;
+                totalCourses: number;
+                averageRating: number;
+                teachingHours: number;
+              };
+              recentReviews?: Array<{
+                student: string;
+                rating: number;
+                comment: string;
+                date: string;
+              }>;
+            };
             
             // Transform the API response to match our component's data structure
             const transformedData = {
@@ -260,22 +256,22 @@ const InstructorProfile: React.FC = () => {
               name: data.name,
               role: data.displayName || 'Instructor',
               email: data.email,
-              phone: data.instructorProfile?.phone || '',
-              location: data.instructorProfile?.location || '',
-              specialty: data.instructorProfile?.specialty || '',
-              experience: data.instructorProfile?.experience || 0,
-              bio: data.instructorProfile?.bio || '',
+              phone: data.instructorProfile.phone || '',
+              location: data.instructorProfile.location || '',
+              specialty: data.instructorProfile.specialty || '',
+              experience: data.instructorProfile.experience || 0,
+              bio: data.instructorProfile.bio || '',
               profileCompletion: data.profileCompletion || 0,
               totalStudents: data.stats?.totalStudents || 0,
               totalCourses: data.stats?.totalCourses || 0,
               averageRating: data.stats?.averageRating || 0,
               teachingHours: data.stats?.teachingHours || 0,
               recentReviews: data.recentReviews || [],
-              avatar: data.instructorProfile?.avatar || null,
+              avatar: data.instructorProfile.avatar || null,
               socialLinks: {
-                linkedin: data.instructorProfile?.socialLinks?.linkedin || '',
-                twitter: data.instructorProfile?.socialLinks?.twitter || '',
-                website: data.instructorProfile?.socialLinks?.website || ''
+                linkedin: data.instructorProfile.socialLinks?.linkedin || '',
+                twitter: data.instructorProfile.socialLinks?.twitter || '',
+                website: data.instructorProfile.socialLinks?.website || ''
               }
             };
 
@@ -744,4 +740,4 @@ const InstructorProfile: React.FC = () => {
   );
 };
 
-export default InstructorProfile;
+export default InstructorProfile; 

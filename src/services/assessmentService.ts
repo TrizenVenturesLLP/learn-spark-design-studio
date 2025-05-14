@@ -1,145 +1,172 @@
 
-import { useQuery, useMutation, UseMutationResult } from '@tanstack/react-query';
-import axios from '../lib/axios';
-import { Assessment } from '@/types/assessment';
+import { useQuery, useMutation } from "@tanstack/react-query";
+import axios from "@/lib/axios";
 
-// Fetch course assessments
-export const useAssessments = (courseId: string | undefined, token: string | null) => {
+export type MCQQuestion = {
+  _id: string;
+  type: 'MCQ';
+  questionText: string;
+  options: string[];
+  correctAnswer: string;
+  marks: number;
+};
+
+export type CodingQuestion = {
+  _id: string;
+  type: 'CODING';
+  problemStatement: string;
+  inputFormat: string;
+  outputFormat: string;
+  testCases: {
+    input: string;
+    expectedOutput: string;
+    isHidden?: boolean;
+  }[];
+  marks: number;
+  sampleCode?: string;
+};
+
+export type Question = MCQQuestion | CodingQuestion;
+export type AssessmentType = 'MCQ' | 'CODING';
+
+export type Assessment = {
+  _id: string;
+  title: string;
+  description: string;
+  courseId: string;
+  type: AssessmentType;
+  dueDate: string;
+  status: 'pending' | 'completed';
+  assignedDays: number[];
+  questions: Question[];
+  totalMarks?: number;
+  score?: number;
+};
+
+export const useStudentAssessments = (courseId?: string, day?: number | null) => {
   return useQuery({
-    queryKey: ['assessments', courseId],
-    queryFn: async () => {
-      if (!courseId || !token) return [] as Assessment[];
-      
-      try {
-        const response = await axios.get(`/api/assessments/${courseId}`, {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        });
-        return response.data as Assessment[];
-      } catch (error) {
-        console.error('Error fetching assessments:', error);
-        return [] as Assessment[];
-      }
+    queryKey: ['student-assessments', courseId, day],
+    queryFn: async (): Promise<Assessment[]> => {
+      const url = day 
+        ? `/api/courses/${courseId}/assessments?day=${day}` 
+        : `/api/courses/${courseId}/assessments`;
+      const response = await axios.get(url);
+      return response.data;
     },
-    enabled: !!courseId && !!token
+    enabled: !!courseId,
   });
 };
 
-// Fetch assessment by id
-export const useAssessment = (assessmentId: string | undefined, token: string | null) => {
-  return useQuery({
-    queryKey: ['assessment', assessmentId],
-    queryFn: async () => {
-      if (!assessmentId || !token) return null;
-      
-      try {
-        const response = await axios.get(`/api/assessment/${assessmentId}`, {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        });
-        return response.data;
-      } catch (error) {
-        console.error('Error fetching assessment:', error);
-        return null;
-      }
-    },
-    enabled: !!assessmentId && !!token
-  });
+type MCQAnswer = {
+  type: 'MCQ';
+  questionId: string;
+  selectedAnswer: string;
 };
 
-// Create new assessment
-export const useCreateAssessment = (token: string | null): UseMutationResult<Assessment, Error, Omit<Assessment, '_id' | 'createdAt' | 'updatedAt'>, unknown> => {
+type CodingAnswer = {
+  type: 'CODING';
+  questionId: string;
+  code: string;
+  language: string;
+};
+
+type Answer = MCQAnswer | CodingAnswer;
+
+export const useSubmitAssessment = () => {
   return useMutation({
-    mutationFn: async (assessment: Omit<Assessment, '_id' | 'createdAt' | 'updatedAt'>) => {
-      if (!token) throw new Error('Authentication required');
-      
-      const response = await axios.post('/api/assessments', assessment, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      });
-      
+    mutationFn: async ({ 
+      assessmentId, 
+      answers 
+    }: { 
+      assessmentId: string; 
+      answers: Answer[];
+    }) => {
+      const response = await axios.post(
+        `/api/assessments/${assessmentId}/submit`,
+        { answers }
+      );
       return response.data;
     }
   });
 };
 
-// Update assessment
-export const useUpdateAssessment = (token: string | null): UseMutationResult<Assessment, Error, { id: string, assessment: Partial<Assessment> }, unknown> => {
+export const useCreateAssessment = () => {
   return useMutation({
-    mutationFn: async ({ id, assessment }) => {
-      if (!token) throw new Error('Authentication required');
-      
-      const response = await axios.put(`/api/assessments/${id}`, assessment, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      });
-      
+    mutationFn: async (assessmentData: Omit<Assessment, '_id'>) => {
+      const response = await axios.post('/api/instructor/assessments', assessmentData);
       return response.data;
     }
   });
 };
 
-// Delete assessment
-export const useDeleteAssessment = (token: string | null): UseMutationResult<void, Error, string, unknown> => {
+export const useInstructorAssessments = (courseId?: string) => {
+  return useQuery({
+    queryKey: ['instructor-assessments', courseId],
+    queryFn: async (): Promise<Assessment[]> => {
+      const response = await axios.get(`/api/instructor/courses/${courseId}/assessments`);
+      return response.data;
+    },
+    enabled: !!courseId,
+  });
+};
+
+// Adding the missing function that was referenced in CreateAssessment.tsx
+export const useUploadAssessmentPDF = () => {
   return useMutation({
-    mutationFn: async (id: string) => {
-      if (!token) throw new Error('Authentication required');
+    mutationFn: async ({ 
+      file, 
+      courseId, 
+      assignedDays 
+    }: { 
+      file: File; 
+      courseId: string;
+      assignedDays: number[];
+    }) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('courseId', courseId);
+      formData.append('assignedDays', JSON.stringify(assignedDays));
       
-      await axios.delete(`/api/assessments/${id}`, {
+      const response = await axios.post('/api/instructor/assessments/upload-pdf', formData, {
         headers: {
-          Authorization: `Bearer ${token}`
-        }
+          'Content-Type': 'multipart/form-data',
+        },
       });
+      return response.data;
+    },
+  });
+};
+
+// New function to submit quiz results to assignments
+export const useSubmitQuizToAssignments = () => {
+  return useMutation({
+    mutationFn: async ({ 
+      courseId,
+      dayNumber,
+      title,
+      questions,
+      selectedAnswers,
+      score
+    }: { 
+      courseId: string;
+      dayNumber: number;
+      title: string;
+      questions: any[];
+      selectedAnswers: Record<string, string>;
+      score: number;
+    }) => {
+      const response = await axios.post(
+        `/api/courses/${courseId}/assignments/quiz-submission`,
+        { 
+          dayNumber,
+          title,
+          questions,
+          selectedAnswers,
+          score,
+          submittedDate: new Date().toISOString()
+        }
+      );
+      return response.data;
     }
-  });
-};
-
-// Fetch instructor's assessments
-export const useInstructorAssessments = (token: string | null) => {
-  return useQuery({
-    queryKey: ['instructor-assessments'],
-    queryFn: async () => {
-      if (!token) return [] as Assessment[];
-      
-      try {
-        const response = await axios.get('/api/instructor/assessments', {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        });
-        return response.data as Assessment[];
-      } catch (error) {
-        console.error('Error fetching instructor assessments:', error);
-        return [] as Assessment[];
-      }
-    },
-    enabled: !!token
-  });
-};
-
-// Fetch student's upcoming assessments
-export const useStudentAssessments = (token: string | null) => {
-  return useQuery({
-    queryKey: ['student-assessments'],
-    queryFn: async () => {
-      if (!token) return [] as Assessment[];
-      
-      try {
-        const response = await axios.get('/api/student/assessments', {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        });
-        return response.data as Assessment[];
-      } catch (error) {
-        console.error('Error fetching student assessments:', error);
-        return [] as Assessment[];
-      }
-    },
-    enabled: !!token
   });
 };

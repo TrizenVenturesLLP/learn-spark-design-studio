@@ -38,7 +38,6 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import MCQForm from '@/components/MCQForm';
 import { DayCodeEditor } from '@/components/instructor/DayCodeEditor';
-import VideoUploader from '@/components/instructor/VideoUploader';
 
 const convertGoogleDriveLink = (url: string): string => {
   try {
@@ -384,14 +383,14 @@ const CourseForm = () => {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <Button
-            variant="ghost"
-            onClick={() => navigate('/instructor/courses')}
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Courses
-          </Button>
+      <div className="flex items-center space-x-4">
+        <Button
+          variant="ghost"
+          onClick={() => navigate('/instructor/courses')}
+        >
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Back to Courses
+        </Button>
           <h1 className="text-3xl font-bold">{isEditMode ? 'Edit Course' : 'Create New Course'}</h1>
         </div>
       </div>
@@ -589,7 +588,7 @@ const CourseForm = () => {
                 <div>
                   <CardTitle>Course Roadmap</CardTitle>
                   <p className="text-sm text-muted-foreground mt-1">
-                    Add and manage the daily content for your course. Each day should include topics, a video upload, and an optional transcript.
+                    Add and manage the daily content for your course. Each day should include topics, a video link, and an optional transcript.
                   </p>
                 </div>
                 <Button type="button" variant="outline" onClick={addRoadmapDay}>
@@ -628,24 +627,17 @@ const CourseForm = () => {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor={`video-${index}`}>Video Upload (.mp4 format) *</Label>
-                      <div className="flex flex-col gap-4">
-                        {day.video && (
-                          <div className="p-2 bg-muted rounded-lg">
-                            <p className="text-sm font-medium mb-1">Current Video:</p>
-                            <code className="text-xs break-all">{day.video}</code>
-                          </div>
-                        )}
-                        
-                        <VideoUploader 
-                          courseId={courseId || 'new-course'}
-                          onUploadComplete={(fileUrl) => updateRoadmapDay(index, 'video', fileUrl)}
-                        />
-                        
-                        <p className="text-xs text-muted-foreground">
-                          Upload videos in MP4 format (max 200MB)
-                        </p>
-                      </div>
+                      <Label htmlFor={`video-${index}`}>Video Link *</Label>
+                      <Input
+                        id={`video-${index}`}
+                        value={day.video}
+                        onChange={(e) => updateRoadmapDay(index, 'video', e.target.value)}
+                        placeholder="YouTube or Google Drive video link"
+                        required
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Supported formats: YouTube or Google Drive video links
+                      </p>
                     </div>
 
                     <div className="space-y-2">
@@ -791,3 +783,4 @@ const CourseForm = () => {
 };
 
 export default CourseForm;
+
