@@ -26,8 +26,10 @@ interface InstructorApplication {
   _id: string;
   name: string;
   email: string;
-  specialty: string;
-  experience: number;
+  instructorProfile: {
+    specialty: string;
+    experience: number;
+  };
   status: 'pending' | 'approved' | 'rejected';
   createdAt: string;
 }
@@ -38,9 +40,9 @@ const InstructorApprovals = () => {
 
   const { data: applications, isLoading } = useQuery<InstructorApplication[]>({
     queryKey: ['instructorApplications'],
-    queryFn: async () => {
-      const response = await axios.get('/api/admin/instructor-applications');
-      return response.data;
+    queryFn: async (): Promise<InstructorApplication[]> => {
+      const { data } = await axios.get<InstructorApplication[]>('/api/admin/instructor-applications');
+      return data;
     },
   });
 
@@ -106,20 +108,27 @@ const InstructorApprovals = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {(applications ?? []).map((application) => (
+                {applications?.map((application) => (
                   <TableRow key={application._id}>
                     <TableCell className="font-medium">{application.name}</TableCell>
                     <TableCell>{application.email}</TableCell>
-                    <TableCell>{application.specialty}</TableCell>
-                    <TableCell>{application.experience} years</TableCell>
+                    <TableCell>{application.instructorProfile?.specialty || 'Not specified'}</TableCell>
+                    <TableCell>{application.instructorProfile?.experience || 0} years</TableCell>
                     <TableCell>
                       <Badge
                         variant={
                           application.status === 'approved'
-                            ? 'success'
+                            ? 'secondary'
                             : application.status === 'rejected'
                             ? 'destructive'
                             : 'default'
+                        }
+                        className={
+                          application.status === 'approved'
+                            ? 'bg-green-100 text-green-800'
+                            : application.status === 'rejected'
+                            ? 'bg-red-100 text-red-800'
+                            : 'bg-yellow-100 text-yellow-800'
                         }
                       >
                         {application.status}
