@@ -61,7 +61,7 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
         headers: {
           'Content-Type': 'multipart/form-data',
         },
-        onUploadProgress: (progressEvent) => {
+        onUploadProgress: (progressEvent: any) => {
           const totalLength = progressEvent.total || 0;
           if (totalLength > 0) {
             const percentCompleted = Math.round((progressEvent.loaded * 100) / totalLength);
