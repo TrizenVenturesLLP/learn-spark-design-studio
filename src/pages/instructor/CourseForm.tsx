@@ -38,8 +38,6 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import MCQForm from '@/components/MCQForm';
 import { DayCodeEditor } from '@/components/instructor/DayCodeEditor';
-import { VideoUploader } from '@/components/instructor/VideoUploader';
-import { VideoPlayer } from '@/components/VideoPlayer';
 
 const convertGoogleDriveLink = (url: string): string => {
   try {
@@ -170,7 +168,7 @@ const CourseForm = () => {
           throw new Error(`Topics are required for Day ${index + 1}`);
         }
         if (!day.video.trim()) {
-          throw new Error(`Video is required for Day ${index + 1}`);
+          throw new Error(`Video link is required for Day ${index + 1}`);
         }
         
         return {
@@ -346,10 +344,6 @@ const CourseForm = () => {
     });
     
     updateRoadmapDay(dayIndex, 'mcqs', mcqs);
-  };
-
-  const handleVideoUpload = (index: number, videoUrl: string) => {
-    updateRoadmapDay(index, 'video', videoUrl);
   };
 
   const handleCodeSave = async (dayIndex: number, newCode: string) => {
@@ -594,7 +588,7 @@ const CourseForm = () => {
                 <div>
                   <CardTitle>Course Roadmap</CardTitle>
                   <p className="text-sm text-muted-foreground mt-1">
-                    Add and manage the daily content for your course. Each day should include topics, a video, and an optional transcript.
+                    Add and manage the daily content for your course. Each day should include topics, a video link, and an optional transcript.
                   </p>
                 </div>
                 <Button type="button" variant="outline" onClick={addRoadmapDay}>
@@ -632,19 +626,19 @@ const CourseForm = () => {
                       />
                     </div>
 
-                    {/* Replace the Video Link input with VideoUploader */}
-                    <VideoUploader 
-                      dayNumber={day.day}
-                      onUploadComplete={(videoUrl) => handleVideoUpload(index, videoUrl)}
-                      existingVideoUrl={day.video}
-                    />
-                    
-                    {day.video && (
-                      <div className="mt-2 border rounded-md p-2">
-                        <p className="text-xs text-muted-foreground mb-2">Video Preview:</p>
-                        <VideoPlayer videoUrl={day.video} className="max-h-48" />
-                      </div>
-                    )}
+                    <div className="space-y-2">
+                      <Label htmlFor={`video-${index}`}>Video Link *</Label>
+                      <Input
+                        id={`video-${index}`}
+                        value={day.video}
+                        onChange={(e) => updateRoadmapDay(index, 'video', e.target.value)}
+                        placeholder="YouTube or Google Drive video link"
+                        required
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Supported formats: YouTube or Google Drive video links
+                      </p>
+                    </div>
 
                     <div className="space-y-2">
                       <Label htmlFor={`transcript-${index}`}>Transcript (Optional)</Label>
@@ -789,3 +783,4 @@ const CourseForm = () => {
 };
 
 export default CourseForm;
+
