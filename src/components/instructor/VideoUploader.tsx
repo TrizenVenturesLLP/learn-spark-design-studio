@@ -5,7 +5,6 @@ import { Upload, Loader2 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import axios from '@/lib/axios';
 import { Progress } from '@/components/ui/progress';
-import { AxiosProgressEvent } from 'axios';
 
 interface VideoUploaderProps {
   dayNumber: number;
@@ -62,7 +61,7 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
         headers: {
           'Content-Type': 'multipart/form-data',
         },
-        onUploadProgress: (progressEvent: AxiosProgressEvent) => {
+        onUploadProgress: (progressEvent: any) => {
           const totalLength = progressEvent.total || 0;
           if (totalLength > 0) {
             const percentCompleted = Math.round((progressEvent.loaded * 100) / totalLength);
