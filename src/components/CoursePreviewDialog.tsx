@@ -4,9 +4,7 @@ import axios from '@/lib/axios';
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
   DialogTitle,
-  DialogDescription,
 } from "@/components/ui/dialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -46,7 +44,7 @@ interface CourseData {
   }[];
 }
 
-interface AdminCourseViewProps {
+interface CoursePreviewDialogProps {
   courseId: string;
   isOpen: boolean;
   onClose: () => void;
@@ -108,7 +106,7 @@ const VideoPlayer = ({ videoUrl }: { videoUrl: string }) => {
   );
 };
 
-const AdminCourseView = ({ courseId, isOpen, onClose }: AdminCourseViewProps) => {
+const CoursePreviewDialog = ({ courseId, isOpen, onClose }: CoursePreviewDialogProps) => {
   const [selectedDay, setSelectedDay] = React.useState<number>(1);
   const [contentSections, setContentSections] = React.useState<{
     transcript: boolean;
@@ -121,7 +119,7 @@ const AdminCourseView = ({ courseId, isOpen, onClose }: AdminCourseViewProps) =>
   });
 
   const { data: course, isLoading, error } = useQuery<CourseData, Error>({
-    queryKey: ['admin-course', courseId],
+    queryKey: ['course-preview', courseId],
     queryFn: async () => {
       const { data } = await axios.get<CourseData>(`/api/courses/${courseId}`);
       return data;
@@ -135,12 +133,7 @@ const AdminCourseView = ({ courseId, isOpen, onClose }: AdminCourseViewProps) =>
     return (
       <Dialog open={isOpen} onOpenChange={() => onClose()}>
         <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden">
-          <DialogTitle className="sr-only">
-            <VisuallyHidden>Loading Course Content</VisuallyHidden>
-          </DialogTitle>
-          <DialogDescription className="sr-only">
-            <VisuallyHidden>Please wait while we load the course details</VisuallyHidden>
-          </DialogDescription>
+          <DialogTitle className="sr-only">Course Preview</DialogTitle>
           <div className="flex items-center justify-center h-full">
             <div className="animate-spin">
               <Video className="h-8 w-8" />
@@ -155,12 +148,7 @@ const AdminCourseView = ({ courseId, isOpen, onClose }: AdminCourseViewProps) =>
     return (
       <Dialog open={isOpen} onOpenChange={() => onClose()}>
         <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden">
-          <DialogTitle className="sr-only">
-            <VisuallyHidden>Error Loading Course</VisuallyHidden>
-          </DialogTitle>
-          <DialogDescription className="sr-only">
-            <VisuallyHidden>There was a problem loading the course details</VisuallyHidden>
-          </DialogDescription>
+          <DialogTitle className="sr-only">Course Preview</DialogTitle>
           <div className="flex flex-col items-center justify-center h-full">
             <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
             <p className="text-lg font-medium text-red-500">Failed to load course content</p>
@@ -175,12 +163,7 @@ const AdminCourseView = ({ courseId, isOpen, onClose }: AdminCourseViewProps) =>
   return (
     <Dialog open={isOpen} onOpenChange={() => onClose()}>
       <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden p-0">
-        <DialogTitle className="sr-only">
-          <VisuallyHidden>Course Details: {course.title}</VisuallyHidden>
-        </DialogTitle>
-        <DialogDescription className="sr-only">
-          <VisuallyHidden>Detailed view of the course, including content and materials</VisuallyHidden>
-        </DialogDescription>
+        <DialogTitle className="sr-only">Course Preview</DialogTitle>
         <ScrollArea className="max-h-[90vh] w-full">
           <div className="min-h-[90vh] bg-gradient-to-b from-background to-gray-50">
             <div className="p-6 sm:p-8">
@@ -453,4 +436,4 @@ const AdminCourseView = ({ courseId, isOpen, onClose }: AdminCourseViewProps) =>
   );
 };
 
-export default AdminCourseView; 
+export default CoursePreviewDialog; 

@@ -17,6 +17,8 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import MCQQuiz from '@/components/MCQQuiz';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
+import Plyr from 'plyr-react';
+import 'plyr-react/plyr.css';
 
 // Import your logo image
 import companyLogo from '/logo_footer.png'; // Adjust path as needed
@@ -123,14 +125,7 @@ const VideoPlayer = ({
     };
   }, [onVideoComplete, isVideoCompleted, lastValidTime]);
 
-  if (!fileId) {
-    return (
-      <div className="aspect-video w-full rounded-lg overflow-hidden bg-black flex items-center justify-center text-white">
-        Invalid video URL
-      </div>
-    );
-  }
-
+  // Show locked overlay if not enabled
   if (!isEnabled) {
     return (
       <div className="aspect-video w-full rounded-lg overflow-hidden bg-black/90 flex items-center justify-center text-white">
@@ -142,30 +137,57 @@ const VideoPlayer = ({
     );
   }
 
-  const driveEmbedUrl = `https://drive.google.com/file/d/${fileId}/preview?controls=0&disablekb=1&modestbranding=1&rel=0&showinfo=0&enablejsapi=1&widgetid=1&fs=0&iv_load_policy=3&playsinline=1&autohide=1&html5=1&cc_load_policy=0`;
+  // If it's a Google Drive link, embed via iframe
+  if (fileId) {
+    const driveEmbedUrl = `https://drive.google.com/file/d/${fileId}/preview?controls=0&disablekb=1&modestbranding=1&rel=0&showinfo=0&enablejsapi=1&widgetid=1&fs=0&iv_load_policy=3&playsinline=1&autohide=1&html5=1&cc_load_policy=0`;
+    return (
+      <div className="aspect-video w-full rounded-lg overflow-hidden bg-black relative">
+        <iframe
+          ref={iframeRef}
+          title="Course Video"
+          width="100%"
+          height="100%"
+          src={driveEmbedUrl}
+          allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+          className="w-full h-full"
+        />
+        {/* Logo overlay */}
+        <div className="absolute top-2 md:top-4 z-5 flex items-center" style={{ right: '-3px' }}>
+          <div className="absolute inset-0 bg-black/0 rounded-lg -z-5" />
+          <div className="px-2 py-1 md:px-3 md:py-2">
+            <img src={companyLogo} alt="Company Logo" className="h-5 w-auto md:h-7" />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
+  // Fallback: custom player for direct video playback (e.g., Minio-stored video)
   return (
     <div className="aspect-video w-full rounded-lg overflow-hidden bg-black relative">
-      <iframe
-        ref={iframeRef}
-        title="Course Video"
-        width="100%"
-        height="100%"
-        src={driveEmbedUrl}
-        allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
-        allowFullScreen
-        className="w-full h-full"
+      <Plyr
+        source={{
+          type: 'video',
+          sources: [
+            {
+              src: videoUrl,
+              provider: 'html5'
+            }
+          ]
+        }}
+        options={{
+          controls: ['play', 'progress', 'current-time', 'mute', 'volume', 'settings', 'fullscreen'],
+          settings: ['quality', 'speed'],
+          keyboard: { global: true }
+        }}
+        onEnded={onVideoComplete}
       />
-      
-      {/* Logo with overlay background - Updated with responsive classes */}
+      {/* Logo overlay */}
       <div className="absolute top-2 md:top-4 z-5 flex items-center" style={{ right: '-3px' }}>
         <div className="absolute inset-0 bg-black/0 rounded-lg -z-5" />
         <div className="px-2 py-1 md:px-3 md:py-2">
-          <img 
-            src={companyLogo}
-            alt="Company Logo"
-            className="h-5 w-auto md:h-7" // Smaller height on mobile, larger on desktop
-          />
+          <img src={companyLogo} alt="Company Logo" className="h-5 w-auto md:h-7" />
         </div>
       </div>
     </div>

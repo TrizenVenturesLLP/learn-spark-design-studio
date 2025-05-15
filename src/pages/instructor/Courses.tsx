@@ -35,10 +35,12 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from '@/components/ui/use-toast';
+import CoursePreviewDialog from '@/components/CoursePreviewDialog';
 
 const Courses = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [courseToDelete, setCourseToDelete] = useState<string | null>(null);
+  const [previewCourseId, setPreviewCourseId] = useState<string | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -70,6 +72,14 @@ const Courses = () => {
     } finally {
       setCourseToDelete(null);
     }
+  };
+
+  const handlePreview = (courseId: string) => {
+    setPreviewCourseId(courseId);
+  };
+
+  const handleClosePreview = () => {
+    setPreviewCourseId(null);
   };
 
   // Filter courses based on search query
@@ -143,7 +153,7 @@ const Courses = () => {
                         <Edit className="w-4 h-4 mr-2" />
                         Edit Course
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => navigate(`/courses/${course._id || course.id}`)}>
+                      <DropdownMenuItem onClick={() => handlePreview(course._id || course.id)}>
                         <Eye className="w-4 h-4 mr-2" />
                         Preview
                       </DropdownMenuItem>
@@ -193,10 +203,10 @@ const Courses = () => {
                     variant="outline" 
                     size="sm" 
                     className="flex-1"
-                    onClick={() => navigate(`/instructor/courses/${course._id || course.id}/students`)}
+                    onClick={() => handlePreview(course._id || course.id)}
                   >
-                    <Users className="w-4 h-4 mr-2" />
-                    Students
+                    <Eye className="w-4 h-4 mr-2" />
+                    Preview
                   </Button>
                 </div>
               </CardContent>
@@ -243,6 +253,15 @@ const Courses = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Course Preview Dialog */}
+      {previewCourseId && (
+        <CoursePreviewDialog
+          courseId={previewCourseId}
+          isOpen={!!previewCourseId}
+          onClose={handleClosePreview}
+        />
+      )}
     </div>
   );
 };

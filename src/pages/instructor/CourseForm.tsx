@@ -38,6 +38,8 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import MCQForm from '@/components/MCQForm';
 import { DayCodeEditor } from '@/components/instructor/DayCodeEditor';
+import axios from '@/lib/axios';
+import { Progress } from '@/components/ui/progress';
 
 const convertGoogleDriveLink = (url: string): string => {
   try {
@@ -95,6 +97,8 @@ const CourseForm = () => {
   const [activeTab, setActiveTab] = useState('basic');
   const [skill, setSkill] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [uploadingVideoIndex, setUploadingVideoIndex] = useState<number | null>(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   const { data: existingCourse, isLoading: isLoadingCourse } = useCourseDetails(courseId);
   const createCourseMutation = useCreateCourse();
@@ -371,6 +375,30 @@ const CourseForm = () => {
     }
   };
 
+  const handleVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingVideoIndex(index);
+    const formData = new FormData();
+    formData.append('video', file);
+    try {
+      const response = await axios.post<{ url: string }>('/api/upload/video', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      const url = response.data.url;
+      updateRoadmapDay(index, 'video', url);
+    } catch (error) {
+      console.error('Video upload failed:', error);
+      toast({
+        title: 'Upload Failed',
+        description: 'Unable to upload video. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setUploadingVideoIndex(null);
+    }
+  };
+
   if (isLoadingCourse && isEditMode) {
     return (
       <div className="flex flex-col items-center justify-center h-64">
@@ -627,16 +655,40 @@ const CourseForm = () => {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor={`video-${index}`}>Video Link *</Label>
-                      <Input
-                        id={`video-${index}`}
-                        value={day.video}
-                        onChange={(e) => updateRoadmapDay(index, 'video', e.target.value)}
-                        placeholder="YouTube or Google Drive video link"
-                        required
-                      />
+                      <Label>Video Upload *</Label>
+                      <div>
+                        <input
+                          id={`video-${index}`}
+                          type="file"
+                          accept="video/*"
+                          onChange={(e) => handleVideoUpload(e, index)}
+                          disabled={uploadingVideoIndex === index}
+                          className="hidden"
+                        />
+                        <label
+                          htmlFor={`video-${index}`}
+                          className={`inline-flex items-center px-4 py-2 border rounded-md ${uploadingVideoIndex === index ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100'}`}
+                        >
+                          <Upload className="w-4 h-4 mr-2" />
+                          {uploadingVideoIndex === index ? 'Uploading...' : day.video ? 'Change Video' : 'Upload Video'}
+                        </label>
+                        {uploadingVideoIndex === index && <Loader2 className="animate-spin inline-block ml-2" />}
+                      </div>
+                      {uploadingVideoIndex === index && (
+                        <div className="mt-2 space-y-1">
+                          <Progress value={uploadProgress} />
+                          <p className="text-xs text-muted-foreground">{uploadProgress}% uploaded</p>
+                        </div>
+                      )}
+                      {day.video && (
+                        <video
+                          src={day.video}
+                          controls
+                          className="w-full max-w-md h-48 object-cover rounded-md"
+                        />
+                      )}
                       <p className="text-xs text-muted-foreground">
-                        Supported formats: YouTube or Google Drive video links
+                        Supported formats: MP4, WebM, etc.
                       </p>
                     </div>
 

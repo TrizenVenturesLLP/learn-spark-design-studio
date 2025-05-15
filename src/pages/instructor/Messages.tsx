@@ -512,8 +512,8 @@ const MessagesPage = () => {
                             <div
                               className={`max-w-[70%] rounded-lg p-4 ${
                                 reply.userId._id === selectedDiscussion.userId._id
-                                  ? 'bg-muted'
-                                  : 'bg-primary text-primary-foreground'
+                                  ? 'bg-white text-blue-700 border border-gray-200'
+                                  : 'bg-blue-700 text-white'
                               }`}
                             >
                               <div className="flex items-center space-x-2 mb-1">
@@ -749,8 +749,8 @@ const MessagesPage = () => {
                                   className={cn(
                                     "max-w-[70%] p-3 rounded-lg shadow-sm relative",
                                     message.senderId._id === selectedConversation
-                                      ? "bg-white rounded-tl-none"
-                                      : "bg-primary text-primary-foreground rounded-tr-none"
+                                      ? "bg-white text-blue-700 border border-gray-200 rounded-tl-none"
+                                      : "bg-blue-700 text-white rounded-tr-none"
                                   )}
                                 >
                                   <p className="text-sm break-words">{message.content}</p>

@@ -8,6 +8,9 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const nodemailer = require('nodemailer');
+// Add Minio and mdf requires
+const Minio = require('minio');
+const mdf = require('./mdf');
 
 // Load environment variables
 dotenv.config();
@@ -3355,6 +3358,39 @@ app.post('/api/courses/:courseId/videos', authenticateToken, async (req, res) =>
 
 // Start server
 const PORT = process.env.PORT || 5001;
+// Add Minio client initialization and list buckets
+const minioClient = new Minio.Client({
+  endPoint: 'lmsbackendminio-api.llp.trizenventures.com',
+  port: 443,
+  useSSL: true,
+  accessKey: 'b72084650d4c21dd04b801f0',
+  secretKey: 'be2339a15ee0544de0796942ba3a85224cc635'
+});
+mdf.listBuckets(minioClient);
+
+// Video upload endpoint saving videos to Minio webdevbootcamp bucket
+const videoUpload = multer({ storage: multer.memoryStorage() });
+app.post('/api/upload/video', authenticateToken, videoUpload.single('video'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ message: 'No video file provided' });
+  }
+  const objectName = `${Date.now()}-${req.file.originalname}`;
+  minioClient.putObject('webdevbootcamp', objectName, req.file.buffer, (err) => {
+    if (err) {
+      console.error('Minio upload error:', err);
+      return res.status(500).json({ message: 'Error uploading to storage' });
+    }
+    // Generate a presigned URL valid for 24 hours
+    minioClient.presignedUrl('GET', 'webdevbootcamp', objectName, 24 * 60 * 60, (err, url) => {
+      if (err) {
+        console.error('Presigned URL error:', err);
+        return res.status(500).json({ message: 'Error generating URL' });
+      }
+      res.json({ url });
+    });
+  });
+});
+
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 
 // Get all discussions for instructor's courses

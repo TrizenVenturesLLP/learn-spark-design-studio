@@ -228,8 +228,8 @@ const ContactInstructorsPage: React.FC = () => {
                                 className={cn(
                                   "max-w-[70%] p-3 rounded-lg shadow-sm relative",
                                   message.senderId._id === selectedInstructor
-                                    ? "bg-white rounded-tl-none"
-                                    : "bg-primary text-primary-foreground rounded-tr-none"
+                                    ? "bg-blue-700 text-white rounded-tl-none"
+                                    : "bg-white text-blue-700 border border-gray-200 rounded-tr-none"
                                 )}
                               >
                                 <p className="text-sm break-words">{message.content}</p>
