@@ -45,29 +45,73 @@ const upload = multer({
   fileFilter: fileFilter
 });
 
-// Initialize MinIO client
-const minioClient = new Minio.Client({
-  endPoint: process.env.MINIO_ENDPOINT,
-  port: parseInt(process.env.MINIO_PORT),
-  useSSL: process.env.MINIO_USE_SSL === 'true',
-  accessKey: process.env.MINIO_ACCESS_KEY,
-  secretKey: process.env.MINIO_SECRET_KEY
-});
+// Check for required MinIO environment variables
+const minioEndpoint = process.env.MINIO_ENDPOINT;
+const minioPort = process.env.MINIO_PORT ? parseInt(process.env.MINIO_PORT) : 443;
+const minioUseSSL = process.env.MINIO_USE_SSL === 'true';
+const minioAccessKey = process.env.MINIO_ACCESS_KEY;
+const minioSecretKey = process.env.MINIO_SECRET_KEY;
+const minioBucketName = process.env.MINIO_BUCKET_NAME || 'videos';
+
+// Validate MinIO configuration
+if (!minioEndpoint || !minioAccessKey || !minioSecretKey) {
+  console.error('Missing required MinIO environment variables:');
+  console.error(`MINIO_ENDPOINT: ${minioEndpoint ? 'Set' : 'Missing'}`);
+  console.error(`MINIO_ACCESS_KEY: ${minioAccessKey ? 'Set' : 'Missing'}`);
+  console.error(`MINIO_SECRET_KEY: ${minioSecretKey ? 'Set' : 'Missing'}`);
+  console.error(`MINIO_BUCKET_NAME: ${minioBucketName ? 'Set' : 'Missing'}`);
+}
+
+// Initialize MinIO client with better error handling
+let minioClient;
+try {
+  if (minioEndpoint && minioAccessKey && minioSecretKey) {
+    minioClient = new Minio.Client({
+      endPoint: minioEndpoint,
+      port: minioPort,
+      useSSL: minioUseSSL,
+      accessKey: minioAccessKey,
+      secretKey: minioSecretKey
+    });
+    console.log(`MinIO client initialized with endpoint: ${minioEndpoint}`);
+  } else {
+    console.error('MinIO client initialization skipped due to missing environment variables');
+  }
+} catch (err) {
+  console.error('Error initializing MinIO client:', err);
+}
 
 // Make sure the bucket exists (this would normally be done at server startup)
 async function ensureBucketExists() {
   try {
-    const bucketExists = await minioClient.bucketExists(process.env.MINIO_BUCKET_NAME);
+    if (!minioClient) {
+      console.error('Cannot check bucket existence: MinIO client not initialized');
+      return;
+    }
+    
+    const bucketExists = await minioClient.bucketExists(minioBucketName);
     if (!bucketExists) {
-      await minioClient.makeBucket(process.env.MINIO_BUCKET_NAME);
-      console.log(`Created bucket ${process.env.MINIO_BUCKET_NAME}`);
+      await minioClient.makeBucket(minioBucketName);
+      console.log(`Created bucket ${minioBucketName}`);
     }
   } catch (err) {
     console.error('Error checking/creating bucket:', err);
   }
 }
 
-ensureBucketExists();
+// Only run if MinIO client was initialized
+if (minioClient) {
+  ensureBucketExists();
+}
+
+// Fallback function for video storage when MinIO is unavailable
+const storeVideoLocally = (file) => {
+  const localPath = `/uploads/videos/${file.filename}`;
+  return {
+    url: localPath,
+    filename: file.filename
+  };
+};
 
 // Route for video upload (accessible by instructors)
 router.post('/videos/upload', auth, upload.single('video'), async (req, res) => {
@@ -79,37 +123,59 @@ router.post('/videos/upload', auth, upload.single('video'), async (req, res) => 
     // Get the uploaded file details
     const { filename, path: filePath, originalname } = req.file;
     
+    // Check if MinIO client is available
+    if (!minioClient) {
+      console.warn('MinIO client not available, storing video locally');
+      const result = storeVideoLocally(req.file);
+      return res.status(200).json({
+        message: 'Video uploaded successfully (local storage)',
+        videoUrl: result.url,
+        filename: result.filename
+      });
+    }
+    
     // Determine the object name in MinIO bucket (videos/filename)
     const objectName = `videos/${filename}`;
     
-    console.log(`Uploading ${filePath} to MinIO bucket ${process.env.MINIO_BUCKET_NAME} as ${objectName}`);
+    console.log(`Uploading ${filePath} to MinIO bucket ${minioBucketName} as ${objectName}`);
     
-    // Upload file to MinIO
-    await minioClient.fPutObject(
-      process.env.MINIO_BUCKET_NAME,
-      objectName,
-      filePath,
-      {
-        'Content-Type': 'video/mp4',
-        'x-amz-meta-original-filename': originalname
-      }
-    );
-    
-    console.log(`Uploaded ${filePath} to MinIO successfully`);
-    
-    // Generate URL for the uploaded video
-    // We'll use a route that will proxy requests to MinIO
-    const videoUrl = `/api/videos/${filename}`;
-    
-    // Optionally delete the temporary file after upload
-    fs.unlinkSync(filePath);
-    
-    // Return the URL to access the video
-    return res.status(200).json({
-      message: 'Video uploaded successfully',
-      videoUrl: videoUrl,
-      filename: filename
-    });
+    try {
+      // Upload file to MinIO
+      await minioClient.fPutObject(
+        minioBucketName,
+        objectName,
+        filePath,
+        {
+          'Content-Type': 'video/mp4',
+          'x-amz-meta-original-filename': originalname
+        }
+      );
+      
+      console.log(`Uploaded ${filePath} to MinIO successfully`);
+      
+      // Generate URL for the uploaded video
+      // We'll use a route that will proxy requests to MinIO
+      const videoUrl = `/api/videos/${filename}`;
+      
+      // Optionally delete the temporary file after upload
+      fs.unlinkSync(filePath);
+      
+      // Return the URL to access the video
+      return res.status(200).json({
+        message: 'Video uploaded successfully',
+        videoUrl: videoUrl,
+        filename: filename
+      });
+    } catch (uploadError) {
+      console.error('MinIO upload error:', uploadError);
+      // Fallback to local storage if MinIO upload fails
+      const result = storeVideoLocally(req.file);
+      return res.status(200).json({
+        message: 'Video uploaded to local storage (MinIO upload failed)',
+        videoUrl: result.url,
+        filename: result.filename
+      });
+    }
   } catch (error) {
     console.error('Video upload error:', error);
     return res.status(500).json({ message: 'Error uploading video', error: error.message });
@@ -121,11 +187,21 @@ router.get('/videos/:filename', async (req, res) => {
   const { filename } = req.params;
   const objectName = `videos/${filename}`;
   
+  // Check if MinIO client is available
+  if (!minioClient) {
+    console.warn('MinIO client not available, serving video from local storage');
+    const localPath = path.join(__dirname, '../uploads/videos', filename);
+    if (fs.existsSync(localPath)) {
+      return res.sendFile(localPath);
+    }
+    return res.status(404).json({ message: 'Video not found' });
+  }
+  
   try {
     // Check if object exists in MinIO
     let statObject;
     try {
-      statObject = await minioClient.statObject(process.env.MINIO_BUCKET_NAME, objectName);
+      statObject = await minioClient.statObject(minioBucketName, objectName);
     } catch (err) {
       if (err.code === 'NotFound') {
         return res.status(404).json({ message: 'Video not found' });
@@ -152,7 +228,7 @@ router.get('/videos/:filename', async (req, res) => {
       
       // Stream the part of the file requested
       const stream = await minioClient.getPartialObject(
-        process.env.MINIO_BUCKET_NAME,
+        minioBucketName,
         objectName,
         start,
         end
@@ -166,7 +242,7 @@ router.get('/videos/:filename', async (req, res) => {
         'Content-Type': 'video/mp4',
       });
       
-      const stream = await minioClient.getObject(process.env.MINIO_BUCKET_NAME, objectName);
+      const stream = await minioClient.getObject(minioBucketName, objectName);
       stream.pipe(res);
     }
   } catch (error) {

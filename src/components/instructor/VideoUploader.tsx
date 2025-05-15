@@ -5,6 +5,7 @@ import { Upload, Loader2 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import axios from '@/lib/axios';
 import { Progress } from '@/components/ui/progress';
+import { AxiosProgressEvent } from 'axios';
 
 interface VideoUploaderProps {
   dayNumber: number;
@@ -61,7 +62,7 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
         headers: {
           'Content-Type': 'multipart/form-data',
         },
-        onUploadProgress: (progressEvent: any) => {
+        onUploadProgress: (progressEvent: AxiosProgressEvent) => {
           const totalLength = progressEvent.total || 0;
           if (totalLength > 0) {
             const percentCompleted = Math.round((progressEvent.loaded * 100) / totalLength);
@@ -73,8 +74,9 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
       setIsUploading(false);
       
       // Handle the response
-      if (response.data && response.data.videoUrl) {
-        setVideoPreview(response.data.videoUrl);
+      const data = response.data;
+      if (data && data.videoUrl) {
+        setVideoPreview(data.videoUrl);
         
         toast({
           title: "Upload successful",
@@ -82,7 +84,7 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
         });
 
         // Pass the URL back to parent component
-        onUploadComplete(response.data.videoUrl);
+        onUploadComplete(data.videoUrl);
       } else {
         throw new Error("Invalid response from server");
       }
