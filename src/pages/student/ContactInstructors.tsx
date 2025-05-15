@@ -84,13 +84,13 @@ const ContactInstructorsPage: React.FC = () => {
 
   return (
     <DashboardLayout>
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         <Card className="w-full">
-          <CardHeader>
-            <div className="flex items-center justify-between">
+          <CardHeader className="p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <CardTitle>Contact Instructors</CardTitle>
               <Select value={selectedCourse || 'all'} onValueChange={(value) => handleCourseSelect(value === 'all' ? '' : value)}>
-                <SelectTrigger className="w-[250px]">
+                <SelectTrigger className="w-full sm:w-[250px]">
                   <SelectValue placeholder="Filter by course" />
                 </SelectTrigger>
                 <SelectContent>
@@ -104,10 +104,10 @@ const ContactInstructorsPage: React.FC = () => {
               </Select>
             </div>
           </CardHeader>
-          <CardContent>
-            <div className="flex h-[500px] gap-4">
+          <CardContent className="p-0 sm:p-6">
+            <div className="flex flex-col sm:flex-row sm:h-[500px] gap-4">
               {/* Left sidebar: Instructors list */}
-              <Card className="w-80 flex flex-col bg-white">
+              <Card className="w-full sm:w-80 flex flex-col bg-white">
                 <div className="p-4 border-b">
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
@@ -183,7 +183,7 @@ const ContactInstructorsPage: React.FC = () => {
                 {selectedInstructor && selectedCourse ? (
                   <>
                     {/* Chat Header */}
-                    <div className="px-6 py-4 border-b flex items-center justify-between">
+                    <div className="px-4 py-3 sm:px-6 sm:py-4 border-b flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0">
                       <div className="flex items-center space-x-3">
                         <Avatar className="h-10 w-10">
                           <AvatarFallback>
@@ -202,7 +202,7 @@ const ContactInstructorsPage: React.FC = () => {
                     </div>
 
                     {/* Messages Area */}
-                    <ScrollArea className="flex-1 p-6 bg-gray-50">
+                    <ScrollArea className="flex-1 p-4 sm:p-6 bg-gray-50">
                       {isLoadingMessages ? (
                         <div className="flex items-center justify-center py-8">
                           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -244,7 +244,7 @@ const ContactInstructorsPage: React.FC = () => {
                     </ScrollArea>
 
                     {/* Input Area */}
-                    <div className="p-4 bg-white border-t">
+                    <div className="p-3 sm:p-4 bg-white border-t">
                       <form 
                         onSubmit={(e) => {
                           e.preventDefault();

@@ -409,35 +409,49 @@ const CourseForm = () => {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-      <div className="flex items-center space-x-4">
-        <Button
-          variant="ghost"
-          onClick={() => navigate('/instructor/courses')}
-        >
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to Courses
-        </Button>
-          <h1 className="text-3xl font-bold">{isEditMode ? 'Edit Course' : 'Create New Course'}</h1>
+    <div className="p-0">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-0">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 w-full sm:w-auto">
+          <Button
+            variant="ghost"
+            onClick={() => navigate('/instructor/courses')}
+            className="p-2"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            <span className="hidden sm:inline">Back to Courses</span>
+            <span className="sm:hidden">Back</span>
+          </Button>
+          <h1 className="text-xl sm:text-3xl font-bold">{isEditMode ? 'Edit Course' : 'Create New Course'}</h1>
         </div>
       </div>
 
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} className="space-y-4">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="basic">Basic Information</TabsTrigger>
-            <TabsTrigger value="details">Course Details</TabsTrigger>
-            <TabsTrigger value="roadmap">Course Roadmap</TabsTrigger>
-            <TabsTrigger value="media">Media & Resources</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 gap-2 mb-16">
+            <TabsTrigger value="basic" className="text-sm sm:text-base">
+              <span className="hidden sm:inline">Basic Information</span>
+              <span className="sm:hidden">Basic</span>
+            </TabsTrigger>
+            <TabsTrigger value="details" className="text-sm sm:text-base">
+              <span className="hidden sm:inline">Course Details</span>
+              <span className="sm:hidden">Details</span>
+            </TabsTrigger>
+            <TabsTrigger value="roadmap" className="text-sm sm:text-base">
+              <span className="hidden sm:inline">Course Roadmap</span>
+              <span className="sm:hidden">Roadmap</span>
+            </TabsTrigger>
+            <TabsTrigger value="media" className="text-sm sm:text-base">
+              <span className="hidden sm:inline">Media & Resources</span>
+              <span className="sm:hidden">Media</span>
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="basic">
             <Card>
-              <CardHeader>
-                <CardTitle>Basic Information</CardTitle>
+              <CardHeader className="p-4 sm:p-6">
+                <CardTitle className="text-lg sm:text-xl">Basic Information</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="p-4 sm:p-6 space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="title">Course Title *</Label>
                   <Input
@@ -551,8 +565,8 @@ const CourseForm = () => {
                   <Label htmlFor="courseAccess">Make course available immediately after creation</Label>
                 </div>
               </CardContent>
-              <div className="flex justify-end p-6 pt-0">
-                <Button type="button" onClick={handleNextTab}>
+              <div className="flex flex-col sm:flex-row justify-end gap-4 sm:gap-2 p-4 sm:p-6 pt-0">
+                <Button type="button" onClick={handleNextTab} className="w-full sm:w-auto">
                   Next
                   <ArrowRight className="w-4 h-4 ml-2" />
                 </Button>
@@ -562,10 +576,10 @@ const CourseForm = () => {
 
           <TabsContent value="details">
             <Card>
-              <CardHeader>
-                <CardTitle>Course Skills & Requirements</CardTitle>
+              <CardHeader className="p-4 sm:p-6">
+                <CardTitle className="text-lg sm:text-xl">Course Skills & Requirements</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="p-4 sm:p-6 space-y-4">
                 <div className="space-y-4">
                   <Label>Skills Students Will Learn</Label>
                   <div className="flex space-x-2">
@@ -601,8 +615,8 @@ const CourseForm = () => {
                   </div>
                 </div>
               </CardContent>
-              <div className="flex justify-end p-6 pt-0">
-                <Button type="button" onClick={handleNextTab}>
+              <div className="flex flex-col sm:flex-row justify-end gap-4 sm:gap-2 p-4 sm:p-6 pt-0">
+                <Button type="button" onClick={handleNextTab} className="w-full sm:w-auto">
                   Next
                   <ArrowRight className="w-4 h-4 ml-2" />
                 </Button>
@@ -612,19 +626,19 @@ const CourseForm = () => {
 
           <TabsContent value="roadmap">
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0">
-                <div>
-                  <CardTitle>Course Roadmap</CardTitle>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Add and manage the daily content for your course. Each day should include topics, a video link, and an optional transcript.
+              <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-2 sm:space-y-0 p-4 sm:p-6">
+                <div className="space-y-1">
+                  <CardTitle className="text-lg sm:text-xl">Course Roadmap</CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    Add and manage the daily content for your course.
                   </p>
                 </div>
-                <Button type="button" variant="outline" onClick={addRoadmapDay}>
+                <Button type="button" variant="outline" onClick={addRoadmapDay} className="w-full sm:w-auto">
                   <Plus className="w-4 h-4 mr-2" />
                   Add Day
                 </Button>
               </CardHeader>
-              <CardContent className="space-y-6">
+              <CardContent className="p-4 sm:p-6">
                 {courseData.roadmap.map((day, index) => (
                   <div key={index} className="space-y-4 pb-4 border-b" id={`day-${day.day}`}>
                     <div className="flex items-center justify-between">
@@ -726,12 +740,12 @@ const CourseForm = () => {
                       />
                     </div>
                     
-                    {/* MCQ Form Component */}
                     <div className="mt-6">
                       <MCQForm 
                         mcqs={day.mcqs || []}
                         onChange={(mcqs) => handleMcqsUpdate(index, mcqs)}
                         dayNumber={day.day}
+                        className="flex flex-col space-y-4"
                       />
                     </div>
                   </div>
@@ -743,8 +757,8 @@ const CourseForm = () => {
                   </div>
                 )}
               </CardContent>
-              <div className="flex justify-end p-6 pt-0">
-                <Button type="button" onClick={handleNextTab}>
+              <div className="flex flex-col sm:flex-row justify-end gap-4 sm:gap-2 p-4 sm:p-6 pt-0">
+                <Button type="button" onClick={handleNextTab} className="w-full sm:w-auto">
                   Next
                   <ArrowRight className="w-4 h-4 ml-2" />
                 </Button>
@@ -754,10 +768,10 @@ const CourseForm = () => {
 
           <TabsContent value="media">
             <Card>
-              <CardHeader>
-                <CardTitle>Media & Resources</CardTitle>
+              <CardHeader className="p-4 sm:p-6">
+                <CardTitle className="text-lg sm:text-xl">Media & Resources</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="p-4 sm:p-6 space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="imageUrl">Course Image URL</Label>
                   <Input
@@ -803,16 +817,17 @@ const CourseForm = () => {
                   )}
                 </div>
               </CardContent>
-              <div className="flex justify-end p-6 pt-0 space-x-4">
+              <div className="flex flex-col-reverse sm:flex-row justify-end gap-4 sm:gap-2 p-4 sm:p-6 pt-0">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => navigate('/instructor/courses')}
                   disabled={isSubmitting}
+                  className="w-full sm:w-auto"
                 >
                   Cancel
                 </Button>
-                <Button type="submit" disabled={isSubmitting}>
+                <Button type="submit" disabled={isSubmitting} className="w-full sm:w-auto">
                   {isSubmitting ? (
                     <>
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />

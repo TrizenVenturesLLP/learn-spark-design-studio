@@ -53,13 +53,13 @@ const DiscussionCard = ({
   };
 
   return (
-    <div className={`p-6 border rounded-lg transition-colors mb-4 last:mb-0 ${
+    <div className={`p-4 sm:p-6 border rounded-lg transition-colors mb-4 last:mb-0 ${
       discussion.isPinned 
         ? 'bg-primary/5 border-primary/20 shadow-sm' 
         : 'bg-card hover:bg-accent/5'
     }`}>
-      <div className="flex items-start gap-4">
-        <Avatar className={`h-12 w-12 ring-2 rounded-full ${
+      <div className="flex flex-col sm:flex-row items-start gap-4">
+        <Avatar className={`h-10 w-10 sm:h-12 sm:w-12 ring-2 rounded-full ${
           discussion.isPinned 
             ? 'ring-primary/30' 
             : 'ring-primary/10'
@@ -69,10 +69,10 @@ const DiscussionCard = ({
         </Avatar>
         
         <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between gap-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <h3 className="text-lg font-semibold text-foreground">{discussion.title}</h3>
+                <h3 className="text-base sm:text-lg font-semibold text-foreground">{discussion.title}</h3>
                 {discussion.isPinned && (
                   <Badge variant="secondary" className="flex items-center">
                     <Star className="h-3 w-3 mr-1 fill-yellow-500 text-yellow-500" />
@@ -80,7 +80,7 @@ const DiscussionCard = ({
                   </Badge>
                 )}
               </div>
-              <p className="text-sm text-muted-foreground/80 truncate mt-0.5">
+              <p className="text-xs sm:text-sm text-muted-foreground/80 truncate mt-0.5">
                 {discussion.userId.name} • {formatDistanceToNow(new Date(discussion.createdAt))} ago
               </p>
             </div>
@@ -88,7 +88,7 @@ const DiscussionCard = ({
               <Button 
                 variant="destructive"
                 size="sm"
-                className="px-3 py-2 h-auto hover:bg-destructive/90 transition-colors"
+                className="px-3 py-2 h-auto hover:bg-destructive/90 transition-colors mt-2 sm:mt-0"
                 onClick={handleDelete}
               >
                 <Trash2 className="h-4 w-4 mr-2" />
@@ -97,14 +97,14 @@ const DiscussionCard = ({
             )}
           </div>
           
-          <p className="text-sm mt-4 text-card-foreground leading-relaxed">{discussion.content}</p>
+          <p className="text-sm sm:text-base mt-3 sm:mt-4 text-card-foreground leading-relaxed break-words">{discussion.content}</p>
           
-          <div className="flex items-center gap-2 mt-4">
+          <div className="flex flex-col sm:flex-row items-center gap-2 mt-3 sm:mt-4">
             <Button 
               variant="ghost" 
               size="sm" 
               onClick={handleLike}
-              className={`hover:bg-primary/10 transition-colors ${isLiked ? 'text-primary bg-primary/5' : ''}`}
+              className={`w-full sm:w-auto flex justify-center hover:bg-primary/10 transition-colors ${isLiked ? 'text-primary bg-primary/5' : ''}`}
             >
               <ThumbsUp className="h-4 w-4 mr-2" />
               {discussion.likes?.length || 0} {discussion.likes?.length === 1 ? 'Like' : 'Likes'}
@@ -113,7 +113,7 @@ const DiscussionCard = ({
               variant="ghost" 
               size="sm" 
               onClick={() => onReply(discussion._id)}
-              className="hover:bg-primary/10 transition-colors"
+              className="w-full sm:w-auto flex justify-center hover:bg-primary/10 transition-colors"
             >
               <MessageSquare className="h-4 w-4 mr-2" />
               {discussion.replies.length} {discussion.replies.length === 1 ? 'Reply' : 'Replies'}

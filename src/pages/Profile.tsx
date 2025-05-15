@@ -65,17 +65,17 @@ const Profile = () => {
 
   return (
     <DashboardLayout>
-      <div className="flex-1 p-6 overflow-y-auto">
+      <div className="flex-1 p-4 sm:p-6 overflow-y-auto">
         {/* Profile Header */}
         <Card className="mb-6">
-          <CardContent className="p-6">
-            <div className="flex items-start gap-6">
-              <Avatar className="h-24 w-24">
+          <CardContent className="p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6">
+              <Avatar className="h-20 w-20 sm:h-24 sm:w-24">
                 <AvatarImage src={userData.avatar} />
                 <AvatarFallback>{userData.name[0].toUpperCase()}</AvatarFallback>
               </Avatar>
               <div className="flex-1">
-                <div className="flex justify-between items-start">
+                <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
                   <div>
                     <h1 className="text-2xl font-bold">{userData.name}</h1>
                     <p className="text-muted-foreground">{userData.email}</p>
@@ -85,8 +85,8 @@ const Profile = () => {
                       <Badge variant="outline">Member since {userData.joinDate}</Badge>
                     </div>
                   </div>
-                  <Link to="/settings">
-                    <Button variant="outline">Edit Profile</Button>
+                  <Link to="/settings" className="mt-4 sm:mt-0">
+                    <Button variant="outline" className="w-full sm:w-auto">Edit Profile</Button>
                   </Link>
                 </div>
               </div>
@@ -95,7 +95,7 @@ const Profile = () => {
         </Card>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           {Object.entries(userData.stats).map(([key, value]) => (
             <Card key={key}>
               <CardContent className="pt-6">
@@ -111,7 +111,7 @@ const Profile = () => {
         </div>
 
         {/* Achievements and Activity Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Achievements */}
           <Card>
             <CardHeader>

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -89,11 +88,16 @@ const MCQForm: React.FC<MCQFormProps> = ({ mcqs, onChange, dayNumber }) => {
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle>MCQ Questions for Day {dayNumber}</CardTitle>
-        <Button onClick={addQuestion} type="button">
-          <Plus className="mr-2 h-4 w-4" />
-          Add Question
+      <CardHeader className="flex flex-row items-center justify-between p-4">
+        <CardTitle className="text-lg">MCQ Questions for Day {dayNumber}</CardTitle>
+        <Button 
+          onClick={addQuestion} 
+          type="button"
+          className="text-sm p-2 h-8 sm:h-10 sm:p-4"
+        >
+          <Plus className="h-4 w-4 sm:mr-2" />
+          <span className="hidden sm:inline">Add Question</span>
+          <span className="sm:hidden ml-1">Add</span>
         </Button>
       </CardHeader>
       <CardContent className="space-y-6">

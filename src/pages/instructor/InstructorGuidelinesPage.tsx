@@ -32,95 +32,99 @@ import { Button } from '@/components/ui/button';
 
 const InstructorGuidelinesPage = () => {
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold flex items-center">
+    <div className="m-0 p-0">
+      <div className="flex flex-col sm:flex-row justify-between items-center">
+        <h1 className="text-2xl sm:text-3xl font-bold flex items-center">
           <Lightbulb className="w-8 h-8 mr-2 text-yellow-500" />
           Instructor Guidelines
         </h1>
-        <Button variant="outline">
+        <Button variant="outline" className="w-full sm:w-auto mt-4 sm:mt-0">
           <FileText className="w-4 h-4 mr-2" />
           Download PDF
         </Button>
       </div>
       
-      <Alert>
+      <Alert className="flex items-start space-x-2">
         <HelpCircle className="h-4 w-4" />
-        <AlertTitle>Comprehensive Guide</AlertTitle>
-        <AlertDescription>
-          This page provides detailed instructions and best practices for being an effective instructor on our platform.
-        </AlertDescription>
+        <div>
+          <AlertTitle>Comprehensive Guide</AlertTitle>
+          <AlertDescription>
+            This page provides detailed instructions and best practices for being an effective instructor on our platform.
+          </AlertDescription>
+        </div>
       </Alert>
       
       <Tabs defaultValue="getting-started" className="space-y-4">
-        <TabsList className="grid grid-cols-2 md:grid-cols-5 mb-4">
-          <TabsTrigger value="getting-started">Getting Started</TabsTrigger>
-          <TabsTrigger value="creating-courses">Creating Courses</TabsTrigger>
-          <TabsTrigger value="teaching">Teaching</TabsTrigger>
-          <TabsTrigger value="student-management">Student Management</TabsTrigger>
-          <TabsTrigger value="best-practices">Best Practices</TabsTrigger>
+        <TabsList className="grid grid-cols-2 md:grid-cols-5 mb-16">
+          <TabsTrigger value="getting-started" className="text-gray-700 w-full">Getting Started</TabsTrigger>
+          <TabsTrigger value="creating-courses" className="text-gray-700 w-full">Creating Courses</TabsTrigger>
+          <TabsTrigger value="teaching" className="text-gray-700 w-full">Teaching</TabsTrigger>
+          <TabsTrigger value="student-management" className="text-gray-700 w-full">Student Management</TabsTrigger>
+          <TabsTrigger value="best-practices" className="text-gray-700 w-full">Best Practices</TabsTrigger>
         </TabsList>
         
         <TabsContent value="getting-started">
           <Card>
             <CardHeader>
-              <CardTitle>Getting Started as an Instructor</CardTitle>
+              <CardTitle className="text-lg sm:text-xl">Getting Started as an Instructor</CardTitle>
               <CardDescription>
                 Follow these steps to begin your teaching journey on our platform.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="space-y-4 p-4">
               <div className="space-y-4">
-                <div className="flex items-start gap-4">
-                  <div className="bg-primary text-primary-foreground rounded-full h-8 w-8 flex items-center justify-center flex-shrink-0">1</div>
-                  <div>
-                    <h3 className="font-semibold text-lg">Complete Your Profile</h3>
-                    <p className="text-muted-foreground">
-                      A complete profile builds credibility with students. Add your professional experience, 
-                      qualifications, teaching philosophy, and a high-quality profile photo.
-                    </p>
-                    <div className="mt-2 bg-muted p-3 rounded-md">
-                      <p className="text-sm font-medium">Pro Tip</p>
-                      <p className="text-sm">Focus on credentials relevant to what you'll be teaching.</p>
+                <div className="flex flex-col gap-4">
+                  <div className="flex items-start gap-4">
+                    <div className="bg-primary text-primary-foreground rounded-full h-8 w-8 flex items-center justify-center flex-shrink-0">1</div>
+                    <div>
+                      <h3 className="font-semibold text-lg">Complete Your Profile</h3>
+                      <p className="text-muted-foreground">
+                        A complete profile builds credibility with students. Add your professional experience, 
+                        qualifications, teaching philosophy, and a high-quality profile photo.
+                      </p>
+                      <div className="mt-2 bg-muted p-3 rounded-md">
+                        <p className="text-sm font-medium">Pro Tip</p>
+                        <p className="text-sm">Focus on credentials relevant to what you'll be teaching.</p>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <div className="flex items-start gap-4">
-                  <div className="bg-primary text-primary-foreground rounded-full h-8 w-8 flex items-center justify-center flex-shrink-0">2</div>
-                  <div>
-                    <h3 className="font-semibold text-lg">Choose Your Teaching Area</h3>
-                    <p className="text-muted-foreground">
-                      Select topics where you have expertise and passion. Your enthusiasm will come through in your teaching.
-                    </p>
-                    <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-2">
-                      <div className="border rounded-md p-2">
-                        <h4 className="text-sm font-medium">What you know well</h4>
-                        <p className="text-xs text-muted-foreground">Topics where you have formal training or extensive experience</p>
-                      </div>
-                      <div className="border rounded-md p-2">
-                        <h4 className="text-sm font-medium">What you're passionate about</h4>
-                        <p className="text-xs text-muted-foreground">Subjects you enjoy discussing and teaching</p>
+                  <div className="flex items-start gap-4">
+                    <div className="bg-primary text-primary-foreground rounded-full h-8 w-8 flex items-center justify-center flex-shrink-0">2</div>
+                    <div>
+                      <h3 className="font-semibold text-lg">Choose Your Teaching Area</h3>
+                      <p className="text-muted-foreground">
+                        Select topics where you have expertise and passion. Your enthusiasm will come through in your teaching.
+                      </p>
+                      <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-2">
+                        <div className="border rounded-md p-2">
+                          <h4 className="text-sm font-medium">What you know well</h4>
+                          <p className="text-xs text-muted-foreground">Topics where you have formal training or extensive experience</p>
+                        </div>
+                        <div className="border rounded-md p-2">
+                          <h4 className="text-sm font-medium">What you're passionate about</h4>
+                          <p className="text-xs text-muted-foreground">Subjects you enjoy discussing and teaching</p>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-                
-                <div className="flex items-start gap-4">
-                  <div className="bg-primary text-primary-foreground rounded-full h-8 w-8 flex items-center justify-center flex-shrink-0">3</div>
-                  <div>
-                    <h3 className="font-semibold text-lg">Understand Platform Tools</h3>
-                    <p className="text-muted-foreground">
-                      Familiarize yourself with our course creation tools, student management features, 
-                      and analytics dashboard before you start building your first course.
-                    </p>
-                    <div className="mt-2 flex gap-2">
-                      <Button variant="outline" size="sm">
-                        <Video className="w-3 h-3 mr-1" /> Watch Tutorial
-                      </Button>
-                      <Button variant="outline" size="sm">
-                        <Calendar className="w-3 h-3 mr-1" /> Join Webinar
-                      </Button>
+                  
+                  <div className="flex items-start gap-4">
+                    <div className="bg-primary text-primary-foreground rounded-full h-8 w-8 flex items-center justify-center flex-shrink-0">3</div>
+                    <div>
+                      <h3 className="font-semibold text-lg">Understand Platform Tools</h3>
+                      <p className="text-muted-foreground">
+                        Familiarize yourself with our course creation tools, student management features, 
+                        and analytics dashboard before you start building your first course.
+                      </p>
+                      <div className="mt-2 flex flex-col gap-4">
+                        <Button variant="outline" size="sm" className="w-full">
+                          Watch Tutorial
+                        </Button>
+                        <Button variant="outline" size="sm" className="w-full">
+                          Join Webinar
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </div>

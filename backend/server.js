@@ -3375,13 +3375,13 @@ app.post('/api/upload/video', authenticateToken, videoUpload.single('video'), (r
     return res.status(400).json({ message: 'No video file provided' });
   }
   const objectName = `${Date.now()}-${req.file.originalname}`;
-  minioClient.putObject('webdevbootcamp', objectName, req.file.buffer, (err) => {
+  minioClient.putObject('webdevbootcamp1', objectName, req.file.buffer, (err) => {
     if (err) {
       console.error('Minio upload error:', err);
       return res.status(500).json({ message: 'Error uploading to storage' });
     }
     // Generate a presigned URL valid for 24 hours
-    minioClient.presignedUrl('GET', 'webdevbootcamp', objectName, 24 * 60 * 60, (err, url) => {
+    minioClient.presignedUrl('GET', 'webdevbootcamp1', objectName, 24 * 60 * 60, (err, url) => {
       if (err) {
         console.error('Presigned URL error:', err);
         return res.status(500).json({ message: 'Error generating URL' });

@@ -193,327 +193,329 @@ const Settings = () => {
 
   return (
     <DashboardLayout>
-      <div className="flex-1 p-6 overflow-y-auto">
+      <div className="flex-1 p-4 sm:p-6 overflow-y-auto">
         <div className="max-w-4xl mx-auto">
-          <div className="flex justify-between items-center mb-6">
-            <div>
-              <h1 className="text-2xl font-bold">Settings</h1>
-              <p className="text-muted-foreground">Manage your account preferences</p>
+          <div className="w-full max-w-4xl mx-auto">
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h1 className="text-2xl font-bold">Settings</h1>
+                <p className="text-muted-foreground">Manage your account preferences</p>
+              </div>
+              <Link to="/profile">
+                <Button variant="outline" className="w-full sm:w-auto mt-2 sm:mt-0">View Profile</Button>
+              </Link>
             </div>
-            <Link to="/profile">
-              <Button variant="outline">View Profile</Button>
-            </Link>
-          </div>
 
-          <Tabs defaultValue="profile" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="profile" className="flex items-center gap-2">
-                <User className="h-4 w-4" />
-                Profile
-              </TabsTrigger>
-              <TabsTrigger value="notifications" className="flex items-center gap-2">
-                <Bell className="h-4 w-4" />
-                Notifications
-              </TabsTrigger>
-              <TabsTrigger value="security" className="flex items-center gap-2">
-                <Shield className="h-4 w-4" />
-                Security
-              </TabsTrigger>
-              <TabsTrigger value="connected" className="flex items-center gap-2">
-                <Globe className="h-4 w-4" />
-                Connected
-              </TabsTrigger>
-            </TabsList>
+            <Tabs defaultValue="profile" className="space-y-14">
+              <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 gap-2">
+                <TabsTrigger value="profile" className="flex items-center gap-2">
+                  <User className="h-4 w-4" />
+                  Profile
+                </TabsTrigger>
+                <TabsTrigger value="notifications" className="flex items-center gap-2">
+                  <Bell className="h-4 w-4" />
+                  Notifications
+                </TabsTrigger>
+                <TabsTrigger value="security" className="flex items-center gap-2">
+                  <Shield className="h-4 w-4" />
+                  Security
+                </TabsTrigger>
+                <TabsTrigger value="connected" className="flex items-center gap-2">
+                  <Globe className="h-4 w-4" />
+                  Connected
+                </TabsTrigger>
+              </TabsList>
 
-            <TabsContent value="profile">
-              <div className="space-y-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Personal Information</CardTitle>
-                    <CardDescription>
-                      Update your personal details and public profile
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <form onSubmit={handleProfileSubmit} className="space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="name">Full Name</Label>
-                          <Input 
-                            id="name" 
-                            value={profileData.name}
-                            onChange={e => setProfileData({...profileData, name: e.target.value})}
-                            />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="display-name">Display Name</Label>
-                          <Input 
-                            id="display-name" 
-                            value={profileData.displayName}
-                            onChange={e => setProfileData({...profileData, displayName: e.target.value})}
-                          />
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="bio">Bio</Label>
-                        <Textarea 
-                          id="bio" 
-                          value={profileData.bio}
-                          onChange={e => setProfileData({...profileData, bio: e.target.value})}
-                          className="min-h-[100px]"
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="email">Email</Label>
-                          <Input 
-                            id="email" 
-                            type="email" 
-                            value={profileData.email}
-                            onChange={e => setProfileData({...profileData, email: e.target.value})}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="timezone">Timezone</Label>
-                          <Select 
-                            value={profileData.timezone}
-                            onValueChange={value => setProfileData({...profileData, timezone: value})}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select timezone" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="UTC">UTC</SelectItem>
-                              <SelectItem value="EST">EST</SelectItem>
-                              <SelectItem value="PST">PST</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                      <Button type="submit" disabled={updateProfile.isPending}>
-                        {updateProfile.isPending ? "Saving..." : "Save Changes"}
-                      </Button>
-                    </form>
-                  </CardContent>
-                </Card>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="notifications">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Notification Preferences</CardTitle>
-                  <CardDescription>
-                    Choose what notifications you want to receive
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <Label>Course Updates</Label>
-                      <p className="text-sm text-muted-foreground">
-                        Receive notifications about course content updates
-                      </p>
-                    </div>
-                    <Switch
-                      checked={notificationPrefs.courseUpdates}
-                      onCheckedChange={() => handleNotificationChange('courseUpdates')}
-                      />
-                  </div>
-                  <Separator />
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <Label>Assignment Reminders</Label>
-                      <p className="text-sm text-muted-foreground">
-                        Get notified about upcoming assignments
-                      </p>
-                    </div>
-                    <Switch
-                      checked={notificationPrefs.assignmentReminders}
-                      onCheckedChange={() => handleNotificationChange('assignmentReminders')}
-                      />
-                  </div>
-                  <Separator />
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <Label>Discussion Replies</Label>
-                      <p className="text-sm text-muted-foreground">
-                        Receive notifications when someone replies to your discussions
-                      </p>
-                    </div>
-                    <Switch
-                      checked={notificationPrefs.discussionReplies}
-                      onCheckedChange={() => handleNotificationChange('discussionReplies')}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="security">
-              <div className="space-y-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Password</CardTitle>
-                    <CardDescription>
-                      Change your password
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <form onSubmit={handlePasswordSubmit} className="space-y-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="current-password">Current Password</Label>
-                        <Input 
-                          id="current-password" 
-                          type="password"
-                          value={passwordData.currentPassword}
-                          onChange={e => setPasswordData({...passwordData, currentPassword: e.target.value})}
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="new-password">New Password</Label>
-                          <Input 
-                            id="new-password" 
-                            type="password"
-                            value={passwordData.newPassword}
-                            onChange={e => setPasswordData({...passwordData, newPassword: e.target.value})}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="confirm-password">Confirm New Password</Label>
-                          <Input 
-                            id="confirm-password" 
-                            type="password"
-                            value={passwordData.confirmPassword}
-                            onChange={e => setPasswordData({...passwordData, confirmPassword: e.target.value})}
-                          />
-                        </div>
-                      </div>
-                      <Button type="submit" disabled={updatePassword.isPending}>
-                        {updatePassword.isPending ? "Updating..." : "Update Password"}
-                      </Button>
-                    </form>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Two-Step Verification</CardTitle>
-                    <CardDescription>
-                      Secure your account with two-step verification
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <Alert>
-                      <Fingerprint className="h-4 w-4" />
-                      <AlertTitle>Not Enabled</AlertTitle>
-                      <AlertDescription>
-                        Protect your account with an additional layer of security. Once configured, you'll be required to enter both your password and an authentication code to sign in.
-                      </AlertDescription>
-                    </Alert>
-                    <div className="space-y-4">
-                      <div className="flex items-center gap-4">
-                        <Smartphone className="h-5 w-5 text-muted-foreground" />
-                        <div className="flex-1">
-                          <p className="font-medium">Authenticator App</p>
-                          <p className="text-sm text-muted-foreground">Use an authentication app like Google Authenticator</p>
-                        </div>
-                        <Button variant="outline" disabled>Coming Soon</Button>
-                      </div>
-                      <Separator />
-                      <div className="flex items-center gap-4">
-                        <Phone className="h-5 w-5 text-muted-foreground" />
-                        <div className="flex-1">
-                          <p className="font-medium">SMS Recovery</p>
-                          <p className="text-sm text-muted-foreground">Use your phone number as a backup</p>
-                        </div>
-                        <Button variant="outline" disabled>Coming Soon</Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Login Sessions</CardTitle>
-                    <CardDescription>
-                      Manage your active sessions and devices
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {(connectedDevices as ConnectedDevice[] || []).map(device => (
-                      <div key={device.id} className="flex items-center gap-4">
-                        <Laptop className="h-5 w-5 text-muted-foreground" />
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <p className="font-medium">{device.name}</p>
-                            {device.id === 'current' && (
-                              <Badge variant="secondary">Current</Badge>
-                            )}
+              <TabsContent value="profile">
+                <div className="space-y-6">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Personal Information</CardTitle>
+                      <CardDescription>
+                        Update your personal details and public profile
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <form onSubmit={handleProfileSubmit} className="space-y-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="name">Full Name</Label>
+                            <Input 
+                              id="name" 
+                              value={profileData.name}
+                              onChange={e => setProfileData({...profileData, name: e.target.value})}
+                              />
                           </div>
-                          <p className="text-sm text-muted-foreground">
-                            {device.browser} • Last active: {new Date(device.lastActive).toLocaleString()}
-                          </p>
+                          <div className="space-y-2">
+                            <Label htmlFor="display-name">Display Name</Label>
+                            <Input 
+                              id="display-name" 
+                              value={profileData.displayName}
+                              onChange={e => setProfileData({...profileData, displayName: e.target.value})}
+                            />
+                          </div>
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          disabled={device.id === 'current'}
-                          onClick={() => handleRemoveDevice(device.id)}
-                        >
-                          <Lock className="h-4 w-4" />
+                        <div className="space-y-2">
+                          <Label htmlFor="bio">Bio</Label>
+                          <Textarea 
+                            id="bio" 
+                            value={profileData.bio}
+                            onChange={e => setProfileData({...profileData, bio: e.target.value})}
+                            className="min-h-[100px]"
+                          />
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="email">Email</Label>
+                            <Input 
+                              id="email" 
+                              type="email" 
+                              value={profileData.email}
+                              onChange={e => setProfileData({...profileData, email: e.target.value})}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="timezone">Timezone</Label>
+                            <Select 
+                              value={profileData.timezone}
+                              onValueChange={value => setProfileData({...profileData, timezone: value})}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select timezone" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="UTC">UTC</SelectItem>
+                                <SelectItem value="EST">EST</SelectItem>
+                                <SelectItem value="PST">PST</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                        <Button type="submit" disabled={updateProfile.isPending} className="w-full sm:w-auto">
+                          {updateProfile.isPending ? "Saving..." : "Save Changes"}
                         </Button>
+                      </form>
+                    </CardContent>
+                  </Card>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="notifications">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Notification Preferences</CardTitle>
+                    <CardDescription>
+                      Choose what notifications you want to receive
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                      <div className="space-y-0.5">
+                        <Label>Course Updates</Label>
+                        <p className="text-sm text-muted-foreground">
+                          Receive notifications about course content updates
+                        </p>
                       </div>
-                    ))}
+                      <Switch
+                        checked={notificationPrefs.courseUpdates}
+                        onCheckedChange={() => handleNotificationChange('courseUpdates')}
+                        />
+                    </div>
+                    <Separator />
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                      <div className="space-y-0.5">
+                        <Label>Assignment Reminders</Label>
+                        <p className="text-sm text-muted-foreground">
+                          Get notified about upcoming assignments
+                        </p>
+                      </div>
+                      <Switch
+                        checked={notificationPrefs.assignmentReminders}
+                        onCheckedChange={() => handleNotificationChange('assignmentReminders')}
+                        />
+                    </div>
+                    <Separator />
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                      <div className="space-y-0.5">
+                        <Label>Discussion Replies</Label>
+                        <p className="text-sm text-muted-foreground">
+                          Receive notifications when someone replies to your discussions
+                        </p>
+                      </div>
+                      <Switch
+                        checked={notificationPrefs.discussionReplies}
+                        onCheckedChange={() => handleNotificationChange('discussionReplies')}
+                      />
+                    </div>
                   </CardContent>
                 </Card>
-              </div>
-            </TabsContent>
+              </TabsContent>
 
-            <TabsContent value="connected">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Connected Devices</CardTitle>
-                  <CardDescription>
-                    Manage your connected devices and applications
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-4">
-                    {(connectedDevices as ConnectedDevice[] || []).map(device => (
-                      <div key={device.id}>
+              <TabsContent value="security">
+                <div className="space-y-6">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Password</CardTitle>
+                      <CardDescription>
+                        Change your password
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <form onSubmit={handlePasswordSubmit} className="space-y-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="current-password">Current Password</Label>
+                          <Input 
+                            id="current-password" 
+                            type="password"
+                            value={passwordData.currentPassword}
+                            onChange={e => setPasswordData({...passwordData, currentPassword: e.target.value})}
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="new-password">New Password</Label>
+                            <Input 
+                              id="new-password" 
+                              type="password"
+                              value={passwordData.newPassword}
+                              onChange={e => setPasswordData({...passwordData, newPassword: e.target.value})}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="confirm-password">Confirm New Password</Label>
+                            <Input 
+                              id="confirm-password" 
+                              type="password"
+                              value={passwordData.confirmPassword}
+                              onChange={e => setPasswordData({...passwordData, confirmPassword: e.target.value})}
+                            />
+                          </div>
+                        </div>
+                        <Button type="submit" disabled={updatePassword.isPending}>
+                          {updatePassword.isPending ? "Updating..." : "Update Password"}
+                        </Button>
+                      </form>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Two-Step Verification</CardTitle>
+                      <CardDescription>
+                        Secure your account with two-step verification
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <Alert>
+                        <Fingerprint className="h-4 w-4" />
+                        <AlertTitle>Not Enabled</AlertTitle>
+                        <AlertDescription>
+                          Protect your account with an additional layer of security. Once configured, you'll be required to enter both your password and an authentication code to sign in.
+                        </AlertDescription>
+                      </Alert>
+                      <div className="space-y-4">
                         <div className="flex items-center gap-4">
-                          {device.type === 'desktop' ? (
-                            <Laptop className="h-5 w-5 text-muted-foreground" />
-                          ) : (
-                            <Smartphone className="h-5 w-5 text-muted-foreground" />
-                          )}
+                          <Smartphone className="h-5 w-5 text-muted-foreground" />
                           <div className="flex-1">
-                            <p className="font-medium">{device.name}</p>
+                            <p className="font-medium">Authenticator App</p>
+                            <p className="text-sm text-muted-foreground">Use an authentication app like Google Authenticator</p>
+                          </div>
+                          <Button variant="outline" disabled>Coming Soon</Button>
+                        </div>
+                        <Separator />
+                        <div className="flex items-center gap-4">
+                          <Phone className="h-5 w-5 text-muted-foreground" />
+                          <div className="flex-1">
+                            <p className="font-medium">SMS Recovery</p>
+                            <p className="text-sm text-muted-foreground">Use your phone number as a backup</p>
+                          </div>
+                          <Button variant="outline" disabled>Coming Soon</Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Login Sessions</CardTitle>
+                      <CardDescription>
+                        Manage your active sessions and devices
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      {(connectedDevices as ConnectedDevice[] || []).map(device => (
+                        <div key={device.id} className="flex items-center gap-4">
+                          <Laptop className="h-5 w-5 text-muted-foreground" />
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium">{device.name}</p>
+                              {device.id === 'current' && (
+                                <Badge variant="secondary">Current</Badge>
+                              )}
+                            </div>
                             <p className="text-sm text-muted-foreground">
                               {device.browser} • Last active: {new Date(device.lastActive).toLocaleString()}
                             </p>
                           </div>
                           <Button
-                            variant="destructive"
+                            variant="ghost"
                             size="sm"
                             disabled={device.id === 'current'}
                             onClick={() => handleRemoveDevice(device.id)}
                           >
-                            Remove
+                            <Lock className="h-4 w-4" />
                           </Button>
                         </div>
-                        {device.id !== (connectedDevices as ConnectedDevice[])[
-                          (connectedDevices as ConnectedDevice[]).length - 1
-                        ].id && <Separator className="my-4" />}
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
+                      ))}
+                    </CardContent>
+                  </Card>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="connected">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Connected Devices</CardTitle>
+                    <CardDescription>
+                      Manage your connected devices and applications
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-4">
+                      {(connectedDevices as ConnectedDevice[] || []).map(device => (
+                        <div key={device.id}>
+                          <div className="flex items-center gap-4">
+                            {device.type === 'desktop' ? (
+                              <Laptop className="h-5 w-5 text-muted-foreground" />
+                            ) : (
+                              <Smartphone className="h-5 w-5 text-muted-foreground" />
+                            )}
+                            <div className="flex-1">
+                              <p className="font-medium">{device.name}</p>
+                              <p className="text-sm text-muted-foreground">
+                                {device.browser} • Last active: {new Date(device.lastActive).toLocaleString()}
+                              </p>
+                            </div>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              disabled={device.id === 'current'}
+                              onClick={() => handleRemoveDevice(device.id)}
+                            >
+                              Remove
+                            </Button>
+                          </div>
+                          {device.id !== (connectedDevices as ConnectedDevice[])[
+                            (connectedDevices as ConnectedDevice[]).length - 1
+                          ].id && <Separator className="my-4" />}
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
+          </div>
         </div>
       </div>
     </DashboardLayout>

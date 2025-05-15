@@ -12,7 +12,6 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import axios from "@/lib/axios";
 import { useToast } from "@/hooks/use-toast";
-
 // Define form schema
 const formSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address" }),
@@ -105,24 +104,23 @@ const PaymentForm = () => {
   }
 
   return (
-    <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-lg py-6 sm:py-10">
+    <div className="w-full max-w-lg mx-auto p-0">
       <Card className="shadow-lg">
-        <CardHeader className="space-y-1">
+        <CardHeader className="space-y-1 p-4 sm:p-6">
           <CardTitle className="text-2xl sm:text-3xl">Payment Details</CardTitle>
           <CardDescription className="text-sm sm:text-base">
             Complete your enrollment for <span className="font-semibold">{course.title}</span>
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-4 sm:p-6">
           <div className="mb-6 border p-3 sm:p-4 rounded-md bg-slate-50">
             <h3 className="text-sm sm:text-base font-medium mb-2">Scan QR code to make payment</h3>
-            <div className="flex justify-center">
-              <iframe 
-                src="https://drive.google.com/file/d/1tMSWcxYAypJ0IzKTslgwLepTSIOT3MvD/preview" 
-                width="100%" 
-                height="280" 
-                className="max-w-[300px]"
-              ></iframe>
+            <div className="flex justify-center w-full">
+              <img
+                src="/Payment QR Cropped.jpg"
+                alt="Payment QR Code" 
+                className="w-full max-w-[250px] sm:max-w-[300px]"
+              />
             </div>
             <p className="text-base sm:text-lg text-center font-semibold text-black mt-3">
               Payment details: ₹399
@@ -133,7 +131,7 @@ const PaymentForm = () => {
           </div>
 
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 sm:space-y-6">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <FormField
                 control={form.control}
                 name="email"
@@ -244,7 +242,7 @@ const PaymentForm = () => {
             </form>
           </Form>
         </CardContent>
-        <CardFooter className="flex flex-col space-y-2 text-xs sm:text-sm text-muted-foreground">
+        <CardFooter className="flex flex-col space-y-2 text-xs sm:text-sm text-muted-foreground p-4 sm:p-6">
           <p>• Please ensure all details are correct before submitting</p>
           <p>• Your course access will be activated after payment verification</p>
         </CardFooter>

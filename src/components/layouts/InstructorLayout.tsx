@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { 
   BookOpen, 
@@ -14,7 +14,9 @@ import {
   ClipboardList,
   Award,
   UserCheck,
-  User
+  User,
+  Menu,
+  X
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -27,10 +29,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { cn } from '@/lib/utils';
 
 const InstructorLayout = () => {
   const { logout, user } = useAuth();
   const navigate = useNavigate();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -70,11 +74,29 @@ const InstructorLayout = () => {
       .substring(0, 2);
   };
 
+  const toggleSidebar = () => {
+    setSidebarOpen(!sidebarOpen);
+  };
+
   return (
     <div className="min-h-screen bg-gray-100">
       {/* Header */}
-      <div className="fixed top-0 left-0 right-0 h-16 bg-white shadow-sm z-50 pl-64">
-        <div className="h-full px-4 flex items-center justify-end space-x-4">
+      <div className="fixed top-0 left-0 right-0 h-16 bg-white shadow-sm z-50 md:pl-64">
+        <div className="h-full px-4 flex items-center justify-between md:justify-end space-x-4">
+          {/* Mobile menu button */}
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="md:hidden"
+            onClick={toggleSidebar}
+          >
+            <Menu className="h-6 w-6" />
+          </Button>
+          
+          <div className="md:hidden flex-1 flex justify-center">
+            <h1 className="text-lg font-bold">Instructor Panel</h1>
+          </div>
+          
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="relative h-8 w-8 rounded-full">
@@ -107,17 +129,31 @@ const InstructorLayout = () => {
         </div>
       </div>
 
-      {/* Title Section */}
-      <div className="fixed top-0 left-0 w-64 h-16 bg-primary z-50 flex items-center justify-center">
+      {/* Title Section - Desktop only */}
+      <div className="hidden md:flex fixed top-0 left-0 w-64 h-16 bg-primary z-50 items-center justify-center">
         <h1 className="text-xl font-bold text-white">Instructor Panel</h1>
       </div>
 
       {/* Sidebar */}
-      <div className="fixed inset-y-0 left-0 w-64 bg-white shadow-lg">
+      <div 
+        className={cn(
+          "fixed inset-y-0 left-0 w-64 bg-white shadow-lg transform transition-transform duration-300 z-40",
+          sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+        )}
+      >
         <div className="flex flex-col h-full">
           {/* Logo */}
-          <div className="flex items-center justify-center h-16 px-4 bg-primary">
+          <div className="flex items-center justify-between h-16 px-4 bg-primary">
             <h1 className="text-xl font-bold text-white">Instructor Portal</h1>
+            {/* Close button for mobile */}
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="md:hidden text-white hover:bg-primary/80"
+              onClick={toggleSidebar}
+            >
+              <X className="h-6 w-6" />
+            </Button>
           </div>
 
           {/* Main Navigation */}
@@ -131,6 +167,7 @@ const InstructorLayout = () => {
                   <NavLink
                     key={item.name}
                     to={item.href}
+                    onClick={() => window.innerWidth < 768 && setSidebarOpen(false)}
                     className={({ isActive }) =>
                       `flex items-center px-4 py-2 text-sm font-medium rounded-md ${
                         isActive
@@ -156,6 +193,7 @@ const InstructorLayout = () => {
                   <NavLink
                     key={item.name}
                     to={item.href}
+                    onClick={() => window.innerWidth < 768 && setSidebarOpen(false)}
                     className={({ isActive }) =>
                       `flex items-center px-4 py-2 text-sm font-medium rounded-md ${
                         isActive
@@ -181,6 +219,7 @@ const InstructorLayout = () => {
                   <NavLink
                     key={item.name}
                     to={item.href}
+                    onClick={() => window.innerWidth < 768 && setSidebarOpen(false)}
                     className={({ isActive }) =>
                       `flex items-center px-4 py-2 text-sm font-medium rounded-md ${
                         isActive
@@ -210,9 +249,17 @@ const InstructorLayout = () => {
         </div>
       </div>
 
+      {/* Backdrop for mobile */}
+      {sidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-30 md:hidden" 
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Main Content */}
-      <div className="pl-64 pt-16">
-        <main className="p-8">
+      <div className="md:pl-64 pt-16">
+        <main className="p-4 md:p-8">
           <Outlet />
         </main>
       </div>

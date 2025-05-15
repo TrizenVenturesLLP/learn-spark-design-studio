@@ -24,16 +24,44 @@ import {
   AccordionTrigger
 } from '@/components/ui/accordion';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const FAQ = () => {
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-4 sm:p-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold flex items-center">
-          <HelpCircle className="w-8 h-8 mr-2 text-primary" />
-          Frequently Asked Questions
-        </h1>
+        <h1 className="text-3xl font-bold">Frequently Asked Questions</h1>
       </div>
+      
+      <Alert className="bg-blue-50 border-blue-200">
+        <AlertTitle className="text-blue-700">FAQ Section</AlertTitle>
+        <AlertDescription className="text-blue-600">
+          Here are some common questions and answers to help you.
+        </AlertDescription>
+      </Alert>
+
+      <Accordion type="single" collapsible>
+        <AccordionItem value="question1">
+          <AccordionTrigger>What is the purpose of this platform?</AccordionTrigger>
+          <AccordionContent>
+            <p>This platform is designed to help instructors create and manage their courses effectively.</p>
+          </AccordionContent>
+        </AccordionItem>
+        
+        <AccordionItem value="question2">
+          <AccordionTrigger>How can I create a course?</AccordionTrigger>
+          <AccordionContent>
+            <p>You can create a course by following the steps outlined in the "Getting Started" section.</p>
+          </AccordionContent>
+        </AccordionItem>
+
+        <AccordionItem value="question3">
+          <AccordionTrigger>What resources are available for instructors?</AccordionTrigger>
+          <AccordionContent>
+            <p>We offer various resources, including templates, guides, and webinars to support your teaching.</p>
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
       
       <div className="relative">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
@@ -44,7 +72,7 @@ const FAQ = () => {
       </div>
       
       <Tabs defaultValue="general" className="space-y-4">
-        <TabsList className="grid grid-cols-2 md:grid-cols-5 mb-4">
+        <TabsList className="grid grid-cols-2 md:grid-cols-5 mb-16">
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="courses">Courses</TabsTrigger>
           <TabsTrigger value="students">Students</TabsTrigger>

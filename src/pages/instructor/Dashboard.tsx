@@ -12,7 +12,8 @@ import {
   Calendar,
   AlertCircle,
   CheckCircle,
-  Loader2
+  Loader2,
+  Plus
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useDashboardOverview } from '@/services/instructorService';
@@ -84,54 +85,55 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="space-y-6 p-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Dashboard</h1>
-        <div className="space-x-4">
-          <Button variant="outline" onClick={() => navigate('/instructor/sessions')}>
+    <div className="space-y-6">
+      {/* Header section with responsive layout */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-0">
+        <h1 className="text-2xl sm:text-3xl font-bold">Dashboard</h1>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" onClick={() => navigate('/instructor/sessions')}>
             <Calendar className="w-4 h-4 mr-2" />
-            Schedule Session
+            <span className="hidden sm:inline">Schedule</span> Session
           </Button>
-          <Button onClick={() => navigate('/instructor/courses/new')}>
+          <Button size="sm" onClick={() => navigate('/instructor/courses/new')}>
             <BookOpen className="w-4 h-4 mr-2" />
             Create Course
           </Button>
         </div>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      {/* Stats Grid - responsive layout */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {stats.map((stat, index) => (
           <Card key={index}>
-            <CardContent className="p-6">
+            <CardContent className="p-4 sm:p-6">
               <div className="flex items-center justify-between space-x-4">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">{stat.title}</p>
-                  <h3 className="text-2xl font-bold">{stat.value}</h3>
+                  <h3 className="text-xl sm:text-2xl font-bold">{stat.value}</h3>
                   {stat.change && (
                     <p className="text-xs text-muted-foreground mt-1">{stat.change}</p>
                   )}
                 </div>
-                <stat.icon className="h-8 w-8 text-primary" />
+                <stat.icon className="h-7 w-7 sm:h-8 sm:w-8 text-primary" />
               </div>
             </CardContent>
           </Card>
         ))}
       </div>
 
-      {/* Recent Activity and Course Status */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {/* Recent Activity and Course Status - responsive grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Recent Activity */}
         <Card>
-          <CardHeader>
-            <CardTitle>Recent Activity</CardTitle>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg sm:text-xl">Recent Activity</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               {recentActivities.length > 0 ? (
                 recentActivities.map((activity, index) => (
                   <div key={index} className="flex items-start space-x-3">
-                    <div className="mt-1">
+                    <div className="mt-1 flex-shrink-0">
                       {activity.type === 'enrollment' ? (
                         <Users className="h-4 w-4 text-primary" />
                       ) : activity.type === 'review' ? (
@@ -140,8 +142,8 @@ const Dashboard = () => {
                         <CheckCircle className="h-4 w-4 text-green-500" />
                       )}
                     </div>
-                    <div>
-                      <p className="text-sm">{activity.message}</p>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm line-clamp-2">{activity.message}</p>
                       <p className="text-xs text-muted-foreground">{activity.time}</p>
                     </div>
                   </div>
@@ -157,20 +159,20 @@ const Dashboard = () => {
 
         {/* Course Status */}
         <Card>
-          <CardHeader>
-            <CardTitle>Course Status</CardTitle>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg sm:text-xl">Course Status</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               {dashboardData?.courseStatus?.map((course, index) => (
-                <div key={index} className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">{course.title}</p>
+                <div key={index} className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-0">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium truncate">{course.title}</p>
                     <p className="text-sm text-muted-foreground">
                       {course.enrolledStudents} students enrolled
                     </p>
                   </div>
-                  <div className="text-right">
+                  <div className="sm:text-right mt-1 sm:mt-0">
                     <p className="font-medium">{course.completionRate}%</p>
                     <p className="text-sm text-muted-foreground">completion rate</p>
                   </div>

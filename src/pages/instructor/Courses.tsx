@@ -109,43 +109,45 @@ const Courses = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">My Courses</h1>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-0">
+        <h1 className="text-2xl sm:text-3xl font-bold">My Courses</h1>
         <Button onClick={() => navigate('/instructor/courses/new')}>
           <Plus className="w-4 h-4 mr-2" />
-          Create New Course
+          <span className="hidden sm:inline">Create New</span>
+          <span className="sm:hidden">New</span>
+          Course
         </Button>
       </div>
 
       {/* Search and Filter */}
-      <div className="flex items-center space-x-4">
-        <div className="relative flex-1">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:space-x-4">
+        <div className="relative flex-1 w-full">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
           <Input
             placeholder="Search courses..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
+            className="pl-10 w-full"
           />
         </div>
       </div>
 
       {/* Course Grid */}
       {filteredCourses && filteredCourses.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {filteredCourses.map((course) => (
-            <Card key={course._id || course.id} className="overflow-hidden">
+            <Card key={course._id || course.id} className="flex flex-col overflow-hidden">
               <div className="relative">
                 <img
                   src={course.image || 'data:image/svg+xml;charset=UTF-8,%3Csvg xmlns="http://www.w3.org/2000/svg" width="300" height="200" viewBox="0 0 300 200" preserveAspectRatio="none"%3E%3Crect width="300" height="200" fill="%23CCCCCC"%3E%3C/rect%3E%3Ctext x="150" y="100" fill="%23333333" font-size="14" font-family="Arial" text-anchor="middle"%3E' + course.title + '%3C/text%3E%3C/svg%3E'}
                   alt={course.title}
-                  className="w-full h-48 object-cover"
+                  className="w-full h-36 sm:h-48 object-cover"
                 />
                 <div className="absolute top-2 right-2">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon">
-                        <MoreVertical className="w-4 h-4" />
+                      <Button variant="secondary" size="icon" className="h-8 w-8 bg-white/90 backdrop-blur-sm hover:bg-white/75">
+                        <MoreVertical className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
@@ -168,46 +170,48 @@ const Courses = () => {
                   </DropdownMenu>
                 </div>
               </div>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg">{course.title}</CardTitle>
-                </div>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg line-clamp-1">{course.title}</CardTitle>
               </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground mb-4">
+              <CardContent className="flex-1 flex flex-col">
+                <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
                   {course.description}
                 </p>
-                <div className="flex items-center justify-between text-sm">
-                  <div className="flex items-center space-x-4">
-                    <div className="flex items-center">
-                      <Users className="w-4 h-4 mr-1 text-muted-foreground" />
-                      {course.students || 0}
-                    </div>
-                    <div className="flex items-center">
-                      <Star className="w-4 h-4 mr-1 text-yellow-500" />
-                      {course.rating || 0}
+                <div className="mt-auto">
+                  <div className="flex items-center justify-between text-sm mb-4">
+                    <div className="flex items-center space-x-4">
+                      <div className="flex items-center">
+                        <Users className="w-4 h-4 mr-1 text-muted-foreground" />
+                        <span>{course.students || 0}</span>
+                      </div>
+                      <div className="flex items-center">
+                        <Star className="w-4 h-4 mr-1 text-yellow-500" />
+                        <span>{course.rating || 0}</span>
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div className="mt-4 flex space-x-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="flex-1"
-                    onClick={() => navigate(`/instructor/courses/${course._id || course.id}/edit`)}
-                  >
-                    <Edit className="w-4 h-4 mr-2" />
-                    Edit
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="flex-1"
-                    onClick={() => handlePreview(course._id || course.id)}
-                  >
-                    <Eye className="w-4 h-4 mr-2" />
-                    Preview
-                  </Button>
+                  <div className="flex space-x-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="flex-1"
+                      onClick={() => navigate(`/instructor/courses/${course._id || course.id}/edit`)}
+                    >
+                      <Edit className="w-4 h-4 mr-2" />
+                      <span className="hidden sm:inline">Edit</span>
+                      <span className="sm:hidden">Edit</span>
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="flex-1"
+                      onClick={() => handlePreview(course._id || course.id)}
+                    >
+                      <Eye className="w-4 h-4 mr-2" />
+                      <span className="hidden sm:inline">Preview</span>
+                      <span className="sm:hidden">View</span>
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>

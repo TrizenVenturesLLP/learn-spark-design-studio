@@ -332,62 +332,67 @@ const MessagesPage = () => {
   }, [conversations, dmSearchQuery, selectedCourse]);
 
   return (
-    <div className="p-6">
-      <Card className="w-full">
+    <div className="w-full h-full">
+      <Card className="w-full h-full">
         <CardHeader>
-          <CardTitle>Messages</CardTitle>
+          <CardTitle className="text-xl sm:text-2xl">Messages</CardTitle>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue="discussions">
-            <TabsList className="mb-4">
-              <TabsTrigger value="discussions" className="flex items-center">
-                <MessageSquare className="h-4 w-4 mr-2" />
-                Discussions
+          <Tabs defaultValue="discussions" className="w-full">
+            <TabsList className="w-full flex mb-4">
+              <TabsTrigger value="discussions" className="flex-1 flex items-center justify-center gap-2 px-2 sm:px-4 min-w-0">
+                <MessageSquare className="h-4 w-4 shrink-0" />
+                <span className="hidden sm:inline truncate">Discussions</span>
+                <span className="sm:hidden">Forum</span>
               </TabsTrigger>
-              <TabsTrigger value="messages" className="flex items-center">
-                <Mail className="h-4 w-4 mr-2" />
-                Direct Messages
+              <TabsTrigger value="messages" className="flex-1 flex items-center justify-center gap-2 px-2 sm:px-4 min-w-0">
+                <Mail className="h-4 w-4 shrink-0" />
+                <span className="hidden sm:inline truncate">Direct Messages</span>
+                <span className="sm:hidden">DMs</span>
               </TabsTrigger>
             </TabsList>
 
             <TabsContent value="discussions">
               <div className="space-y-4">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row gap-4 sm:items-center justify-between">
                   <Button
                     onClick={() => {
                       setIsCreatingDiscussion(true);
                       setSelectedDiscussion(null);
                     }}
+                    className="w-full sm:w-auto"
                   >
                     <Plus className="h-4 w-4 mr-2" />
-                    New Discussion
+                    <span className="hidden sm:inline">New Discussion</span>
+                    <span className="sm:hidden">New</span>
                   </Button>
-                </div>
-                <div className="flex space-x-4">
-                  <Select
-                    value={selectedCourse}
-                    onValueChange={setSelectedCourse}
-                  >
-                    <SelectTrigger className="w-[200px]">
-                      <SelectValue placeholder="Filter by course" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Courses</SelectItem>
-                      {courses.map(course => (
-                        <SelectItem key={course._id} value={course._id}>
-                          {course.title}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                    <Input
-                      placeholder="Search discussions..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-10"
-                    />
+
+                  <div className="flex flex-col sm:flex-row gap-4 sm:gap-2 w-full sm:w-auto">
+                    <Select
+                      value={selectedCourse}
+                      onValueChange={setSelectedCourse}
+                    >
+                      <SelectTrigger className="w-full sm:w-[200px]">
+                        <SelectValue placeholder="Filter by course" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Courses</SelectItem>
+                        {courses.map(course => (
+                          <SelectItem key={course._id} value={course._id}>
+                            {course.title}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <div className="relative flex-1">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                      <Input
+                        placeholder="Search discussions..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="pl-10 w-full"
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -516,13 +521,15 @@ const MessagesPage = () => {
                                   : 'bg-blue-700 text-white'
                               }`}
                             >
-                              <div className="flex items-center space-x-2 mb-1">
-                                <span className="text-sm font-medium">{reply.userId.name}</span>
-                                <span className="text-xs opacity-70">
-                                  {formatDistanceToNow(new Date(reply.createdAt), { addSuffix: true })}
-                                </span>
+                              <div className="flex flex-col">
+                                <div className="flex items-center space-x-2 mb-1">
+                                  <span className="text-sm font-medium">{reply.userId.name}</span>
+                                  <span className="text-xs opacity-70">
+                                    {formatDistanceToNow(new Date(reply.createdAt), { addSuffix: true })}
+                                  </span>
+                                </div>
+                                <p className="text-sm">{reply.content}</p>
                               </div>
-                              <p className="text-sm">{reply.content}</p>
                             </div>
                           </div>
                         ))}
@@ -622,15 +629,15 @@ const MessagesPage = () => {
             </TabsContent>
 
             <TabsContent value="messages">
-              <div className="flex h-[500px] gap-4">
+              <div className="flex flex-col lg:flex-row h-[500px] gap-4">
                 {/* Left sidebar: Conversations list */}
-                <Card className="w-80 flex flex-col bg-white">
+                <Card className="w-full lg:w-80 flex flex-col bg-white">
                   <div className="p-4 border-b space-y-2">
                     <Select
                       value={selectedCourse}
                       onValueChange={setSelectedCourse}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className="w-full">
                         <SelectValue placeholder="Filter by course" />
                       </SelectTrigger>
                       <SelectContent>
@@ -648,18 +655,18 @@ const MessagesPage = () => {
                         placeholder="Search messages..."
                         value={dmSearchQuery}
                         onChange={(e) => setDmSearchQuery(e.target.value)}
-                        className="pl-9"
+                        className="pl-9 w-full"
                       />
                     </div>
                   </div>
                   
-                  <ScrollArea className="flex-1 p-2">
+                  <ScrollArea className="flex-1">
                     {isLoadingConversations ? (
                       <div className="flex items-center justify-center py-8">
                         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                       </div>
                     ) : (
-                      <div className="space-y-2">
+                      <div className="space-y-2 p-2">
                         {filteredConversations.map((conv) => (
                           <div
                             key={conv.partner._id}
@@ -700,72 +707,70 @@ const MessagesPage = () => {
                 </Card>
 
                 {/* Main Chat Area */}
-                <Card className="flex-1 flex flex-col bg-white">
+                <Card className="flex-1 flex flex-col bg-white overflow-hidden">
                   {selectedConversation && selectedCourseForDM ? (
                     <>
                       {/* Chat Header */}
-                      <div className="px-6 py-4 border-b flex items-center justify-between">
+                      <div className="px-4 sm:px-6 py-3 sm:py-4 border-b flex items-center justify-between">
                         <div className="flex items-center space-x-3">
-                          <Avatar className="h-10 w-10">
+                          <Avatar className="h-8 w-8 sm:h-10 sm:w-10">
                             <AvatarFallback>
                               {conversations.find(c => c.partner._id === selectedConversation)?.partner.name.split(' ').map(n => n[0]).join('')}
                             </AvatarFallback>
                           </Avatar>
                           <div>
-                            <h2 className="font-semibold">
+                            <h2 className="font-semibold text-sm sm:text-base">
                               {conversations.find(c => c.partner._id === selectedConversation)?.partner.name}
                             </h2>
-                            <p className="text-sm text-muted-foreground">
+                            <p className="text-xs sm:text-sm text-muted-foreground">
                               {conversations.find(c => c.partner._id === selectedConversation)?.course.title}
                             </p>
                           </div>
                         </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="lg:hidden"
+                          onClick={() => {
+                            setSelectedConversation(null);
+                            setSelectedCourseForDM(null);
+                          }}
+                        >
+                          <ArrowLeft className="h-4 w-4" />
+                        </Button>
                       </div>
 
                       {/* Messages Area */}
-                      <ScrollArea className="flex-1 p-6 bg-gray-50">
-                        {isLoadingMessages ? (
-                          <div className="flex items-center justify-center py-8">
-                            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                          </div>
-                        ) : (
-                          <div className="space-y-4">
-                            {messages.map((message) => (
+                      <ScrollArea className="flex-1 p-4">
+                        <div className="space-y-4">
+                          {messages.map((message) => (
+                            <div
+                              key={message._id}
+                              className={cn(
+                                "flex",
+                                message.senderId.id === user?.id ? "justify-end" : "justify-start"
+                              )}
+                            >
                               <div
-                                key={message._id}
                                 className={cn(
-                                  "flex",
-                                  message.senderId._id === selectedConversation ? "justify-start" : "justify-end"
+                                  "max-w-[85%] sm:max-w-[70%] rounded-lg p-3 sm:p-4",
+                                  message.senderId.id === user?.id
+                                    ? "bg-primary text-primary-foreground"
+                                    : "bg-muted"
                                 )}
                               >
-                                {message.senderId._id === selectedConversation && (
-                                  <Avatar className="h-8 w-8 mr-2 self-end mb-1">
-                                    <AvatarFallback>
-                                      {conversations.find(c => c.partner._id === selectedConversation)?.partner.name.split(' ').map(n => n[0]).join('')}
-                                    </AvatarFallback>
-                                  </Avatar>
-                                )}
-                                <div
-                                  className={cn(
-                                    "max-w-[70%] p-3 rounded-lg shadow-sm relative",
-                                    message.senderId._id === selectedConversation
-                                      ? "bg-white text-blue-700 border border-gray-200 rounded-tl-none"
-                                      : "bg-blue-700 text-white rounded-tr-none"
-                                  )}
-                                >
-                                  <p className="text-sm break-words">{message.content}</p>
-                                  <p className="text-[10px] opacity-70 text-right mt-1">
-                                    {formatDistanceToNow(new Date(message.createdAt), { addSuffix: true })}
-                                  </p>
-                                </div>
+                                <p className="text-sm sm:text-base break-words">{message.content}</p>
+                                <p className="text-xs opacity-70 mt-1">
+                                  {formatDistanceToNow(new Date(message.createdAt), { addSuffix: true })}
+                                </p>
                               </div>
-                            ))}
-                          </div>
-                        )}
+                            </div>
+                          ))}
+                        </div>
                       </ScrollArea>
 
-                      {/* Input Area */}
-                      <div className="p-4 bg-white border-t">
+                      {/* Message Input */}
+                      <div className="p-3 sm:p-4 bg-white border-t">
                         <form 
                           onSubmit={(e) => {
                             e.preventDefault();
@@ -797,16 +802,12 @@ const MessagesPage = () => {
                       </div>
                     </>
                   ) : (
-                    <div className="h-full flex items-center justify-center text-center p-8">
-                      <div className="space-y-4">
-                        <MessageSquare className="h-12 w-12 text-muted-foreground mx-auto" />
-                        <div>
-                          <h3 className="text-lg font-semibold">No Conversation Selected</h3>
-                          <p className="text-sm text-muted-foreground">
-                            Choose a conversation from the list to start messaging
-                          </p>
-                        </div>
-                      </div>
+                    <div className="flex flex-col items-center justify-center h-full p-4 text-center">
+                      <MessageSquare className="h-12 w-12 text-muted-foreground mb-4" />
+                      <h3 className="text-lg font-medium mb-2">No Conversation Selected</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Choose a conversation from the list to start messaging
+                      </p>
                     </div>
                   )}
                 </Card>

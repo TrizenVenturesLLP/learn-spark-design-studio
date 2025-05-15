@@ -125,71 +125,27 @@ const Students = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-0">
         <div className="flex items-center space-x-4">
           <Button
             variant="ghost"
             onClick={() => navigate('/instructor/courses')}
+            className="p-2 sm:p-4"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Courses
+            <span className="hidden sm:inline">Back to Courses</span>
+            <span className="sm:hidden">Back</span>
           </Button>
         </div>
         
-        {/* Course selector */}
-        
-      </div>
-      
-      <h1 className="text-3xl font-bold">
-        {isLoading ? 'Loading...' : processedData?.title || 'Course Students'}
-      </h1>
-
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Students</CardTitle>
-              {isAllStudents && (
-                <p className="text-sm text-muted-foreground mt-1">
-                  Showing all students enrolled across your courses
-                </p>
-              )}
-            </div>
-            
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col space-y-4 md:flex-row md:items-center md:space-y-0 md:space-x-4 mb-6">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-              <Input
-                placeholder="Search students..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            
-            <Select
-              value={statusFilter}
-              onValueChange={setStatusFilter}
-            >
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Filter by status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="started">In Progress</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
-              </SelectContent>
-            </Select>
-            <div className="flex items-center space-x-2">
+        {/* Course selector for mobile */}
+        <div className="w-full sm:w-auto">
           <Select 
             value={courseId || 'all'} 
             onValueChange={handleCourseChange}
             disabled={isLoadingCourses}
           >
-            <SelectTrigger className="w-[250px]">
+            <SelectTrigger className="w-full sm:w-[250px]">
               <SelectValue placeholder="Select a course" />
             </SelectTrigger>
             <SelectContent>
@@ -202,6 +158,52 @@ const Students = () => {
             </SelectContent>
           </Select>
         </div>
+      </div>
+      
+      <h1 className="text-2xl sm:text-3xl font-bold">
+        {isLoading ? 'Loading...' : processedData?.title || 'Course Students'}
+      </h1>
+
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+              <CardTitle className="text-lg sm:text-xl">Students</CardTitle>
+              {isAllStudents && (
+                <p className="text-sm text-muted-foreground mt-1">
+                  Showing all students enrolled across your courses
+                </p>
+              )}
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col space-y-4 mb-6">
+            <div className="relative w-full">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+              <Input
+                placeholder="Search students..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 w-full"
+              />
+            </div>
+            
+            <div className="flex flex-col sm:flex-row gap-4 sm:gap-2">
+              <Select
+                value={statusFilter}
+                onValueChange={setStatusFilter}
+              >
+                <SelectTrigger className="w-full sm:w-[180px]">
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  <SelectItem value="started">In Progress</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           {isLoading ? (
@@ -222,80 +224,102 @@ const Students = () => {
                 ? 'No students match your filters.' 
                 : 'No students enrolled in this course yet.'}
             </div>
-          ) :
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Student</TableHead>
-                  {isAllStudents && <TableHead>Course</TableHead>}
-                  <TableHead>Enrolled Date</TableHead>
-                  <TableHead>Progress</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Last Active</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredStudents.map((student) => (
-                  <TableRow key={`${student.id}-${student.courseTitle || ''}`}>
-                    <TableCell>
-                      <div>
-                        <div className="font-medium">{student.name}</div>
-                        <div className="text-sm text-muted-foreground">
-                          {student.email}
-                        </div>
-                      </div>
-                    </TableCell>
-                    {isAllStudents && (
-                      <TableCell>
-                        <div className="font-medium">{student.courseTitle}</div>
-                      </TableCell>
-                    )}
-                    <TableCell>{new Date(student.enrolledDate).toLocaleDateString()}</TableCell>
-                    <TableCell>
-                      <div className="w-full bg-gray-200 rounded-full h-2.5">
-                        <div
-                          className="bg-primary h-2.5 rounded-full"
-                          style={{ width: `${student.progress}%` }}
-                        ></div>
-                      </div>
-                      <span className="text-sm text-muted-foreground">
-                        {student.progress}%
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant="secondary"
-                        className={getStatusColor(student.status)}
-                      >
-                        {student.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{student.lastActive}</TableCell>
-                    <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <MoreVertical className="w-4 h-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem>
-                            <Mail className="w-4 h-4 mr-2" />
-                            Send Email
-                          </DropdownMenuItem>
-                          <DropdownMenuItem>
-                            <MessageSquare className="w-4 h-4 mr-2" />
-                            Send Message
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Student</TableHead>
+                    {isAllStudents && <TableHead className="hidden md:table-cell">Course</TableHead>}
+                    <TableHead className="hidden sm:table-cell">Enrolled Date</TableHead>
+                    <TableHead className="hidden sm:table-cell">Progress</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="hidden md:table-cell">Last Active</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          }
+                </TableHeader>
+                <TableBody>
+                  {filteredStudents.map((student) => (
+                    <TableRow key={`${student.id}-${student.courseTitle || ''}`}>
+                      <TableCell>
+                        <div>
+                          <div className="font-medium">{student.name}</div>
+                          <div className="text-sm text-muted-foreground">
+                            {student.email}
+                          </div>
+                          {/* Mobile view info */}
+                          <div className="sm:hidden space-y-2 mt-2">
+                            <div className="text-sm">
+                              Enrolled: {new Date(student.enrolledDate).toLocaleDateString()}
+                            </div>
+                            <div>
+                              <div className="w-full bg-gray-200 rounded-full h-2.5 mb-1">
+                                <div
+                                  className="bg-primary h-2.5 rounded-full"
+                                  style={{ width: `${student.progress}%` }}
+                                ></div>
+                              </div>
+                              <span className="text-sm text-muted-foreground">
+                                Progress: {student.progress}%
+                              </span>
+                            </div>
+                            {isAllStudents && (
+                              <div className="text-sm text-muted-foreground">
+                                Course: {student.courseTitle}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </TableCell>
+                      {isAllStudents && <TableCell className="hidden md:table-cell">{student.courseTitle}</TableCell>}
+                      <TableCell className="hidden sm:table-cell">{new Date(student.enrolledDate).toLocaleDateString()}</TableCell>
+                      <TableCell className="hidden sm:table-cell">
+                        <div className="w-full bg-gray-200 rounded-full h-2.5">
+                          <div
+                            className="bg-primary h-2.5 rounded-full"
+                            style={{ width: `${student.progress}%` }}
+                          ></div>
+                        </div>
+                        <span className="text-sm text-muted-foreground">
+                          {student.progress}%
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="secondary"
+                          className={`${getStatusColor(student.status)} whitespace-nowrap`}
+                        >
+                          {student.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="hidden md:table-cell">{student.lastActive}</TableCell>
+                      <TableCell className="text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <MoreVertical className="w-4 h-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem>
+                              <Mail className="w-4 h-4 mr-2" />
+                              <span className="hidden sm:inline">Send Email</span>
+                              <span className="sm:hidden">Email</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem>
+                              <MessageSquare className="w-4 h-4 mr-2" />
+                              <span className="hidden sm:inline">Send Message</span>
+                              <span className="sm:hidden">Message</span>
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
