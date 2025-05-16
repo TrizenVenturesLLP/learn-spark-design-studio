@@ -8,9 +8,12 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const nodemailer = require('nodemailer');
-// Add Minio and mdf requires
+// Add Minio, AWS SDK and mdf requires
 const Minio = require('minio');
 const mdf = require('./mdf');
+const busboy = require('busboy');
+const { S3Client } = require('@aws-sdk/client-s3');
+const { Upload } = require('@aws-sdk/lib-storage');
 
 // Load environment variables
 dotenv.config();
@@ -3358,6 +3361,7 @@ app.post('/api/courses/:courseId/videos', authenticateToken, async (req, res) =>
 
 // Start server
 const PORT = process.env.PORT || 5001;
+
 // Add Minio client initialization and list buckets
 const minioClient = new Minio.Client({
   endPoint: 'lmsbackendminio-api.llp.trizenventures.com',
@@ -3366,29 +3370,89 @@ const minioClient = new Minio.Client({
   accessKey: 'b72084650d4c21dd04b801f0',
   secretKey: 'be2339a15ee0544de0796942ba3a85224cc635'
 });
+
+// Initialize AWS S3 Client (configured for Minio)
+const s3Client = new S3Client({
+  endpoint: 'https://lmsbackendminio-api.llp.trizenventures.com',
+  region: 'us-east-1',
+  credentials: {
+    accessKeyId: 'b72084650d4c21dd04b801f0',
+    secretAccessKey: 'be2339a15ee0544de0796942ba3a85224cc635'
+  },
+  forcePathStyle: true
+});
+
 mdf.listBuckets(minioClient);
 
-// Video upload endpoint saving videos to Minio webdevbootcamp bucket
+// Video upload endpoint with memory storage for processing files from frontend
 const videoUpload = multer({ storage: multer.memoryStorage() });
-app.post('/api/upload/video', authenticateToken, videoUpload.single('video'), (req, res) => {
+
+// Video upload endpoint - updated to use AWS SDK with Upload class
+app.post('/api/upload/video', authenticateToken, videoUpload.single('video'), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ message: 'No video file provided' });
   }
-  const objectName = `${Date.now()}-${req.file.originalname}`;
-  minioClient.putObject('webdevbootcamp1', objectName, req.file.buffer, (err) => {
-    if (err) {
-      console.error('Minio upload error:', err);
-      return res.status(500).json({ message: 'Error uploading to storage' });
-    }
-    // Generate a presigned URL valid for 24 hours
-    minioClient.presignedUrl('GET', 'webdevbootcamp1', objectName, 24 * 60 * 60, (err, url) => {
-      if (err) {
-        console.error('Presigned URL error:', err);
-        return res.status(500).json({ message: 'Error generating URL' });
+
+  try {
+    const fileBuffer = req.file.buffer;
+    const originalFilename = req.file.originalname;
+    const objectName = `${Date.now()}-${originalFilename}`;
+    const fileSizeMB = (req.file.size / (1024 * 1024)).toFixed(2);
+
+    console.log(`Processing file: ${originalFilename}`);
+    console.log(`File size: ${fileSizeMB}MB`);
+
+    // Track upload progress
+    let lastPercentLogged = 0;
+    
+    // Set up the upload with the AWS SDK Upload class
+    const upload = new Upload({
+      client: s3Client,
+      params: {
+        Bucket: 'webdevbootcamp1',
+        Key: objectName,
+        Body: fileBuffer,
+        ContentType: req.file.mimetype,
+        ContentLength: req.file.size // Explicitly set content length
       }
-      res.json({ url });
     });
-  });
+
+    // Add progress event listener
+    upload.on('httpUploadProgress', (progress) => {
+      const percent = Math.floor((progress.loaded / req.file.size) * 100);
+      
+      // Log every 10% change to avoid console spam
+      if (percent >= lastPercentLogged + 10 || percent === 100) {
+        lastPercentLogged = percent;
+        console.log(`Upload progress: ${percent}%`);
+      }
+    });
+
+    // Execute the upload
+    const result = await upload.done();
+    
+    // Generate a presigned URL valid for 24 hours using the Minio client
+    const url = await new Promise((resolve, reject) => {
+      minioClient.presignedUrl('GET', 'webdevbootcamp1', objectName, 24 * 60 * 60, (err, url) => {
+        if (err) reject(err);
+        else resolve(url);
+      });
+    });
+
+    // Return response with URL and upload details
+    res.json({ 
+      url,
+      uploadDetails: {
+        fileName: originalFilename,
+        totalSize: fileSizeMB,
+        status: 'completed'
+      },
+      message: `File uploaded successfully (${fileSizeMB}MB)`
+    });
+  } catch (error) {
+    console.error('Upload error:', error);
+    res.status(500).json({ message: 'Error uploading to storage' });
+  }
 });
 
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

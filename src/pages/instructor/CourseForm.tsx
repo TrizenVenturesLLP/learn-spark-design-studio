@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -22,7 +22,8 @@ import {
   Trash2, 
   Loader2, 
   AlertTriangle,
-  ArrowRight
+  ArrowRight,
+  X
 } from 'lucide-react';
 import { 
   useCreateCourse, 
@@ -40,6 +41,31 @@ import MCQForm from '@/components/MCQForm';
 import { DayCodeEditor } from '@/components/instructor/DayCodeEditor';
 import axios from '@/lib/axios';
 import { Progress } from '@/components/ui/progress';
+
+// Define our own type for axios progress event
+interface UploadProgressEvent {
+  loaded: number;
+  total?: number;
+}
+
+interface UploadDetails {
+  fileName: string;
+  totalSize: string;
+  isChunked: boolean;
+  chunks: {
+    number: number;
+    size: string;
+    status: string;
+  }[];
+  totalChunks?: number;
+  status: string;
+}
+
+interface UploadProgress {
+  progress: number;
+  uploaded: number;
+  total: number;
+}
 
 const convertGoogleDriveLink = (url: string): string => {
   try {
@@ -88,6 +114,13 @@ interface CourseFormData {
   instructor: string;
 }
 
+interface MCQFormProps {
+  mcqs: MCQQuestion[];
+  onChange: (mcqs: MCQQuestion[]) => void;
+  dayNumber: number;
+  className: string;
+}
+
 const CourseForm = () => {
   const navigate = useNavigate();
   const { courseId } = useParams<{ courseId: string }>();
@@ -98,7 +131,15 @@ const CourseForm = () => {
   const [skill, setSkill] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadingVideoIndex, setUploadingVideoIndex] = useState<number | null>(null);
-  const [uploadProgress, setUploadProgress] = useState(0);
+  const [currentUpload, setCurrentUpload] = useState<{
+    fileName: string;
+    totalSize: number;
+    uploadedSize: number;
+    progress: number;
+  } | null>(null);
+  const [uploadDetails, setUploadDetails] = useState<UploadDetails | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const [serverProgressLogs, setServerProgressLogs] = useState<string[]>([]);
 
   const { data: existingCourse, isLoading: isLoadingCourse } = useCourseDetails(courseId);
   const createCourseMutation = useCreateCourse();
@@ -375,28 +416,141 @@ const CourseForm = () => {
     }
   };
 
+  const cancelUpload = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      toast({
+        title: 'Upload Cancelled',
+        description: 'Video upload has been cancelled',
+      });
+      setUploadingVideoIndex(null);
+      setCurrentUpload(null);
+      abortControllerRef.current = null;
+    }
+  };
+
   const handleVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    // Create abort controller for cancellation
+    abortControllerRef.current = new AbortController();
+
+    // Reset server progress logs
+    setServerProgressLogs([]);
+
     setUploadingVideoIndex(index);
-    const formData = new FormData();
-    formData.append('video', file);
+    setCurrentUpload({
+      fileName: file.name,
+      totalSize: file.size,
+      uploadedSize: 0,
+      progress: 0
+    });
+
+    let lastLoggedPercent = 0;
+
     try {
+      const formData = new FormData();
+      formData.append('video', file);
+        
       const response = await axios.post<{ url: string }>('/api/upload/video', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      const url = response.data.url;
-      updateRoadmapDay(index, 'video', url);
-    } catch (error) {
-      console.error('Video upload failed:', error);
+        signal: abortControllerRef.current.signal,
+        onUploadProgress: (progressEvent: UploadProgressEvent) => {
+          if (progressEvent.total) {
+            const percent = Math.floor((progressEvent.loaded / progressEvent.total) * 100);
+            setCurrentUpload({
+              fileName: file.name,
+              totalSize: file.size,
+              uploadedSize: progressEvent.loaded,
+              progress: percent
+            });
+
+            // Simulate server-side logs - similar to the pattern in server.js
+            if (percent >= lastLoggedPercent + 10 || percent === 100) {
+              lastLoggedPercent = percent;
+              const logMessage = `Upload progress: ${percent}%`;
+              setServerProgressLogs(prev => [...prev, logMessage]);
+            }
+          }
+        }
+      } as any);
+
+      if (response.data.url) {
+        updateRoadmapDay(index, 'video', response.data.url);
+      }
+
       toast({
-        title: 'Upload Failed',
-        description: 'Unable to upload video. Please try again.',
-        variant: 'destructive',
+        title: 'Success',
+        description: 'Video uploaded successfully',
       });
+    } catch (error) {
+      // Check if the request was cancelled
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        console.log('Upload cancelled by user');
+        setServerProgressLogs(prev => [...prev, 'Upload cancelled by user']);
+      } else {
+        console.error('Video upload failed:', error);
+        setServerProgressLogs(prev => [...prev, 'Upload failed: ' + (error?.message || 'Unknown error')]);
+        toast({
+          title: 'Upload Failed',
+          description: 'Unable to upload video. Please try again.',
+          variant: 'destructive',
+        });
+      }
     } finally {
       setUploadingVideoIndex(null);
+      setCurrentUpload(null);
+      abortControllerRef.current = null;
     }
+  };
+
+  const renderUploadProgress = () => {
+    if (!currentUpload) return null;
+
+    return (
+      <div className="mt-4 space-y-2 p-4 border rounded-md bg-muted">
+        <div className="flex justify-between items-center">
+          <span className="font-medium">Uploading: {currentUpload.fileName}</span>
+          <span className="text-sm text-muted-foreground">
+            {Math.round(currentUpload.progress)}%
+          </span>
+        </div>
+        
+        <Progress value={currentUpload.progress} className="h-2" />
+        
+        <div className="flex justify-between items-center">
+          <p className="text-sm text-muted-foreground">
+            {(currentUpload.uploadedSize / (1024 * 1024)).toFixed(2)}MB / 
+            {(currentUpload.totalSize / (1024 * 1024)).toFixed(2)}MB
+          </p>
+          
+          {/* <Button 
+            variant="destructive" 
+            size="sm" 
+            onClick={cancelUpload}
+            className="h-8 px-3"
+          >
+            <X className="w-4 h-4 mr-1" />
+            Stop Upload
+          </Button> */}
+        </div>
+
+        {/* Server-side progress logs */}
+        {serverProgressLogs.length > 0 && (
+          <div className="mt-2 p-2 bg-black/10 rounded-md">
+            <p className="text-xs font-semibold mb-1">Server Logs:</p>
+            <div className="font-mono text-xs max-h-24 overflow-y-auto space-y-1">
+              {serverProgressLogs.map((log, index) => (
+                <div key={index} className="text-muted-foreground">
+                  <span className="text-primary">&gt;</span> {log}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
   };
 
   if (isLoadingCourse && isEditMode) {
@@ -681,19 +835,18 @@ const CourseForm = () => {
                         />
                         <label
                           htmlFor={`video-${index}`}
-                          className={`inline-flex items-center px-4 py-2 border rounded-md ${uploadingVideoIndex === index ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100'}`}
+                          className={`inline-flex items-center px-4 py-2 border rounded-md ${
+                            uploadingVideoIndex === index ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100'
+                          }`}
                         >
                           <Upload className="w-4 h-4 mr-2" />
                           {uploadingVideoIndex === index ? 'Uploading...' : day.video ? 'Change Video' : 'Upload Video'}
                         </label>
                         {uploadingVideoIndex === index && <Loader2 className="animate-spin inline-block ml-2" />}
                       </div>
-                      {uploadingVideoIndex === index && (
-                        <div className="mt-2 space-y-1">
-                          <Progress value={uploadProgress} />
-                          <p className="text-xs text-muted-foreground">{uploadProgress}% uploaded</p>
-                        </div>
-                      )}
+
+                      {uploadingVideoIndex === index && renderUploadProgress()}
+
                       {day.video && (
                         <video
                           src={day.video}
@@ -703,6 +856,7 @@ const CourseForm = () => {
                       )}
                       <p className="text-xs text-muted-foreground">
                         Supported formats: MP4, WebM, etc.
+                        {currentUpload && " Large files will be automatically split into chunks."}
                       </p>
                     </div>
 
@@ -745,7 +899,6 @@ const CourseForm = () => {
                         mcqs={day.mcqs || []}
                         onChange={(mcqs) => handleMcqsUpdate(index, mcqs)}
                         dayNumber={day.day}
-                        className="flex flex-col space-y-4"
                       />
                     </div>
                   </div>

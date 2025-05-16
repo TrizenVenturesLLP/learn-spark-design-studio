@@ -190,20 +190,20 @@ const Students = () => {
             </div>
             
             <div className="flex flex-col sm:flex-row gap-4 sm:gap-2">
-              <Select
-                value={statusFilter}
-                onValueChange={setStatusFilter}
-              >
+            <Select
+              value={statusFilter}
+              onValueChange={setStatusFilter}
+            >
                 <SelectTrigger className="w-full sm:w-[180px]">
-                  <SelectValue placeholder="Filter by status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Statuses</SelectItem>
-                  <SelectItem value="started">In Progress</SelectItem>
-                  <SelectItem value="completed">Completed</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="started">In Progress</SelectItem>
+                <SelectItem value="completed">Completed</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
           </div>
 
           {isLoading ? (
@@ -226,27 +226,27 @@ const Students = () => {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Student</TableHead>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Student</TableHead>
                     {isAllStudents && <TableHead className="hidden md:table-cell">Course</TableHead>}
                     <TableHead className="hidden sm:table-cell">Enrolled Date</TableHead>
                     <TableHead className="hidden sm:table-cell">Progress</TableHead>
-                    <TableHead>Status</TableHead>
+                  <TableHead>Status</TableHead>
                     <TableHead className="hidden md:table-cell">Last Active</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredStudents.map((student) => (
-                    <TableRow key={`${student.id}-${student.courseTitle || ''}`}>
-                      <TableCell>
-                        <div>
-                          <div className="font-medium">{student.name}</div>
-                          <div className="text-sm text-muted-foreground">
-                            {student.email}
-                          </div>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredStudents.map((student) => (
+                  <TableRow key={`${student.id}-${student.courseTitle || ''}`}>
+                    <TableCell>
+                      <div>
+                        <div className="font-medium">{student.name}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {student.email}
+                        </div>
                           {/* Mobile view info */}
                           <div className="sm:hidden space-y-2 mt-2">
                             <div className="text-sm">
@@ -262,8 +262,8 @@ const Students = () => {
                               <span className="text-sm text-muted-foreground">
                                 Progress: {student.progress}%
                               </span>
-                            </div>
-                            {isAllStudents && (
+                      </div>
+                    {isAllStudents && (
                               <div className="text-sm text-muted-foreground">
                                 Course: {student.courseTitle}
                               </div>
@@ -274,50 +274,50 @@ const Students = () => {
                       {isAllStudents && <TableCell className="hidden md:table-cell">{student.courseTitle}</TableCell>}
                       <TableCell className="hidden sm:table-cell">{new Date(student.enrolledDate).toLocaleDateString()}</TableCell>
                       <TableCell className="hidden sm:table-cell">
-                        <div className="w-full bg-gray-200 rounded-full h-2.5">
-                          <div
-                            className="bg-primary h-2.5 rounded-full"
-                            style={{ width: `${student.progress}%` }}
-                          ></div>
-                        </div>
-                        <span className="text-sm text-muted-foreground">
-                          {student.progress}%
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant="secondary"
+                      <div className="w-full bg-gray-200 rounded-full h-2.5">
+                        <div
+                          className="bg-primary h-2.5 rounded-full"
+                          style={{ width: `${student.progress}%` }}
+                        ></div>
+                      </div>
+                      <span className="text-sm text-muted-foreground">
+                        {student.progress}%
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant="secondary"
                           className={`${getStatusColor(student.status)} whitespace-nowrap`}
-                        >
-                          {student.status}
-                        </Badge>
-                      </TableCell>
+                      >
+                        {student.status}
+                      </Badge>
+                    </TableCell>
                       <TableCell className="hidden md:table-cell">{student.lastActive}</TableCell>
-                      <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
+                    <TableCell className="text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="icon" className="h-8 w-8">
-                              <MoreVertical className="w-4 h-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem>
-                              <Mail className="w-4 h-4 mr-2" />
+                            <MoreVertical className="w-4 h-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem>
+                            <Mail className="w-4 h-4 mr-2" />
                               <span className="hidden sm:inline">Send Email</span>
                               <span className="sm:hidden">Email</span>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem>
-                              <MessageSquare className="w-4 h-4 mr-2" />
+                          </DropdownMenuItem>
+                          <DropdownMenuItem>
+                            <MessageSquare className="w-4 h-4 mr-2" />
                               <span className="hidden sm:inline">Send Message</span>
                               <span className="sm:hidden">Message</span>
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
             </div>
           )}
         </CardContent>

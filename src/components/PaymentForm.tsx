@@ -116,7 +116,7 @@ const PaymentForm = () => {
           <div className="mb-6 border p-3 sm:p-4 rounded-md bg-slate-50">
             <h3 className="text-sm sm:text-base font-medium mb-2">Scan QR code to make payment</h3>
             <div className="flex justify-center w-full">
-              <img
+              <img 
                 src="/Payment QR Cropped.jpg"
                 alt="Payment QR Code" 
                 className="w-full max-w-[250px] sm:max-w-[300px]"

@@ -68,17 +68,17 @@ const VideoPlayer = ({ videoUrl }: { videoUrl: string }) => {
 
   if (fileId) {
     const driveEmbedUrl = `https://drive.google.com/file/d/${fileId}/preview?controls=0&disablekb=1&modestbranding=1&rel=0&showinfo=0&enablejsapi=1&widgetid=1&fs=0&iv_load_policy=3&playsinline=1&autohide=1&html5=1&cc_load_policy=0`;
-    return (
-      <div className="aspect-video w-full rounded-lg overflow-hidden bg-black relative">
-        <iframe
-          title="Course Video"
-          width="100%"
-          height="100%"
-          src={driveEmbedUrl}
-          allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
-          allowFullScreen
-          className="w-full h-full"
-        />
+  return (
+    <div className="aspect-video w-full rounded-lg overflow-hidden bg-black relative">
+      <iframe
+        title="Course Video"
+        width="100%"
+        height="100%"
+        src={driveEmbedUrl}
+        allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
+        allowFullScreen
+        className="w-full h-full"
+      />
       </div>
     );
   }

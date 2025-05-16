@@ -179,38 +179,38 @@ const Courses = () => {
                 </p>
                 <div className="mt-auto">
                   <div className="flex items-center justify-between text-sm mb-4">
-                    <div className="flex items-center space-x-4">
-                      <div className="flex items-center">
-                        <Users className="w-4 h-4 mr-1 text-muted-foreground" />
+                  <div className="flex items-center space-x-4">
+                    <div className="flex items-center">
+                      <Users className="w-4 h-4 mr-1 text-muted-foreground" />
                         <span>{course.students || 0}</span>
-                      </div>
-                      <div className="flex items-center">
-                        <Star className="w-4 h-4 mr-1 text-yellow-500" />
+                    </div>
+                    <div className="flex items-center">
+                      <Star className="w-4 h-4 mr-1 text-yellow-500" />
                         <span>{course.rating || 0}</span>
                       </div>
                     </div>
                   </div>
                   <div className="flex space-x-2">
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="flex-1"
-                      onClick={() => navigate(`/instructor/courses/${course._id || course.id}/edit`)}
-                    >
-                      <Edit className="w-4 h-4 mr-2" />
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="flex-1"
+                    onClick={() => navigate(`/instructor/courses/${course._id || course.id}/edit`)}
+                  >
+                    <Edit className="w-4 h-4 mr-2" />
                       <span className="hidden sm:inline">Edit</span>
                       <span className="sm:hidden">Edit</span>
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="flex-1"
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="flex-1"
                       onClick={() => handlePreview(course._id || course.id)}
-                    >
+                  >
                       <Eye className="w-4 h-4 mr-2" />
                       <span className="hidden sm:inline">Preview</span>
                       <span className="sm:hidden">View</span>
-                    </Button>
+                  </Button>
                   </div>
                 </div>
               </CardContent>
