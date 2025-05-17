@@ -1,3 +1,4 @@
+
 import axios from 'axios';
 
 const baseURL = 'http://localhost:5001';
@@ -35,6 +36,7 @@ instance.interceptors.response.use(
   }
 );
 
+// Helper function to get full URL for images
 export const getImageUrl = (path: string) => {
   if (!path) return '';
   if (path.startsWith('http')) return path;

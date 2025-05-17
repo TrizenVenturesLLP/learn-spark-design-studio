@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import AdminLayout from '@/components/layouts/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,7 +14,8 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import axios, { getImageUrl } from '@/lib/axios';
+import axios from '@/lib/axios';
+import { getImageUrl } from '@/lib/axios';
 
 interface EnrollmentRequest {
   _id: string;
@@ -217,6 +219,11 @@ const EnrollmentRequests = () => {
                   src={getImageUrl(selectedRequest.transactionScreenshot)}
                   alt="Transaction Screenshot" 
                   className="max-h-[70vh] max-w-full object-contain rounded" 
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    target.onerror = null;
+                    target.src = '/placeholder.svg';
+                  }}
                 />
               </div>
             )}
