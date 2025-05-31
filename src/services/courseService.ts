@@ -9,53 +9,69 @@ export interface MCQOption {
 
 export interface MCQQuestion {
   question: string;
-  options: MCQOption[];
+  options: string[];
+  correctAnswer: number;
   explanation?: string;
 }
 
 export interface RoadmapDay {
   day: number;
   topics: string;
-  video: string;
-  transcript?: string;
-  notes?: string;
-  mcqs: MCQQuestion[];
+  mcqs?: any[];
   code?: string;
   language?: string;
+  video?: string;
+  description?: string;
 }
 
 export interface Course {
-  id?: string;
-  _id?: string;
-  image: string;
+  _id: string;
   title: string;
   description: string;
-  longDescription?: string;
-  instructor: string;
+  image: string;
+  instructor?: string;
+  instructorId: string;
+  instructorAvatar?: string;
+  instructorTitle?: string;
   duration: string;
+  totalLessons: number;
+  totalModules: number;
+  totalQuizzes: number;
+  totalAssignments: number;
+  totalProjects: number;
+  totalRatings?: number;
   rating?: number;
-  students?: number;
-  level: "Beginner" | "Intermediate" | "Advanced";
-  category: string;
-  skills: string[];
-  courses?: {
-    title: string;
-    details: string;
-  }[];
-  testimonials?: {
-    text: string;
-    author: string;
-    since: string;
-  }[];
+  enrollmentStatus?: "started" | "completed" | "pending" | "enrolled" | "approved" | "rejected";
+  status?: "started" | "completed" | "pending" | "enrolled" | "approved" | "rejected";
   progress?: number;
-  enrolledAt?: string;
-  enrollmentStatus?: 'enrolled' | 'started' | 'completed' | 'pending';
-  status?: 'enrolled' | 'started' | 'completed' | 'pending';
   lastAccessedAt?: string;
+  completedAt?: string;
+  category?: string;
+  tags?: string[];
+  prerequisites?: string[];
+  objectives?: string[];
   roadmap?: RoadmapDay[];
   price?: number;
-  courseAccess?: boolean;
-  createdAt?: string;
+  level: "Beginner" | "Intermediate" | "Advanced";
+  language?: string;
+  courseUrl?: string;
+  daysCompletedPerDuration?: string;
+  completedDays?: number[];
+  isComingSoon?: boolean;
+  expectedDate?: string;
+  isTrending?: boolean;
+  isNew?: boolean;
+  isTopRated?: boolean;
+  lastUpdated?: string;
+  enrollmentCount?: number;
+  students?: number;
+}
+
+export interface ReviewCounts {
+  [courseId: string]: {
+    totalReviews: number;
+    rating: number;
+  };
 }
 
 // Fetch all courses
@@ -72,21 +88,34 @@ export const useAllCourses = () => {
   });
 };
 
-// Get course by ID
-export const useCourseDetails = (courseId: string | undefined) => {
+// Get course by ID or courseUrl
+export const useCourseDetails = (courseIdOrUrl: string | undefined) => {
   return useQuery({
-    queryKey: ['course', courseId],
+    queryKey: ['course', courseIdOrUrl],
     queryFn: async (): Promise<Course> => {
-      if (!courseId) throw new Error("Course ID is required");
+      if (!courseIdOrUrl) throw new Error("Course ID or URL is required");
       
-      const response = await axios.get(`/api/courses/${courseId}`);
-      if (!response.data) {
-        throw new Error(`Course with ID ${courseId} not found`);
+      try {
+        // Use the main endpoint which handles both IDs and URLs
+        const response = await axios.get(`/api/courses/${courseIdOrUrl}`);
+        if (response.data) {
+          return response.data as Course;
+        }
+      } catch (error: any) {
+          // Log the error for debugging
+        console.error('Course fetch error:', error?.response?.data);
+          
+          // Throw a user-friendly error
+          throw new Error(
+            error?.response?.data?.message || 
+            'Course not found'
+          );
       }
-      return response.data as Course;
+      throw new Error(`Course not found: ${courseIdOrUrl}`);
     },
-    enabled: !!courseId,
+    enabled: !!courseIdOrUrl,
     staleTime: 1000 * 60 * 5, // 5 minutes
+    retry: 1
   });
 };
 
@@ -129,34 +158,35 @@ export const useEnrollCourse = () => {
   });
 };
 
+export interface UpdateProgressParams {
+  courseId: string;
+  progress: number;
+  status: 'started' | 'completed';
+  token: string;
+  completedDays?: number[];
+}
+
 // Update course progress and status
 export const useUpdateProgress = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: async ({ 
-      courseId, 
-      progress, 
-      status,
-      token 
-    }: { 
-      courseId: string, 
-      progress: number,
-      status?: 'enrolled' | 'started' | 'completed' | 'pending',
-      token: string 
-    }) => {
+    mutationFn: async ({ courseId, completedDays, token, progress, status }: UpdateProgressParams) => {
       const response = await axios.put(
-        `/api/my-courses/${courseId}/progress`, 
-        { progress, status }
+        `/api/courses/${courseId}/progress`,
+        { completedDays, progress, status },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
       );
       return response.data;
     },
     onSuccess: (_, variables) => {
-      // Invalidate and refetch the relevant queries
-      queryClient.invalidateQueries({ queryKey: ['enrolledCourses'] });
-      queryClient.invalidateQueries({ queryKey: ['courses'] });
+      queryClient.invalidateQueries({ queryKey: ['enrolled-courses'] });
       queryClient.invalidateQueries({ queryKey: ['course', variables.courseId] });
-    },
+    }
   });
 };
 
@@ -513,3 +543,150 @@ export const useDeleteCourse = () => {
     },
   });
 };
+
+export const useReviewCounts = () => {
+  return useQuery<ReviewCounts>({
+    queryKey: ['reviewCounts'],
+    queryFn: async (): Promise<ReviewCounts> => {
+      const response = await axios.get<ReviewCounts>('/api/review-counts');
+      return response.data;
+    },
+    staleTime: 1000 * 60 * 5, // Cache for 5 minutes
+  });
+};
+
+export interface QuizSubmission {
+  courseUrl: string;
+  courseId: string;
+  title: string;
+  score: number;
+  submittedDate: string;
+  dayNumber: number;
+  courseName?: string;
+  attempts?: number;
+  maxScore?: number;
+  lastAttemptDate?: string;
+}
+
+interface UniqueQuiz {
+  _id: {
+    courseId: string;
+    title: string;
+  };
+  attempts: number;
+  highestScore: number;
+}
+
+interface QuizSubmissionsResponse {
+  totalSubmissions: number;
+  uniqueQuizCount: number;
+  submissions: QuizSubmission[];
+  uniqueQuizzes: UniqueQuiz[];
+}
+
+// Get quiz submissions statistics
+export const useQuizzesAttemptedCount = (token: string | null) => {
+  return useQuery({
+    queryKey: ['quizzesAttemptedCount'],
+    queryFn: async () => {
+      if (!token) throw new Error("Authentication required");
+      
+      try {
+        const response = await axios.get('/api/quiz-submissions/completed-count');
+        return response.data;
+      } catch (error) {
+        console.error('Error fetching quiz submissions:', error);
+        throw error;
+      }
+    },
+    enabled: !!token,
+  });
+};
+
+interface QuizStats {
+  totalSubmissions: number;
+  uniqueQuizzes: number;
+  coursesWithSubmissions: number;
+  averageScore: number;
+  submissions: QuizSubmission[];
+}
+
+// Get user quiz statistics with detailed logging
+export const useUserQuizStats = (token: string | null) => {
+  return useQuery({
+    queryKey: ['userQuizStats'],
+    queryFn: async (): Promise<QuizStats> => {
+      try {
+        const response = await axios.get<QuizStats>('/api/quiz-submissions');
+        console.log('Quiz Statistics:', response.data);
+        return response.data;
+      } catch (error) {
+        console.error('Error fetching user quiz statistics:', error);
+        throw error;
+      }
+    },
+    enabled: true, // Always enabled since we're using hardcoded user ID
+  });
+};
+
+// Debug function to check quiz submissions
+export const useQuizSubmissionsDebug = (token: string | null) => {
+  return useQuery({
+    queryKey: ['quizSubmissionsDebug'],
+    queryFn: async () => {
+      if (!token) throw new Error("Authentication required");
+      
+      try {
+        const response = await axios.get('/api/quiz-submissions/debug');
+        console.log('Quiz submissions debug data:', response.data);
+        return response.data;
+      } catch (error) {
+        console.error('Error fetching quiz submissions:', error);
+        throw error;
+      }
+    },
+    enabled: !!token,
+  });
+};
+
+// Update the function to fetch individual courses
+export const useCoursesByIds = (courseIds: string[] | undefined) => {
+  return useQuery({
+    queryKey: ['courses', courseIds],
+    queryFn: async (): Promise<Course[]> => {
+      if (!courseIds || courseIds.length === 0) return [];
+      
+      try {
+        // Fetch each course individually using Promise.all
+        const coursePromises = courseIds.map(async (id) => {
+          try {
+            const response = await axios.get(`/api/courses/${id}`);
+            return response.data;
+          } catch (error) {
+            console.error(`Error fetching course ${id}:`, error);
+            return null;
+          }
+        });
+
+        const courses = await Promise.all(coursePromises);
+        return courses.filter(course => course !== null) as Course[];
+      } catch (error) {
+        console.error('Error fetching courses:', error);
+        throw error;
+      }
+    },
+    enabled: !!courseIds && courseIds.length > 0,
+  });
+};
+
+export interface User {
+  _id: string;
+  name: string;
+  email: string;
+  role: string;
+  enrolledCourses?: Course[];
+  avatar?: string;
+  bio?: string;
+  title?: string;
+  // ... rest of the existing properties ...
+}

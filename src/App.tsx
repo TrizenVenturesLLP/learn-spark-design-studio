@@ -12,7 +12,9 @@ import Dashboard from "./pages/Dashboard";
 import Courses from "./pages/Courses";
 import ExploreCourses from "./pages/ExploreCourses";
 import CourseEnrollment from "./pages/CourseEnrollment";
+import CourseDetails from "./pages/CourseDetails";
 import CourseWeekView from "./pages/CourseWeekView";
+import CourseQuizView from "./pages/CourseQuizView";
 import CoursePayment from "./pages/CoursePayment";
 import NotFound from "./pages/NotFound";
 import Profile from "./pages/Profile";
@@ -24,10 +26,8 @@ import Discussions from "./pages/Discussion";
 import Careers from "./pages/Careers";
 import InternshipApply from "./pages/InternshipApply";
 import PendingApproval from "./pages/PendingApproval";
-import CreateAssessment from "./pages/instructor/CreateAssessment";
 import Assessments from "./pages/student/Assessments";
-import InstructorAssessments from "./pages/instructor/Assessments";
-import LiveSessions from "./pages/instructor/LiveSessions";
+import EnrollPage from "./pages/enroll";
 
 // Admin Pages
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -39,29 +39,10 @@ import ContactRequests from "./pages/admin/ContactRequests";
 import InstructorManagement from "./pages/admin/InstructorManagement";
 import InstructorApprovals from "./pages/admin/InstructorApprovals";
 
-// Instructor Pages
-import InstructorDashboard from "./pages/instructor/Dashboard";
-import InstructorCourses from "./pages/instructor/Courses";
-import CourseForm from "./pages/instructor/CourseForm";
-import CourseContent from "./pages/instructor/CourseContent";
-import Students from "./pages/instructor/Students";
-import InstructorAnalytics from "./pages/instructor/Analytics";
-import InstructorGuidelinesPage from "./pages/instructor/InstructorGuidelinesPage";
-import Support from "./pages/instructor/Support";
-import FAQ from "./pages/instructor/FAQ";
-import TeachingResources from "./pages/instructor/TeachingResources";
-import MessagesPage from "./pages/instructor/Messages";
-import { default as InstructorSettings } from "./pages/instructor/Settings";
-
 // Layouts
-import InstructorLayout from "./components/layouts/InstructorLayout";
 import DashboardLayout from "./components/layouts/DashboardLayout";
 
 import ContactInstructorsPage from "./pages/student/ContactInstructors";
-import InstructorProfile from "./components/instructor/InstructorProfile";
-
-// Auth Pages
-import InstructorSignup from "./pages/InstructorSignup";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -84,18 +65,6 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   if (!isAuthenticated) {
     localStorage.setItem('redirectPath', location.pathname);
     return <Navigate to="/login" />;
-  }
-
-  // Handle instructor redirection
-  if (user?.role === 'instructor') {
-    if (user.status === 'pending') {
-      if (location.pathname !== '/pending-approval') {
-      return <Navigate to="/pending-approval" />;
-      }
-    }
-    if (user.status === 'approved' && !location.pathname.startsWith('/instructor')) {
-      return <Navigate to="/instructor/dashboard" />;
-    }
   }
 
   return <>{children}</>;
@@ -129,10 +98,7 @@ const PublicRoute = ({ children }: { children: React.ReactNode }) => {
       return <Navigate to={redirectPath} />;
     }
 
-    // Redirect based on user role
-    if (user?.role === 'instructor' && user.status === 'approved') {
-      return <Navigate to="/instructor/dashboard" />;
-    } else if (user?.role === 'admin') {
+    if (user?.role === 'admin') {
       return <Navigate to="/admin/dashboard" />;
     }
     
@@ -160,11 +126,7 @@ const AppRoutes = () => (
         <Signup />
       </PublicRoute>
     } />
-    <Route path="/instructor-signup" element={
-      <PublicRoute>
-        <InstructorSignup />
-      </PublicRoute>
-    } />
+    <Route path="/enroll" element={<EnrollPage />} />
     <Route path="/pending-approval" element={
       <ProtectedRoute>
         <PendingApproval />
@@ -186,24 +148,18 @@ const AppRoutes = () => (
         <Courses />
       </ProtectedRoute>
     } />
-    <Route path="/explore-courses" element={
-      <ProtectedRoute>
-        <ExploreCourses />
-      </ProtectedRoute>
-    } />
+    <Route path="/explore-courses" element={<ExploreCourses />} />
     <Route path="/course/:courseId" element={
       <ProtectedRoute>
         <CourseEnrollment />
       </ProtectedRoute>
     } />
-    <Route path="/course/:courseId/payment" element={
+    <Route path="/course/:courseId/details" element={<CourseDetails />} />
+    <Route path="/course/:courseId/payment" element={<CoursePayment />} />
+    <Route path="/course/:courseId/weeks" element={<CourseWeekView />} />
+    <Route path="/course/:courseId/quiz/:dayNumber" element={
       <ProtectedRoute>
-        <CoursePayment />
-      </ProtectedRoute>
-    } />
-    <Route path="/course/:courseId/weeks" element={
-      <ProtectedRoute>
-        <CourseWeekView />
+        <CourseQuizView />
       </ProtectedRoute>
     } />
     <Route path="/course/:courseId/assessments" element={
@@ -289,40 +245,7 @@ const AppRoutes = () => (
       </AdminRoute>
     } />
 
-    {/* Instructor Routes */}
-    <Route path="/instructor" element={
-      <ProtectedRoute>
-        <InstructorLayout />
-      </ProtectedRoute>
-    }>
-      <Route index element={<Navigate to="/instructor/dashboard" replace />} />
-      <Route path="dashboard" element={<InstructorDashboard />} />
-      <Route path="profile" element={<InstructorProfile />} />
-      <Route path="courses" element={<InstructorCourses />} />
-      <Route path="courses/new" element={<CourseForm />} />
-      <Route path="courses/:courseId/edit" element={<CourseForm />} />
-      <Route path="courses/:courseId/content" element={<CourseContent />} />
-      <Route path="courses/:courseId/students" element={<Students />} />
-      <Route path="courses/:courseId/analytics" element={<InstructorAnalytics />} />
-      <Route path="content" element={<CourseContent />} />
-      <Route path="students" element={<Students />} />
-      <Route path="guidelines" element={<InstructorGuidelinesPage />} />
-      <Route path="support" element={<Support />} />
-      <Route path="faq" element={<FAQ />} />
-      <Route path="assessments" element={<InstructorAssessments />} />
-      <Route path="sessions" element={<LiveSessions />} />
-      <Route path="messages" element={<MessagesPage />} />
-      <Route path="settings" element={<InstructorSettings />} />
-      <Route path="teaching-resources" element={<TeachingResources />} />
-      <Route path="create-assessment" element={
-        <ProtectedRoute>
-          <CreateAssessment />
-        </ProtectedRoute>
-      } />
-      <Route path="assessments" element={<Assessments />} />
-      <Route path="sessions" element={<LiveSessions />} />
-    </Route>
-
+    {/* 404 Route */}
     <Route path="*" element={<NotFound />} />
   </Routes>
 );
@@ -330,13 +253,13 @@ const AppRoutes = () => (
 const App = () => (
   <BrowserRouter>
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <AuthProvider>
+      <AuthProvider>
+        <TooltipProvider>
           <AppRoutes />
           <Toaster />
           <Sonner />
-        </AuthProvider>
-      </TooltipProvider>
+        </TooltipProvider>
+      </AuthProvider>
     </QueryClientProvider>
   </BrowserRouter>
 );

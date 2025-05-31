@@ -1,4 +1,3 @@
-
 import Header from "@/components/Header";
 import HeroSection from "@/components/HeroSection";
 import AboutSection from "@/components/AboutSection";
@@ -22,20 +21,22 @@ const Index = () => {
   const { toast } = useToast();
   
   const handleCourseClick = (courseId: string) => {
-    navigate(`/course/${courseId}`);
+    // From home page, always navigate to course details without auth check
+    const course = courses?.find(c => c._id === courseId);
+    const courseIdentifier = course?.courseUrl || courseId;
+    navigate(`/course/${courseIdentifier}/details`);
   };
   
   const handleEnrollClick = (courseId: string) => {
+    const course = courses?.find(c => c._id === courseId);
+    const courseIdentifier = course?.courseUrl || courseId;
+    
     if (!isAuthenticated) {
-      toast({
-        title: "Authentication Required",
-        description: "Please log in to enroll in courses.",
-      });
-      navigate('/login', { state: { from: `/course/${courseId}` } });
+      navigate('/login', { state: { from: `/course/${courseIdentifier}` } });
       return;
     }
     
-    navigate(`/course/${courseId}/payment`);
+    navigate(`/course/${courseIdentifier}`);
   };
   
   return (
@@ -50,6 +51,8 @@ const Index = () => {
           onEnrollClick={handleEnrollClick}
           onStartClick={() => {}}
           onResumeClick={() => {}}
+          hideEnrollButton={true}
+          isHomePage={true}
         />
         <WhyChooseUsSection />
         <TestimonialsCarousel />

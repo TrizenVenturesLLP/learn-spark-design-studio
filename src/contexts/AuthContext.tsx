@@ -1,15 +1,8 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import axios from '../lib/axios';
+import axios from '@/lib/axios';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
-
-interface User {
-  id: string;
-  name: string;
-  email: string;
-  role?: string; // Added role property
-  status?: 'pending' | 'approved' | 'rejected';
-}
+import { User } from '@/types/discussion';
 
 interface AuthResponse {
   token: string;
@@ -21,29 +14,25 @@ interface SignupData {
   name: string;
   email: string;
   password: string;
-  role: 'student' | 'instructor';
-  specialty?: string;
-  experience?: number;
+  role: 'student' | 'admin';
 }
 
 interface AuthContextType {
-  isAuthenticated: boolean;
   user: User | null;
   token: string | null;
-  loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  signup: (data: SignupData) => Promise<void>;
+  isAuthenticated: boolean;
+  login: (token: string) => void;
   logout: () => void;
+  updateUser: (user: User) => void;
 }
 
 const AuthContext = createContext<AuthContextType>({
-  isAuthenticated: false,
   user: null,
   token: null,
-  loading: true,
-  login: async () => {},
-  signup: async () => {},
+  isAuthenticated: false,
+  login: () => {},
   logout: () => {},
+  updateUser: () => {},
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -92,7 +81,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setToken(authToken);
       setUser(userData);
       
-      // Determine redirect path based on user role and status
+      // Determine redirect path based on user role
       let redirectPath = '/explore-courses'; // Default path for students
       
       if (userData.role === 'admin') {
@@ -102,27 +91,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           description: "Welcome to the admin dashboard",
           variant: "default",
         });
-      } else if (userData.role === 'instructor') {
-        if (userData.status === 'approved') {
-          redirectPath = '/instructor/dashboard';
-          toast({
-            title: "Welcome Back!",
-            description: "You're logged in as an approved instructor",
-            variant: "default",
-          });
-        } else {
-          redirectPath = '/pending-approval';
-          toast({
-            title: "Application Under Review",
-            description: "Your instructor application is still pending approval. We'll notify you once it's approved.",
-            variant: "default",
-            duration: 5000,
-          });
-        }
       } else {
         // Student login
         const storedPath = localStorage.getItem('redirectPath');
-        if (storedPath && !storedPath.startsWith('/instructor') && !storedPath.startsWith('/admin')) {
+        if (storedPath && !storedPath.startsWith('/admin')) {
           redirectPath = storedPath;
           localStorage.removeItem('redirectPath');
         }
@@ -136,15 +108,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       navigate(redirectPath);
     } catch (error: any) {
-      if (error.response?.status === 403 && 
-          error.response?.data?.message?.includes('pending approval')) {
-        toast({
-          title: "Application Under Review",
-          description: "Your instructor application is still pending approval. We'll notify you once it's approved.",
-          variant: "default",
-          duration: 5000,
-        });
-      }
       const errorMessage = error.response?.data?.message || 'Login failed';
       throw new Error(errorMessage);
     }
@@ -152,36 +115,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signup = async (data: SignupData) => {
     try {
-      const endpoint = data.role === 'instructor' 
-        ? '/api/auth/instructor-signup'
-        : '/api/auth/signup';
+      // Validate role
+      if (data.role !== 'student' && data.role !== 'admin') {
+        toast({
+          title: "Invalid Role",
+          description: "Invalid credentials. Only student and admin roles are allowed.",
+          variant: "destructive",
+          duration: 3000,
+        });
+        throw new Error('Invalid credentials. Only student and admin roles are allowed.');
+      }
 
-      const response = await axios.post(endpoint, data);
+      const response = await axios.post('/api/auth/signup', data);
       const { token: authToken, user: userData, message } = response.data as AuthResponse;
       
       localStorage.setItem('token', authToken);
       setToken(authToken);
       setUser(userData);
       
-      // Redirect based on role and status
-      if (data.role === 'instructor') {
-        navigate('/pending-approval');
-        toast({
-          title: "Application submitted",
-          description: "Your instructor application is being reviewed. We'll notify you once it's approved.",
-          duration: 5000,
-        });
-      } else {
-        navigate('/dashboard');
-        toast({
-          title: "Account created",
-          description: "Your account has been created successfully!",
-          duration: 3000,
-        });
-      }
+      navigate('/dashboard');
+      toast({
+        title: "Account created",
+        description: "Your account has been created successfully!",
+        duration: 3000,
+      });
     } catch (error: any) {
       console.error('Signup error details:', error);
-      const errorMessage = error.response?.data?.message || 'Failed to create account. Please try again.';
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to create account. Please try again.';
       throw new Error(errorMessage);
     }
   };
@@ -195,15 +155,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     navigate('/login');
   };
 
+  const updateUser = (user: User) => {
+    setUser(user);
+  };
+
   return (
     <AuthContext.Provider value={{ 
-      isAuthenticated: !!token, 
       user, 
       token, 
-      loading, 
+      isAuthenticated: !!token, 
       login, 
-      signup, 
-      logout 
+      logout, 
+      updateUser 
     }}>
       {children}
     </AuthContext.Provider>

@@ -1,17 +1,24 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
+import bcrypt from 'bcryptjs';
+import { generateStudentId, generateInstructorId, generateRandomString } from './generateUserId.js';
 
 const userSchema = new mongoose.Schema({
-  name: {
+  userId: {
     type: String,
+    unique: true,
     required: true
   },
-  displayName: {
-    type: String
+  name: {
+    type: String,
+    required: true,
+    trim: true
   },
   email: {
     type: String,
     required: true,
-    unique: true
+    unique: true,
+    trim: true,
+    lowercase: true
   },
   password: {
     type: String,
@@ -19,103 +26,108 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['student', 'instructor', 'admin'],  // Added 'instructor' role
+    enum: ['student', 'instructor', 'admin'],
     default: 'student'
+  },
+  referralCount: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
+  displayName: String,
+  avatar: {
+    type: String,
+    default: function() {
+      return `https://api.dicebear.com/7.x/avataaars/svg?seed=${this.userId || this._id}`;
+    }
   },
   bio: {
     type: String,
-    default: ''
+    maxlength: 500
   },
-  timezone: {
-    type: String,
-    default: 'UTC'
-  },
-  notificationPreferences: {
-    courseUpdates: { type: Boolean, default: true },
-    assignmentReminders: { type: Boolean, default: true },
-    discussionReplies: { type: Boolean, default: true }
-  },
-  connectedDevices: [{
-    id: String,
-    name: String,
-    type: String,
-    browser: String,
-    lastActive: Date
-  }],
-  twoFactorAuth: {
-    enabled: { type: Boolean, default: false },
-    method: { type: String, enum: ['app', 'sms'], default: 'app' },
-    phone: String,
-    secret: String
+  phone: {
+    type: String
   },
   status: {
     type: String,
-    enum: ['pending', 'approved', 'rejected'],
-    default: function() {
-      return this.role === 'instructor' ? 'pending' : 'approved';
-    }
+    enum: ['active', 'inactive', 'suspended', 'pending', 'approved', 'rejected'],
+    default: 'active'
   },
   instructorProfile: {
-    specialty: { 
-      type: String,
-      required: function() { return this.role === 'instructor'; }
-    },
-    experience: { 
-      type: Number,
-      required: function() { return this.role === 'instructor'; }
+    specialty: String,
+    experience: Number,
+    phone: String,
+    location: String,
+    bio: String,
+    socialLinks: {
+      linkedin: String,
+      twitter: String,
+      website: String
     },
     courses: [{
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Course'
-    }],
-    rating: {
-      type: Number,
-      default: 0
+    }]
+  },
+  notificationPreferences: {
+    courseUpdates: {
+      type: Boolean,
+      default: true
     },
-    totalReviews: {
-      type: Number,
-      default: 0
+    assignmentReminders: {
+      type: Boolean,
+      default: true
     },
-    // Additional instructor profile fields
-    bio: {
-      type: String,
-      default: ''
-    },
-    phone: {
-      type: String
-    },
-    location: {
-      type: String
-    },
-    avatar: {
-      type: String
-    },
-    socialLinks: {
-      linkedin: { type: String },
-      twitter: { type: String },
-      website: { type: String }
-    },
-    teachingHours: {
-      type: Number,
-      default: 0
+    discussionReplies: {
+      type: Boolean,
+      default: true
     }
   },
-  createdAt: {
-    type: Date,
-    default: Date.now
+  connectedDevices: [{
+    deviceId: String,
+    deviceName: String,
+    lastActive: Date
+  }],
+  isActive: {
+    type: Boolean,
+    default: true
   },
-  updatedAt: {
-    type: Date,
-    default: Date.now
+  lastLogin: {
+    type: Date
+  },
+  preferences: {
+    notifications: {
+      email: { type: Boolean, default: true },
+      push: { type: Boolean, default: true }
+    },
+    theme: {
+      type: String,
+      enum: ['light', 'dark'],
+      default: 'light'
+    }
   }
+}, {
+  timestamps: true
 });
 
-// Update timestamp on save
-userSchema.pre('save', function(next) {
-  this.updatedAt = new Date();
+// Add indexes
+userSchema.index({ email: 1 });
+userSchema.index({ role: 1 });
+
+// Pre-save middleware to generate and set userId based on role
+userSchema.pre('save', async function(next) {
+  // Only generate userId if it's not already set (new user)
+  if (!this.userId) {
+    if (this.role === 'student') {
+      this.userId = generateStudentId();
+    } else if (this.role === 'instructor') {
+      this.userId = generateInstructorId();
+    } else if (this.role === 'admin') {
+      // For admin, we can use a similar format or customize as needed
+      this.userId = `TAD${generateRandomString(4)}`;
+    }
+  }
   next();
 });
 
-const User = mongoose.model('User', userSchema);
-
-module.exports = User;
+export default mongoose.model('User', userSchema);

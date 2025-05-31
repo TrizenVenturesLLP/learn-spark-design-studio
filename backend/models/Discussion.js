@@ -1,20 +1,4 @@
-const mongoose = require('mongoose');
-
-const replySchema = new mongoose.Schema({
-  userId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
-  },
-  content: {
-    type: String,
-    required: true
-  },
-  createdAt: {
-    type: Date,
-    default: Date.now
-  }
-});
+import mongoose from 'mongoose';
 
 const discussionSchema = new mongoose.Schema({
   courseId: {
@@ -39,20 +23,27 @@ const discussionSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
-  tags: [{
-    type: String
-  }],
-  replies: [replySchema],
   likes: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   }],
-  createdAt: {
-    type: Date,
-    default: Date.now
-  }
+  replies: [{
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true
+    },
+    content: {
+      type: String,
+      required: true
+    },
+    createdAt: {
+      type: Date,
+      default: Date.now
+    }
+  }]
+}, {
+  timestamps: true
 });
 
-const Discussion = mongoose.model('Discussion', discussionSchema);
-
-module.exports = Discussion;
+export default mongoose.model('Discussion', discussionSchema);

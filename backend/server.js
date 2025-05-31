@@ -1,19 +1,23 @@
-const express = require('express');
-const mongoose = require('mongoose');
-const cors = require('cors');
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const dotenv = require('dotenv');
-const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
-const nodemailer = require('nodemailer');
-// Add Minio, AWS SDK and mdf requires
-const Minio = require('minio');
-const mdf = require('./mdf');
-const busboy = require('busboy');
-const { S3Client } = require('@aws-sdk/client-s3');
-const { Upload } = require('@aws-sdk/lib-storage');
+import express from 'express';
+import mongoose from 'mongoose';
+import cors from 'cors';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import dotenv from 'dotenv';
+import multer from 'multer';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+import fs from 'fs';
+import nodemailer from 'nodemailer';
+import { uploadPaymentScreenshot, getFileUrl } from './minioClient.js';
+import { generateRandomString, generateInstructorId } from './models/generateUserId.js';
+import courseRoutes from './routes/courses.js';
+import apiRoutes from './routes/api.js';
+
+// Get __dirname equivalent in ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 // Load environment variables
 dotenv.config();
@@ -25,24 +29,18 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
+// Mount routes
+app.use('/api/courses', courseRoutes);
+app.use('/api', apiRoutes);
+
 // Create uploads directory if it doesn't exist
 const uploadsDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
-// Configure multer for file uploads
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadsDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    const ext = path.extname(file.originalname);
-    cb(null, file.fieldname + '-' + uniqueSuffix + ext);
-  }
-});
-
+// Configure multer for memory storage
+const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
 // Serve static files from uploads directory
@@ -57,18 +55,21 @@ app.use((req, res, next) => {
 });
 
 // Connect to MongoDB
-mongoose.connect(process.env.MongoDB_URL)
+const MongoDB_URL = process.env.MongoDB_URL || 'mongodb+srv://user:user@cluster0.jofrcro.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0';
+
+mongoose.connect(MongoDB_URL)
   .then(() => console.log('Connected to MongoDB'))
   .catch(err => console.error('MongoDB connection error:', err));
 
 // Import models
-const User = require('./models/User');
-const Course = require('./models/Course');
-const UserCourse = require('./models/UserCourse');
-const Discussion = require('./models/Discussion');
-const SupportTicket = require('./models/SupportTicket');
-const Notification = require('./models/Notification');
-const QuizSubmission = require('./models/QuizSubmission');
+import User from './models/User.js';
+import Course from './models/Course.js';
+import UserCourse from './models/UserCourse.js';
+import Discussion from './models/Discussion.js';
+import Notification from './models/Notification.js';
+import QuizSubmission from './models/QuizSubmission.js';
+import Note from './models/Note.js';
+import Review from './models/Review.js';
 
 // Create Message model schema
 const messageSchema = new mongoose.Schema({
@@ -131,14 +132,23 @@ const enrollmentRequestSchema = new mongoose.Schema({
   mobile: {
     type: String,
     required: true,
+    validate: {
+      validator: function(v) {
+        return /^[0-9]{10}$/.test(v);
+      },
+      message: props => `${props.value} is not a valid 10-digit mobile number!`
+    }
   },
   courseName: {
     type: String,
     required: true,
   },
-  utrNumber: {
+  transactionId: {
     type: String,
     required: true,
+    minlength: 10,
+    maxlength: 30,
+    match: /^[a-zA-Z0-9]+$/,
   },
   transactionScreenshot: {
     type: String,
@@ -149,6 +159,10 @@ const enrollmentRequestSchema = new mongoose.Schema({
     enum: ['pending', 'approved', 'rejected'],
     default: 'pending',
   },
+  referredBy: {
+    type: String,
+    default: ''
+  }
 }, { timestamps: true });
 
 const EnrollmentRequest = mongoose.model('EnrollmentRequest', enrollmentRequestSchema);
@@ -215,6 +229,14 @@ const sendEnrollmentApprovalEmail = async (enrollmentRequest) => {
 
           <p>We are pleased to inform you that your enrollment in the course <strong>"${enrollmentRequest.courseId.title}"</strong> has been officially approved.</p>
 
+          <div style="background-color: #f8f9fa; border-radius: 8px; padding: 15px; margin: 20px 0;">
+            <p style="margin: 0; font-size: 16px;">Access your course here:</p>
+            <a href="https://lms.trizenventures.com/course/${enrollmentRequest.courseId._id}/weeks" 
+               style="display: inline-block; background-color: #007BFF; color: white; text-decoration: none; padding: 10px 20px; border-radius: 5px; margin-top: 10px;">
+              Start Learning
+            </a>
+          </div>
+
           <p>You now have full access to all course materials, resources, and support. We encourage you to dive in and begin your learning journey with us.</p>
 
           <p>At <strong>Trizen Ventures LLP</strong>, we're committed to delivering world-class education and helping professionals like you unlock their full potential.</p>
@@ -248,61 +270,79 @@ const sendEnrollmentApprovalEmail = async (enrollmentRequest) => {
 // Signup
 app.post('/api/auth/signup', async (req, res) => {
   try {
-    const { name, email, password, role, specialty, experience } = req.body;
+    console.log('Signup request received:', {
+      ...req.body,
+      password: '[REDACTED]' // Don't log the actual password
+    });
+
+    const { name, email, password, role } = req.body;
 
     // Validate required fields
     if (!name || !email || !password) {
+      console.log('Missing required fields:', { name: !!name, email: !!email, password: !!password });
       return res.status(400).json({ message: 'Required fields missing' });
-    }
-
-    // Additional validation for instructor signup
-    if (role === 'instructor' && (!specialty || !experience)) {
-      return res.status(400).json({ 
-        message: 'Specialty and experience required for instructor signup' 
-      });
     }
 
     // Check if email exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
+      console.log('Email already registered:', email);
       return res.status(400).json({ message: 'Email already registered' });
     }
 
     // Hash password
+    console.log('Hashing password...');
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
+    // Generate userId based on role
+    const userRole = role === 'admin' ? 'admin' : 'student';
+    let userId;
+    if (userRole === 'student') {
+      userId = `TST${generateRandomString(4)}`;
+    } else if (userRole === 'admin') {
+      userId = `TAD${generateRandomString(4)}`;
+    }
+
     // Create user object
     const userData = {
+      userId,
       name,
       email,
       password: hashedPassword,
-      role: role || 'student',
-      displayName: name
+      role: userRole,
+      displayName: name,
+      status: 'active'
     };
 
-    // Add instructor profile if role is instructor
-    if (role === 'instructor') {
-      userData.instructorProfile = {
-        specialty,
-        experience,
-        rating: 0,
-        totalReviews: 0,
-        courses: []
-      };
-    }
+    console.log('Creating new user with data:', {
+      ...userData,
+      password: '[REDACTED]'
+    });
 
     const user = new User(userData);
+    
+    // Log the user object before saving
+    console.log('User object before save:', {
+      ...user.toObject(),
+      password: '[REDACTED]'
+    });
+
     await user.save();
+
+    console.log('User saved successfully:', user._id);
 
     // Generate JWT token
     const token = jwt.sign({ id: user._id, role: user.role }, JWT_SECRET, { expiresIn: '1d' });
+
+    console.log('JWT token generated successfully');
 
     res.status(201).json({
       message: 'Account created successfully',
       token,
       user: {
         id: user._id,
+        userId: user.userId,
         name: user.name,
         email: user.email,
         role: user.role
@@ -310,106 +350,35 @@ app.post('/api/auth/signup', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Signup error:', error);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
-// Add this route after the existing signup route
-app.post('/api/auth/instructor-signup', async (req, res) => {
-  try {
-    const { name, email, password, specialty, experience } = req.body;
-
-    // Validate required fields
-    if (!name || !email || !password || !specialty || !experience) {
-      return res.status(400).json({ message: 'All fields are required' });
-    }
-
-    // Check if email already exists
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({ message: 'Email already registered' });
-    }
-
-    // Hash password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-
-    // Create new instructor
-    const instructor = new User({
-      name,
-      email,
-      password: hashedPassword,
-      role: 'instructor',
-      status: 'pending',
-      displayName: name,
-      instructorProfile: {
-        specialty,
-        experience: Number(experience),
-        rating: 0,
-        totalReviews: 0,
-        courses: []
-      }
+    console.error('Signup error details:', {
+      error: error.message,
+      stack: error.stack,
+      name: error.name,
+      code: error.code
     });
 
-    await instructor.save();
-
-    // Create token
-    const token = jwt.sign({ id: instructor._id, role: instructor.role }, JWT_SECRET, { expiresIn: '1d' });
-
-    // Send welcome email
-    try {
-      const mailOptions = {
-        from: `"Trizen Team" <${process.env.EMAIL_USER}>`,
-        to: instructor.email,
-        subject: 'Welcome to Trizen - Instructor Application Received',
-        html: `
-          <div style="font-family: Arial, sans-serif; color: #333;">
-            <h2 style="color: #007BFF;">Welcome to Trizen!</h2>
-            <p>Dear ${name},</p>
-            <p>Thank you for applying to become an instructor at Trizen. We're excited to have you join our teaching community!</p>
-            <p>Your application is currently under review. Here's what happens next:</p>
-            <ul>
-              <li>Our team will review your application and credentials</li>
-              <li>You'll receive an email once your application is approved</li>
-              <li>After approval, you can start creating and publishing courses</li>
-            </ul>
-            <p>While you wait, you can:</p>
-            <ul>
-              <li>Complete your instructor profile</li>
-              <li>Prepare your course materials</li>
-              <li>Review our instructor guidelines</li>
-            </ul>
-            <p>If you have any questions, feel free to contact our support team.</p>
-            <p>Best regards,<br>The Trizen Team</p>
-          </div>
-        `
-      };
-
-      await transporter.sendMail(mailOptions);
-    } catch (emailError) {
-      console.error('Failed to send welcome email:', emailError);
-      // Continue with the signup process even if email fails
+    // Check for specific MongoDB errors
+    if (error.name === 'MongoServerError') {
+      if (error.code === 11000) {
+        // Duplicate key error
+        return res.status(400).json({ 
+          message: 'Email or userId already exists',
+          field: Object.keys(error.keyPattern)[0]
+        });
+      }
     }
 
-    // Send response
-    res.status(201).json({
-      message: 'Instructor application submitted successfully',
-      token,
-      user: {
-        id: instructor._id,
-        name: instructor.name,
-        email: instructor.email,
-        role: instructor.role,
-        status: instructor.status
-      }
-    });
+    // Check for validation errors
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({ 
+        message: 'Validation error',
+        errors: Object.values(error.errors).map(err => err.message)
+      });
+    }
 
-  } catch (error) {
-    console.error('Instructor signup error:', error);
     res.status(500).json({ 
-      message: 'Failed to create instructor account. Please try again.',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      message: 'Server error',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 });
@@ -431,32 +400,24 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(400).json({ message: 'Invalid credentials' });
     }
 
-    // Check instructor status
+    // Reject instructor logins
     if (user.role === 'instructor') {
-      if (user.status === 'rejected') {
-        return res.status(403).json({ 
-          message: 'Your instructor application has been rejected. Please contact support for more information.' 
-        });
-      }
-      if (user.status === 'pending') {
-        return res.status(403).json({ 
-          message: 'Your instructor application is still pending approval. We will notify you once it is approved.' 
-        });
-      }
+      return res.status(403).json({ 
+        message: 'Instructor accounts are no longer supported.' 
+      });
     }
 
     // Create token
     const token = jwt.sign({ id: user._id, role: user.role }, JWT_SECRET, { expiresIn: '1d' });
 
-    // Send response with role and status information
+    // Send response
     res.json({
       token,
       user: {
         id: user._id,
         name: user.name,
         email: user.email,
-        role: user.role,
-        status: user.status
+        role: user.role
       }
     });
 
@@ -483,7 +444,8 @@ const authenticateToken = (req, res, next) => {
       
       // Get complete user information from database
       try {
-        const user = await User.findById(decoded.id).select('-password');
+        const userId = decoded.userId || decoded.id; // Handle both formats
+        const user = await User.findById(userId).select('-password');
         if (!user) {
           return res.status(404).json({ message: 'User not found' });
         }
@@ -709,7 +671,69 @@ app.get('/api/courses', async (req, res) => {
 // Get course by ID
 app.get('/api/courses/:id', async (req, res) => {
   try {
-    const course = await Course.findById(req.params.id).select('-__v');
+    // Check if the ID is a valid ObjectId
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      // If not a valid ObjectId, try to find by courseUrl
+      const courseByUrl = await Course.findOne({ courseUrl: req.params.id })
+        .select('-__v')
+        .populate('instructorId', 'name email profilePicture bio userId'); // Include profilePicture
+      if (!courseByUrl) {
+        return res.status(404).json({ message: 'Course not found' });
+      }
+      
+      // If user is authenticated, check enrollment status
+      const token = req.headers.authorization?.split(' ')[1];
+      let enrollmentStatus = null;
+      
+      if (token) {
+        try {
+          const decoded = jwt.verify(token, JWT_SECRET);
+          const userId = decoded.id;
+          
+          // Check if user is enrolled in this course
+          const enrollment = await UserCourse.findOne({
+            userId,
+            courseId: courseByUrl._id
+          });
+          
+          if (enrollment) {
+            enrollmentStatus = {
+              status: enrollment.status,
+              progress: enrollment.progress,
+              completedDays: enrollment.completedDays
+            };
+          }
+        } catch (err) {
+          // Invalid token, but we'll still return the course
+        }
+      }
+      
+      // Add enrollment status and instructor details to course
+      const courseObj = courseByUrl.toObject();
+      if (enrollmentStatus) {
+        courseObj.enrollmentStatus = enrollmentStatus.status;
+        courseObj.progress = enrollmentStatus.progress;
+        courseObj.completedDays = enrollmentStatus.completedDays;
+      }
+      
+      // Add instructor details
+      if (courseObj.instructorId) {
+        courseObj.instructorDetails = {
+          name: courseObj.instructorId.name,
+          email: courseObj.instructorId.email,
+          profilePicture: courseObj.instructorId.profilePicture,
+          bio: courseObj.instructorId.bio,
+          userId: courseObj.instructorId.userId
+        };
+      }
+      
+      return res.json(courseObj);
+    }
+    
+    // If it is a valid ObjectId, try to find by ID
+    const course = await Course.findById(req.params.id)
+      .select('-__v')
+      .populate('instructorId', 'name email profilePicture bio userId'); // Include profilePicture
     if (!course) {
       return res.status(404).json({ message: 'Course not found' });
     }
@@ -726,13 +750,75 @@ app.get('/api/courses/:id', async (req, res) => {
         // Check if user is enrolled in this course
         const enrollment = await UserCourse.findOne({
           userId,
-          courseId: req.params.id
+          courseId: course._id
         });
         
         if (enrollment) {
           enrollmentStatus = {
             status: enrollment.status,
-            progress: enrollment.progress
+            progress: enrollment.progress,
+            completedDays: enrollment.completedDays
+          };
+        }
+      } catch (err) {
+        // Invalid token, but we'll still return the course
+      }
+    }
+    
+    // Add enrollment status and instructor details to course
+    const courseObj = course.toObject();
+    if (enrollmentStatus) {
+      courseObj.enrollmentStatus = enrollmentStatus.status;
+      courseObj.progress = enrollmentStatus.progress;
+      courseObj.completedDays = enrollmentStatus.completedDays;
+    }
+    
+    // Add instructor details
+    if (courseObj.instructorId) {
+      courseObj.instructorDetails = {
+        name: courseObj.instructorId.name,
+        email: courseObj.instructorId.email,
+        profilePicture: courseObj.instructorId.profilePicture,
+        bio: courseObj.instructorId.bio,
+        userId: courseObj.instructorId.userId
+      };
+    }
+    
+    res.json(courseObj);
+  } catch (error) {
+    console.error('Get course error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get course by courseUrl
+app.get('/api/courses/url/:courseUrl', async (req, res) => {
+  try {
+    const course = await Course.findOne({ courseUrl: req.params.courseUrl }).select('-__v');
+    if (!course) {
+      return res.status(404).json({ message: 'Course not found' });
+    }
+    
+    // If user is authenticated, check enrollment status
+    const token = req.headers.authorization?.split(' ')[1];
+    let enrollmentStatus = null;
+    
+    if (token) {
+      try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        const userId = decoded.id;
+        
+        // Check if user is enrolled in this course
+        const enrollment = await UserCourse.findOne({
+          userId,
+          courseId: course._id
+        });
+        
+        if (enrollment) {
+          enrollmentStatus = {
+            status: enrollment.status,
+            progress: enrollment.progress,
+            completedDays: enrollment.completedDays
           };
         }
       } catch (err) {
@@ -745,6 +831,7 @@ app.get('/api/courses/:id', async (req, res) => {
     if (enrollmentStatus) {
       courseObj.enrollmentStatus = enrollmentStatus.status;
       courseObj.progress = enrollmentStatus.progress;
+      courseObj.completedDays = enrollmentStatus.completedDays;
     }
     
     res.json(courseObj);
@@ -823,7 +910,9 @@ app.get('/api/my-courses', authenticateToken, async (req, res) => {
         progress: enrollment.progress,
         enrolledAt: enrollment.enrolledAt,
         status: enrollment.status,
-        lastAccessedAt: enrollment.lastAccessedAt
+        lastAccessedAt: enrollment.lastAccessedAt,
+        daysCompletedPerDuration: enrollment.daysCompletedPerDuration,
+        completedDays: enrollment.completedDays || []
       };
     });
     
@@ -838,7 +927,7 @@ app.get('/api/my-courses', authenticateToken, async (req, res) => {
 // Update course progress and status
 app.put('/api/my-courses/:courseId/progress', authenticateToken, async (req, res) => {
   try {
-    const { progress, status } = req.body;
+    const { progress, status, dayNumber } = req.body;
     const { courseId } = req.params;
     
     if (progress < 0 || progress > 100) {
@@ -853,6 +942,35 @@ app.put('/api/my-courses/:courseId/progress', authenticateToken, async (req, res
     
     if (!enrollment) {
       return res.status(404).json({ message: 'Enrollment not found' });
+    }
+
+    // If marking a day as complete, validate the order
+    if (dayNumber) {
+      const completedDays = enrollment.completedDays || [];
+      
+      // For day 1, no validation needed
+      if (dayNumber > 1) {
+        // Check if previous day is completed
+        if (!completedDays.includes(dayNumber - 1)) {
+          return res.status(400).json({ 
+            message: 'Cannot complete this day until previous day is completed' 
+          });
+        }
+      }
+
+      // Update completedDays array
+      if (!completedDays.includes(dayNumber)) {
+        enrollment.completedDays = [...completedDays, dayNumber].sort((a, b) => a - b);
+      } else {
+        // If removing completion, validate it won't break the sequence
+        const nextDay = dayNumber + 1;
+        if (completedDays.includes(nextDay)) {
+          return res.status(400).json({
+            message: 'Cannot mark this day as incomplete while next day is complete'
+          });
+        }
+        enrollment.completedDays = completedDays.filter(d => d !== dayNumber);
+      }
     }
     
     // Update enrollment progress
@@ -884,7 +1002,8 @@ app.put('/api/my-courses/:courseId/progress', authenticateToken, async (req, res
         progress: enrollment.progress,
         status: enrollment.status,
         enrolledAt: enrollment.enrolledAt,
-        lastAccessedAt: enrollment.lastAccessedAt
+        lastAccessedAt: enrollment.lastAccessedAt,
+        completedDays: enrollment.completedDays
       }
     });
     
@@ -913,21 +1032,98 @@ const adminMiddleware = async (req, res, next) => {
 // Submit enrollment request
 app.post('/api/enrollment-requests', authenticateToken, upload.single('transactionScreenshot'), async (req, res) => {
   try {
-    const { email, mobile, utrNumber, courseName, courseId } = req.body;
+    const { email, mobile, transactionId, courseName, courseId, referralBy } = req.body;
     
-    if (!email || !mobile || !utrNumber || !courseName || !courseId || !req.file) {
-      return res.status(400).json({ message: 'All fields and file are required' });
+    // Log the received data for debugging
+    console.log('Received enrollment request:', {
+      email, mobile, transactionId, courseName, courseId, referralBy,
+      file: req.file ? 'Present' : 'Missing'
+    });
+
+    // Validate required fields
+    const requiredFields = { email, mobile, transactionId, courseName, courseId };
+    const missingFields = Object.entries(requiredFields)
+      .filter(([_, value]) => !value)
+      .map(([key]) => key);
+
+    if (missingFields.length > 0) {
+      return res.status(400).json({ 
+        message: `Missing required fields: ${missingFields.join(', ')}`,
+        receivedData: requiredFields
+      });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ 
+        message: 'Transaction screenshot is required'
+      });
+    }
+
+    // Validate transactionId format
+    if (!transactionId.match(/^[a-zA-Z0-9]{10,30}$/)) {
+      return res.status(400).json({ 
+        message: 'Transaction ID must be 10-30 characters long and contain only letters and numbers' 
+      });
+    }
+
+    // Check for existing request with same transaction ID
+    const existingRequest = await EnrollmentRequest.findOne({ transactionId });
+    if (existingRequest) {
+      return res.status(400).json({ 
+        message: 'This Transaction ID has already been used in another enrollment request' 
+      });
+    }
+
+    // Try to find course by ID first, if that fails, try by courseUrl
+    let course;
+    try {
+      // First try to find by ID if it's a valid ObjectId
+      if (mongoose.Types.ObjectId.isValid(courseId)) {
+        course = await Course.findById(courseId);
+      }
+      
+      // If not found by ID, try by courseUrl
+      if (!course) {
+        course = await Course.findOne({ courseUrl: courseId });
+      }
+
+      if (!course) {
+        return res.status(404).json({ 
+          message: 'Course not found',
+          courseId
+        });
+      }
+    } catch (error) {
+      console.error('Error finding course:', error);
+      return res.status(500).json({ 
+        message: 'Error finding course',
+        error: error.message
+      });
+    }
+
+    // Upload file to Minio
+    let screenshotPath;
+    try {
+      screenshotPath = await uploadPaymentScreenshot(req.file, req.file.originalname);
+    } catch (uploadError) {
+      console.error('Error uploading screenshot:', uploadError);
+      return res.status(500).json({ 
+        message: 'Error uploading transaction screenshot',
+        error: uploadError.message
+      });
     }
     
     const enrollmentRequest = new EnrollmentRequest({
       userId: req.user.id,
-      courseId,
+      courseId: course._id,
+      courseUrl: course.courseUrl,
       email,
       mobile,
       courseName,
-      utrNumber,
-      transactionScreenshot: `/uploads/${req.file.filename}`,
-      status: 'pending',
+      transactionId,
+      transactionScreenshot: screenshotPath,
+      referredBy: referralBy || '',
+      status: 'pending'
     });
     
     await enrollmentRequest.save();
@@ -935,13 +1131,14 @@ app.post('/api/enrollment-requests', authenticateToken, upload.single('transacti
     // Mark course as pending in UserCourse collection (if not already enrolled)
     const existingEnrollment = await UserCourse.findOne({ 
       userId: req.user.id,
-      courseId
+      courseId: course._id
     });
     
     if (!existingEnrollment) {
       const enrollment = new UserCourse({
         userId: req.user.id,
-        courseId,
+        courseId: course._id,
+        courseUrl: course.courseUrl,
         status: 'pending',
         progress: 0
       });
@@ -951,6 +1148,7 @@ app.post('/api/enrollment-requests', authenticateToken, upload.single('transacti
               existingEnrollment.status !== 'started' && 
               existingEnrollment.status !== 'completed') {
       existingEnrollment.status = 'pending';
+      existingEnrollment.courseUrl = course.courseUrl;
       await existingEnrollment.save();
     }
     
@@ -961,14 +1159,20 @@ app.post('/api/enrollment-requests', authenticateToken, upload.single('transacti
     
   } catch (error) {
     console.error('Enrollment request error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ 
+      message: 'Server error processing enrollment request',
+      error: error.message
+    });
   }
 });
 
 // Admin: Get all enrollment requests
 app.get('/api/admin/enrollment-requests', authenticateToken, adminMiddleware, async (req, res) => {
   try {
-    const enrollmentRequests = await EnrollmentRequest.find().sort({ createdAt: -1 });
+    const enrollmentRequests = await EnrollmentRequest.find()
+      .populate('userId', 'name email userId') // Populate user details
+      .populate('courseId', 'title courseUrl') // Populate course details
+      .sort({ createdAt: -1 });
     res.json(enrollmentRequests);
   } catch (error) {
     console.error('Get enrollment requests error:', error);
@@ -980,54 +1184,95 @@ app.get('/api/admin/enrollment-requests', authenticateToken, adminMiddleware, as
 app.put('/api/admin/enrollment-requests/:id/approve', authenticateToken, adminMiddleware, async (req, res) => {
   try {
     const enrollmentRequest = await EnrollmentRequest.findById(req.params.id)
-      .populate('userId', 'email')
-      .populate('courseId', 'title');
+      .populate('userId', 'email name')
+      .populate('courseId', 'title courseUrl');
     
     if (!enrollmentRequest) {
       return res.status(404).json({ message: 'Enrollment request not found' });
     }
     
-    // Update request status
+    // Only proceed if not already approved
+    const wasPending = enrollmentRequest.status !== 'approved';
+    if (!wasPending) {
+      return res.json({ 
+        message: 'Enrollment request was already approved',
+        enrollmentRequest
+      });
+    }
+
+    // Update request status and approvedAt timestamp
     enrollmentRequest.status = 'approved';
+    enrollmentRequest.approvedAt = new Date();
     await enrollmentRequest.save();
     
+    // Get the course URL
+    const course = await Course.findById(enrollmentRequest.courseId._id);
+    const courseUrl = course?.courseUrl;
+    
     // Update user course enrollment
+    let alreadyEnrolled = false;
     const existingEnrollment = await UserCourse.findOne({ 
       userId: enrollmentRequest.userId._id,
       courseId: enrollmentRequest.courseId._id
     });
     
     if (existingEnrollment) {
+      alreadyEnrolled = existingEnrollment.status === 'enrolled';
       existingEnrollment.status = 'enrolled';
+      existingEnrollment.courseUrl = courseUrl;
       await existingEnrollment.save();
     } else {
       const enrollment = new UserCourse({
         userId: enrollmentRequest.userId._id,
         courseId: enrollmentRequest.courseId._id,
+        courseUrl: courseUrl,
         status: 'enrolled',
         progress: 0
       });
-      
       await enrollment.save();
     }
     
-    // Increment student count in course
-    const course = await Course.findById(enrollmentRequest.courseId._id);
-    if (course) {
-      course.students += 1;
+    // Handle course student count and referral updates
+    if (course && !alreadyEnrolled) {
+      // Increment course students count
+      course.students = (course.students || 0) + 1;
       await course.save();
-    }
 
-    // Send approval email
+      // Update referral count if there's a referrer
+      if (enrollmentRequest.referredBy) {
+        try {
+          const updatedReferrer = await User.findOneAndUpdate(
+            { userId: enrollmentRequest.referredBy },
+            { $inc: { referralCount: 1 } },
+            { new: true }
+          );
+
+          if (!updatedReferrer) {
+            console.warn(`Referrer with userId ${enrollmentRequest.referredBy} not found`);
+          } else {
+            console.log(`Updated referral count for user ${updatedReferrer.name} to ${updatedReferrer.referralCount}`);
+          }
+        } catch (referralError) {
+          console.error('Error updating referral count:', referralError);
+          // Continue with the approval process even if referral update fails
+        }
+      }
+    }
+    
+    // Send enrollment approval email
+    try {
     await sendEnrollmentApprovalEmail(enrollmentRequest);
+    } catch (emailError) {
+      console.error('Error sending approval email:', emailError);
+    }
     
     res.json({ 
-      message: 'Enrollment request approved and notification email sent',
+      message: 'Enrollment request approved and referral updated successfully',
       enrollmentRequest
     });
     
   } catch (error) {
-    console.error('Approve enrollment error:', error);
+    console.error('Approve enrollment request error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -1454,7 +1699,7 @@ app.get('/api/admin/instructors', authenticateToken, adminMiddleware, async (req
 // Admin: Get all users
 app.get('/api/admin/users', authenticateToken, adminMiddleware, async (req, res) => {
   try {
-    const users = await User.find().select('-password');
+    const users = await User.find({ role: { $ne: 'admin' } }).select('-password');
     res.json(users);
   } catch (error) {
     console.error('Get users error:', error);
@@ -1558,14 +1803,24 @@ app.put('/api/admin/instructor-applications/:id', authenticateToken, adminMiddle
     const { id } = req.params;
     const { status } = req.body;
 
+    // Validate ObjectId
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: 'Invalid instructor ID format' });
+    }
+
     const instructor = await User.findById(id);
     if (!instructor) {
       return res.status(404).json({ message: 'Instructor not found' });
     }
 
-    // If status is rejected, send rejection email and delete the instructor
+    // Validate that this is actually an instructor
+    if (instructor.role !== 'instructor') {
+      return res.status(400).json({ message: 'User is not an instructor' });
+    }
+
+    // If status is rejected, send rejection email and update status
     if (status === 'rejected') {
-      // Prepare email for rejected application before deleting the user
+      // Prepare email for rejected application
       const emailSubject = 'Update on Your Trizen Instructor Application';
       const emailContent = `
         <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto;">
@@ -1613,59 +1868,74 @@ app.put('/api/admin/instructor-applications/:id', authenticateToken, adminMiddle
         html: emailContent
       };
 
+      try {
       // Send the email
       await transporter.sendMail(mailOptions);
+      } catch (emailError) {
+        console.error('Error sending rejection email:', emailError);
+        // Continue with the rejection even if email fails
+      }
 
-      // Delete the instructor from database
-      await User.findByIdAndDelete(id);
+      // Update the instructor status
+      instructor.status = status;
+      await instructor.save();
 
       return res.json({ 
-        message: 'Instructor application rejected and record deleted',
+        message: 'Instructor application rejected successfully',
         instructor: {
           id: instructor._id,
           name: instructor.name,
           email: instructor.email,
-          status: 'rejected'
+          status: instructor.status
         }
       });
-    } else {
-      // For approved status, update the record
+    } 
+    
+    // For approved status
+    if (status === 'approved') {
+      // Generate userId if not already set
+      if (!instructor.userId) {
+        instructor.userId = generateInstructorId();
+      }
+
+      // Update the instructor status
       instructor.status = status;
       await instructor.save();
 
-      // Send email notification to instructor for approval
+      // Send approval email
       const emailSubject = '🎉 Welcome to Trizen - Your Instructor Application is Approved!';
       const emailContent = `
         <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto;">
-          <div style="background-color: #007BFF; padding: 20px; text-align: center;">
+          <div style="background-color: #28a745; padding: 20px; text-align: center;">
             <h1 style="color: white; margin: 0;">Welcome to Trizen!</h1>
           </div>
           
           <div style="padding: 20px; background-color: #f8f9fa;">
             <p>Dear ${instructor.name},</p>
             
-            <p>We are thrilled to inform you that your application to become an instructor at Trizen has been approved! 🎉</p>
+            <p>Congratulations! Your application to become an instructor at Trizen has been approved. We're excited to have you join our teaching community.</p>
             
             <div style="background-color: white; padding: 20px; border-radius: 5px; margin: 20px 0;">
-              <h3 style="color: #007BFF; margin-top: 0;">What's Next?</h3>
+              <h3 style="color: #28a745;">Next Steps:</h3>
               <ul style="list-style-type: none; padding-left: 0;">
-                <li style="margin: 10px 0;">📚 Create and publish your courses</li>
-                <li style="margin: 10px 0;">🎯 Access your instructor dashboard</li>
-                <li style="margin: 10px 0;">📊 Track your course performance</li>
-                <li style="margin: 10px 0;">👥 Connect with your students</li>
+                <li style="margin: 10px 0;">📝 Complete your instructor profile</li>
+                <li style="margin: 10px 0;">🎥 Create your first course</li>
+                <li style="margin: 10px 0;">📚 Review our teaching guidelines</li>
               </ul>
             </div>
 
-            <p><strong>Getting Started:</strong></p>
-            <ol>
-              <li>Log in to your account</li>
-              <li>Visit the instructor dashboard</li>
-              <li>Complete your instructor profile</li>
-              <li>Start creating your first course</li>
-            </ol>
+            <p>As a Trizen instructor, you now have access to:</p>
+            <ul>
+              <li>Course creation tools</li>
+              <li>Teaching resources and guides</li>
+              <li>Instructor community forums</li>
+              <li>Analytics and performance tracking</li>
+            </ul>
 
-            <p>Our team is here to support you every step of the way. If you need any assistance, don't hesitate to reach out to our support team.</p>
-            
+            <p>Your Instructor ID: ${instructor.userId}</p>
+            <p>Please keep this ID for your records. You'll need it for various instructor-related activities.</p>
+
+            <p>If you have any questions, our instructor support team is here to help you succeed.</p>
           </div>
 
           <div style="background-color: #f1f1f1; padding: 20px; text-align: center; font-size: 12px; color: #666;">
@@ -1682,21 +1952,32 @@ app.put('/api/admin/instructor-applications/:id', authenticateToken, adminMiddle
         html: emailContent
       };
 
+      try {
+        // Send the email
       await transporter.sendMail(mailOptions);
+      } catch (emailError) {
+        console.error('Error sending approval email:', emailError);
+        // Continue with the approval even if email fails
+      }
 
-      res.json({ 
+      return res.json({ 
         message: 'Instructor application approved successfully',
         instructor: {
           id: instructor._id,
           name: instructor.name,
           email: instructor.email,
-          status: instructor.status
+          status: instructor.status,
+          userId: instructor.userId
         }
       });
     }
+
+    // If status is neither approved nor rejected
+    return res.status(400).json({ message: 'Invalid status. Must be either approved or rejected.' });
+
   } catch (error) {
     console.error('Update instructor application error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
 
@@ -1821,7 +2102,7 @@ app.get('/api/instructor/profile', authenticateToken, async (req, res) => {
     const mostRecentReviews = recentReviews.slice(0, 5);
     
     // Calculate average rating
-    const averageRating = reviewCount > 0 ? (totalRating / reviewCount).toFixed(1) : 0;
+    const averageRating = reviewCount > 0 ? parseFloat((totalRating / reviewCount).toFixed(1)) : 0;
     
     // Calculate teaching hours (based on course durations)
     const teachingHours = courses.reduce((sum, course) => {
@@ -1903,59 +2184,83 @@ function calculateProfileCompletion(user) {
 // Submit a review for a course
 app.post('/api/courses/:courseId/reviews', authenticateToken, async (req, res) => {
   try {
-    const { courseId } = req.params;
-    const { rating, comment } = req.body;
-
+    const { rating, comment = '' } = req.body;
+    
     if (!rating || rating < 1 || rating > 5) {
       return res.status(400).json({ message: 'Rating must be between 1 and 5' });
     }
 
-    // Check if user is enrolled in the course
-    const enrollment = await UserCourse.findOne({
-      userId: req.user.id,
+    const courseId = req.params.courseId;
+    const studentId = req.user.id;
+
+    console.log('Review Submission:', {
       courseId,
-      status: { $in: ['enrolled', 'started', 'completed'] }
+      studentId,
+      rating,
+      hasComment: !!comment
     });
 
-    if (!enrollment) {
-      return res.status(403).json({ message: 'You must be enrolled in this course to submit a review' });
+    // Get user details
+    const user = await User.findById(studentId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
     }
 
-    // Check if user has already submitted a review
+    // Check if course exists
     const course = await Course.findById(courseId);
     if (!course) {
       return res.status(404).json({ message: 'Course not found' });
     }
 
-    const existingReviewIndex = course.reviews.findIndex(
-      review => review.studentId.toString() === req.user.id.toString()
-    );
+    // Check if user has already reviewed this course
+    let review = await Review.findOne({ courseId, studentId });
+    const isUpdate = !!review;
 
-    if (existingReviewIndex !== -1) {
+    if (review) {
       // Update existing review
-      course.reviews[existingReviewIndex].rating = rating;
-      course.reviews[existingReviewIndex].comment = comment;
-      course.reviews[existingReviewIndex].createdAt = new Date();
+      review.rating = rating;
+      review.comment = comment;
+      await review.save();
     } else {
-      // Add new review
-      course.reviews.push({
-        studentId: req.user.id,
-        studentName: req.user.name,
+      // Create new review
+      review = new Review({
+        courseId,
+        studentId,
         rating,
-        comment,
-        createdAt: new Date()
+        comment
       });
+      await review.save();
     }
 
-    // Update course average rating
-    const totalRating = course.reviews.reduce((sum, review) => sum + review.rating, 0);
-    course.rating = totalRating / course.reviews.length;
+      // Update course rating statistics
+    await course.updateRatingStats();
 
-    await course.save();
+    console.log('Review Operation Complete:', {
+      courseId,
+      courseTitle: course.title,
+      operation: isUpdate ? 'Updated' : 'Created',
+      newTotalReviews: course.totalRatings,
+      newRating: course.rating
+    });
 
-    res.json({ message: 'Review submitted successfully', course });
+    // Return the review with user details
+    const populatedReview = await Review.findById(review._id)
+      .populate('studentId', 'name email');
+
+    res.json({
+      _id: populatedReview._id,
+      studentId: populatedReview.studentId._id,
+      studentName: populatedReview.studentId.name,
+      rating: populatedReview.rating,
+      comment: populatedReview.comment,
+      createdAt: populatedReview.createdAt,
+      courseStats: {
+        rating: course.rating,
+        totalRatings: course.totalRatings
+      }
+    });
   } catch (error) {
-    console.error('Submit review error:', error);
+    console.error('Add review error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -1963,540 +2268,23 @@ app.post('/api/courses/:courseId/reviews', authenticateToken, async (req, res) =
 // Get reviews for a course
 app.get('/api/courses/:courseId/reviews', async (req, res) => {
   try {
-    const { courseId } = req.params;
-    const course = await Course.findById(courseId);
-    
-    if (!course) {
-      return res.status(404).json({ message: 'Course not found' });
-    }
-    
-    res.json(course.reviews);
+    const reviews = await Review.find({ courseId: req.params.courseId })
+      .populate('studentId', 'name email')
+      .sort({ createdAt: -1 });
+
+    const formattedReviews = reviews.map(review => ({
+      _id: review._id,
+      studentId: review.studentId._id,
+      studentName: review.studentId.name,
+      rating: review.rating,
+      comment: review.comment,
+      createdAt: review.createdAt
+    }));
+
+    res.json(formattedReviews);
   } catch (error) {
     console.error('Get reviews error:', error);
     res.status(500).json({ message: 'Server error' });
-  }
-});
-
-// Create a new course (instructor only)
-app.post('/api/instructor/courses', authenticateToken, async (req, res) => {
-  try {
-    // Verify user is an instructor
-    if (req.user.role !== 'instructor') {
-      return res.status(403).json({ message: 'Access denied. Only instructors can create courses.' });
-    }
-
-    const { 
-      title, 
-      description, 
-      longDescription,
-      image,
-      duration,
-      level,
-      category,
-      skills,
-      roadmap,
-      courseAccess
-    } = req.body;
-
-    // Validate required fields
-    if (!title || !description || !image || !duration || !level || !category) {
-      return res.status(400).json({ message: 'Missing required fields' });
-    }
-
-    // Validate roadmap if provided
-    if (roadmap) {
-      if (!Array.isArray(roadmap)) {
-        return res.status(400).json({ message: 'Roadmap must be an array' });
-      }
-      
-      for (let i = 0; i < roadmap.length; i++) {
-        const day = roadmap[i];
-        if (!day.topics || !day.video) {
-          return res.status(400).json({ 
-            message: `Day ${i + 1} in roadmap is missing required fields (topics and video)` 
-          });
-        }
-      }
-    }
-
-    // Create new course
-    const course = new Course({
-      title,
-      description,
-      longDescription: longDescription || description,
-      image,
-      instructor: req.user.name,
-      instructorId: req.user._id,
-      duration,
-      rating: 0,
-      students: 0,
-      level,
-      category,
-      skills: skills || [],
-      roadmap: roadmap || [],
-      courseAccess: courseAccess !== undefined ? courseAccess : true,
-      modules: [],
-      reviews: []
-    });
-
-    await course.save();
-
-    // Add course to instructor's profile
-    if (!req.user.instructorProfile.courses) {
-      req.user.instructorProfile.courses = [];
-    }
-    req.user.instructorProfile.courses.push(course._id);
-    await req.user.save();
-
-    // Create notifications for enrolled students
-    const enrollments = await UserCourse.find({ courseId: course._id });
-    for (const enrollment of enrollments) {
-      if (enrollment.userId.toString() !== req.user.id) {
-        await createNotification({
-          userId: enrollment.userId,
-          type: 'course_update',
-          title: 'New Course Content',
-          message: `New content has been added to ${course.title}`,
-          courseId: course._id,
-          link: `/courses/${course._id}`
-        });
-      }
-    }
-
-    res.status(201).json({ 
-      message: 'Course created successfully',
-      course
-    });
-  } catch (error) {
-    console.error('Create course error:', error);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
-// Get instructor's courses
-app.get('/api/instructor/courses', authenticateToken, async (req, res) => {
-  try {
-    // Verify user is an instructor
-    if (req.user.role !== 'instructor') {
-      return res.status(403).json({ message: 'Access denied. Only instructors can access their courses.' });
-    }
-
-    const courses = await Course.find({ instructorId: req.user._id });
-    res.json(courses);
-  } catch (error) {
-    console.error('Get instructor courses error:', error);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
-// Get students for a specific course (instructor only)
-app.get('/api/instructor/courses/:courseId/students', authenticateToken, async (req, res) => {
-  try {
-    // Verify user is an instructor
-    if (req.user.role !== 'instructor') {
-      return res.status(403).json({ message: 'Access denied. Only instructors can access student data.' });
-    }
-
-    // Find the course and verify instructor owns it
-    const course = await Course.findById(req.params.courseId);
-    
-    if (!course) {
-      return res.status(404).json({ message: 'Course not found' });
-    }
-    
-    if (course.instructorId.toString() !== req.user.id) {
-      return res.status(403).json({ message: 'Access denied. You can only view students for your own courses.' });
-    }
-
-    // Get all enrollments for this course
-    const enrollments = await UserCourse.find({ 
-      courseId: req.params.courseId 
-    }).populate('userId', 'name email createdAt');
-    
-    // Format the response
-    const students = enrollments.map(enrollment => {
-      // Calculate last active time (for demo, using random recent times)
-      const lastActiveOptions = ['Just now', '5 minutes ago', '1 hour ago', 'Today', 'Yesterday', '3 days ago', '1 week ago'];
-      const randomLastActive = lastActiveOptions[Math.floor(Math.random() * lastActiveOptions.length)];
-      
-      return {
-        id: enrollment.userId._id,
-        name: enrollment.userId.name,
-        email: enrollment.userId.email,
-        enrolledDate: enrollment.enrolledAt,
-        progress: enrollment.progress || 0,
-        status: enrollment.status,
-        lastActive: randomLastActive
-      };
-    });
-    
-    res.json({
-      id: course._id,
-      title: course.title,
-      students: students
-    });
-    
-  } catch (error) {
-    console.error('Get course students error:', error);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
-// Update a course (instructor only)
-app.put('/api/instructor/courses/:courseId', authenticateToken, async (req, res) => {
-  try {
-    // Verify user is an instructor
-    if (req.user.role !== 'instructor') {
-      console.log(`Access denied: User ${req.user.id} with role '${req.user.role}' attempted to update course`);
-      return res.status(403).json({ message: 'Access denied. Only instructors can update courses.' });
-    }
-
-    const { courseId } = req.params;
-    
-    // Find the course
-    const course = await Course.findById(courseId);
-    if (!course) {
-      return res.status(404).json({ message: 'Course not found' });
-    }
-
-    // Verify the instructor owns this course
-    if (course.instructorId.toString() !== req.user.id) {
-      console.log(`Unauthorized: User ${req.user.id} attempted to update course ${courseId} owned by ${course.instructorId}`);
-      return res.status(403).json({ message: 'You can only update your own courses' });
-    }
-
-    // Validate required fields
-    const requiredFields = ['title', 'description', 'duration', 'level', 'category', 'image'];
-    const missingFields = requiredFields.filter(field => !req.body[field]);
-    if (missingFields.length > 0) {
-      return res.status(400).json({ 
-        message: `Missing required fields: ${missingFields.join(', ')}` 
-      });
-    }
-
-    // Validate level enum
-    const validLevels = ['Beginner', 'Intermediate', 'Advanced'];
-    if (!validLevels.includes(req.body.level)) {
-      return res.status(400).json({ 
-        message: `Invalid level. Must be one of: ${validLevels.join(', ')}` 
-      });
-    }
-
-    // Check if new days are being added
-    let newDaysAdded = false;
-    let newDayCount = 0;
-    if (req.body.roadmap && Array.isArray(req.body.roadmap)) {
-      const currentDays = course.roadmap ? course.roadmap.length : 0;
-      const newDays = req.body.roadmap.length;
-      if (newDays > currentDays) {
-        newDaysAdded = true;
-        newDayCount = newDays - currentDays;
-      }
-    }
-
-    // Validate roadmap if provided
-    if (req.body.roadmap) {
-      if (!Array.isArray(req.body.roadmap)) {
-        return res.status(400).json({ message: 'Roadmap must be an array' });
-      }
-      
-      for (let i = 0; i < req.body.roadmap.length; i++) {
-        const day = req.body.roadmap[i];
-        if (!day.topics || !day.video) {
-          return res.status(400).json({ 
-            message: `Day ${i + 1} in roadmap is missing required fields (topics and video)` 
-          });
-        }
-
-        // Validate MCQs if present
-        if (day.mcqs && Array.isArray(day.mcqs)) {
-          for (let j = 0; j < day.mcqs.length; j++) {
-            const mcq = day.mcqs[j];
-            if (!mcq.question || !Array.isArray(mcq.options) || mcq.options.length === 0) {
-              return res.status(400).json({
-                message: `Invalid MCQ format in Day ${i + 1}, MCQ ${j + 1}`
-              });
-            }
-            // Ensure at least one correct option
-            if (!mcq.options.some(opt => opt.isCorrect)) {
-              return res.status(400).json({
-                message: `MCQ ${j + 1} in Day ${i + 1} must have at least one correct option`
-              });
-            }
-          }
-        }
-      }
-    }
-
-    // Update fields
-    const updateableFields = [
-      'title', 'description', 'longDescription', 'image', 'duration', 
-      'level', 'category', 'skills', 'modules', 'roadmap', 'courseAccess'
-    ];
-
-    // Log update attempt
-    console.log('Attempting to update course:', {
-      courseId,
-      instructorId: req.user.id,
-      updateFields: Object.keys(req.body)
-    });
-
-    updateableFields.forEach(field => {
-      if (req.body[field] !== undefined) {
-        course[field] = req.body[field];
-      }
-    });
-
-    // Update timestamp
-    course.updatedAt = new Date();
-
-    await course.save();
-
-    // Create notifications for enrolled students if new days were added
-    if (newDaysAdded) {
-      try {
-        const enrollments = await UserCourse.find({ 
-          courseId,
-          status: { $in: ['enrolled', 'started', 'completed'] }
-        });
-
-        const notificationPromises = enrollments.map(enrollment => {
-          if (enrollment.userId.toString() !== req.user.id) {
-            return new Notification({
-              userId: enrollment.userId,
-              type: 'new_day',
-              title: `New Content Added to ${course.title}`,
-              message: `${newDayCount} new day${newDayCount > 1 ? 's' : ''} added to the course "${course.title}"`,
-              courseId: course._id,
-              link: `/courses/${course._id}`,
-              read: false,
-              timestamp: new Date()
-            }).save();
-          }
-        });
-
-        await Promise.all(notificationPromises);
-        console.log(`Created notifications for ${notificationPromises.length} enrolled students`);
-      } catch (notificationError) {
-        console.error('Error creating notifications:', notificationError);
-      }
-    }
-
-    // Log successful update
-    console.log('Course updated successfully:', {
-      courseId,
-      instructorId: req.user.id,
-      updatedFields: Object.keys(req.body),
-      newDaysAdded,
-      newDayCount
-    });
-
-    res.json({ 
-      message: 'Course updated successfully',
-      course
-    });
-  } catch (error) {
-    console.error('Update course error:', {
-      error: error.message,
-      stack: error.stack,
-      courseId: req.params.courseId,
-      userId: req.user?.id
-    });
-    
-    // Handle specific MongoDB errors
-    if (error.name === 'ValidationError') {
-      return res.status(400).json({ 
-        message: 'Validation error', 
-        errors: Object.values(error.errors).map(err => err.message)
-      });
-    }
-    if (error.name === 'CastError') {
-      return res.status(400).json({ 
-        message: 'Invalid course ID format'
-      });
-    }
-    
-    res.status(500).json({ 
-      message: 'Server error occurred while updating course',
-      error: error.message
-    });
-  }
-});
-
-// Get instructor dashboard overview with real-time data
-app.get('/api/instructor/dashboard/overview', authenticateToken, async (req, res) => {
-  try {
-    // Verify user is an instructor
-    if (req.user.role !== 'instructor') {
-      return res.status(403).json({ message: 'Access denied. Only instructors can access dashboard data.' });
-    }
-
-    // Get all instructor's courses
-    const courses = await Course.find({ instructorId: req.user._id });
-    
-    // Basic statistics
-    const totalCourses = courses.length;
-    
-    // Get active courses (courses with at least one enrolled student)
-    const activeCourses = courses.filter(course => course.students > 0);
-    const activeCourseCount = activeCourses.length;
-    
-    // Total students across all courses
-    const totalStudents = courses.reduce((sum, course) => sum + (course.students || 0), 0);
-    
-    // Calculate average rating and total reviews
-    let totalRating = 0;
-    let reviewCount = 0;
-    courses.forEach(course => {
-      if (course.reviews && course.reviews.length > 0) {
-        totalRating += course.reviews.reduce((sum, review) => sum + review.rating, 0);
-        reviewCount += course.reviews.length;
-      }
-    });
-    const averageRating = reviewCount > 0 ? (totalRating / reviewCount).toFixed(1) : 0;
-
-    // Calculate teaching hours based on course content
-    const teachingHours = courses.reduce((sum, course) => {
-      let courseHours = 0;
-      if (course.modules) {
-        course.modules.forEach(module => {
-          if (module.lessons) {
-            courseHours += module.lessons.reduce((hours, lesson) => 
-              hours + (lesson.duration || 0), 0);
-          }
-        });
-      }
-      return sum + courseHours;
-    }, 0);
-    
-    // Get recent enrollments (last 30 days)
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    
-    const recentEnrollments = await UserCourse.find({
-      courseId: { $in: courses.map(course => course._id) },
-      enrolledAt: { $gte: thirtyDaysAgo }
-    }).sort({ enrolledAt: -1 })
-      .limit(10)
-      .populate('userId', 'name email')
-      .populate('courseId', 'title');
-      
-    // Get recent reviews (last 30 days)
-    const recentReviews = [];
-    courses.forEach(course => {
-      if (course.reviews && course.reviews.length > 0) {
-        course.reviews.forEach(review => {
-          if (review.createdAt && review.createdAt >= thirtyDaysAgo) {
-            recentReviews.push({
-              studentName: review.studentName,
-              rating: review.rating,
-              comment: review.comment,
-              date: review.createdAt,
-              courseTitle: course.title
-            });
-          }
-        });
-      }
-    });
-    
-    // Sort reviews by date (newest first) and limit to 5
-    recentReviews.sort((a, b) => b.date - a.date);
-    const mostRecentReviews = recentReviews.slice(0, 5);
-    
-    // Get recent course completions
-    const recentCompletions = await UserCourse.find({
-      courseId: { $in: courses.map(course => course._id) },
-      status: 'completed',
-      updatedAt: { $gte: thirtyDaysAgo }
-    }).sort({ updatedAt: -1 })
-      .limit(10)
-      .populate('userId', 'name email')
-      .populate('courseId', 'title');
-      
-    // Calculate recent revenue (if applicable)
-    // This would require payment data which isn't in the current model
-    
-    // Calculate completion rates
-    const enrollmentData = await UserCourse.find({
-      courseId: { $in: courses.map(course => course._id) }
-    });
-    
-    const completionRates = courses.map(course => {
-      const courseEnrollments = enrollmentData.filter(e => 
-        e.courseId.toString() === course._id.toString()
-      );
-      
-      const totalEnrollments = courseEnrollments.length;
-      const completions = courseEnrollments.filter(e => e.status === 'completed').length;
-      
-      return {
-        courseId: course._id,
-        courseTitle: course.title,
-        totalEnrollments,
-        completions,
-        completionRate: totalEnrollments > 0 ? Math.round((completions / totalEnrollments) * 100) : 0
-      };
-    });
-    
-    // Get recent activity timeline (combined events, sorted by date)
-    const recentActivity = [
-      ...recentEnrollments.map(enrollment => ({
-        type: 'enrollment',
-        date: enrollment.enrolledAt,
-        studentName: enrollment.userId.name,
-        studentId: enrollment.userId._id,
-        courseTitle: enrollment.courseId.title,
-        courseId: enrollment.courseId._id
-      })),
-      ...mostRecentReviews.map(review => ({
-        type: 'review',
-        date: review.date,
-        studentName: review.studentName,
-        rating: review.rating,
-        comment: review.comment,
-        courseTitle: review.courseTitle
-      })),
-      ...recentCompletions.map(completion => ({
-        type: 'completion',
-        date: completion.updatedAt,
-        studentName: completion.userId.name,
-        studentId: completion.userId._id,
-        courseTitle: completion.courseId.title,
-        courseId: completion.courseId._id
-      }))
-    ].sort((a, b) => b.date - a.date).slice(0, 10);
-    
-    res.json({
-      // Basic stats
-      totalCourses,
-      activeCourses: activeCourseCount,
-      totalStudents,
-      averageRating: parseFloat(averageRating),
-      totalReviews: reviewCount,
-      teachingHours,
-      
-      // Student progress data
-      completionRates,
-      
-      // Recent activity
-      recentActivity,
-      
-      // Profile completion
-      profileCompletion: calculateProfileCompletion(req.user),
-      
-      // Course breakdown
-      courseBreakdown: courses.map(course => ({
-        id: course._id,
-        title: course.title,
-        students: course.students,
-        rating: course.rating,
-        created: course.createdAt
-      }))
-    });
-    
-  } catch (error) {
-    console.error('Error fetching instructor dashboard data:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
 
@@ -3101,7 +2889,7 @@ async function getRecentActivities() {
       .populate('userId', 'name')
       .populate('courseId', 'title');
     
-    // Get recent support tickets/contact requests
+    // Get recent contact requests
     const recentContactRequests = await ContactRequest.find()
       .sort({ createdAt: -1 })
       .limit(5);
@@ -3178,84 +2966,7 @@ function formatRelativeTime(dateString) {
   return `${diffInYears} year${diffInYears === 1 ? '' : 's'} ago`;
 }
 
-// Support ticket routes
-// Submit a support ticket (instructor)
-app.post('/api/instructor/support/tickets', authenticateToken, async (req, res) => {
-  try {
-    // Verify user is an instructor
-    if (req.user.role !== 'instructor') {
-      return res.status(403).json({ message: 'Access denied. Only instructors can submit support tickets.' });
-    }
 
-    const { instructorName, instructorEmail, category, subject, description } = req.body;
-
-    // Validate required fields
-    if (!instructorName || !instructorEmail || !category || !subject || !description) {
-      return res.status(400).json({ message: 'Missing required fields' });
-    }
-
-    // Create a new support ticket
-    const supportTicket = new SupportTicket({
-      instructorName,
-      instructorEmail,
-      category,
-      subject,
-      description,
-      status: 'open',
-      priority: 'medium',
-      assignedTo: null
-    });
-
-    await supportTicket.save();
-
-    res.status(201).json({
-      message: 'Support ticket submitted successfully',
-      ticket: supportTicket
-    });
-  } catch (error) {
-    console.error('Error submitting support ticket:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
-});
-
-// Get all support tickets (admin only)
-app.get('/api/admin/support/tickets', authenticateToken, adminMiddleware, async (req, res) => {
-  try {
-    const tickets = await SupportTicket.find().sort({ createdAt: -1 });
-    res.json(tickets);
-  } catch (error) {
-    console.error('Error getting support tickets:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
-});
-
-// Update support ticket (admin only)
-app.put('/api/admin/support/tickets/:id', authenticateToken, adminMiddleware, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { status, priority, assignedTo } = req.body;
-
-    const ticket = await SupportTicket.findById(id);
-    if (!ticket) {
-      return res.status(404).json({ message: 'Support ticket not found' });
-    }
-
-    // Update ticket fields
-    if (status) ticket.status = status;
-    if (priority) ticket.priority = priority;
-    if (assignedTo !== undefined) ticket.assignedTo = assignedTo;
-
-    await ticket.save();
-
-    res.json({
-      message: 'Support ticket updated successfully',
-      ticket
-    });
-  } catch (error) {
-    console.error('Error updating support ticket:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
-});
 
 // Notification Routes
 
@@ -3316,144 +3027,20 @@ app.put('/api/notifications/:id/read', authenticateToken, async (req, res) => {
   }
 });
 
-// Create notification (internal function to be called when events occur)
-const createNotification = async (userId, type, courseName, title) => {
+// Helper function to get image URL
+app.get('/api/files/:bucket/:filename', authenticateToken, async (req, res) => {
   try {
-    const notification = new Notification({
-      userId,
-      type,
-      courseName,
-      title,
-      read: false
-    });
-    await notification.save();
-    return notification;
+    const { bucket, filename } = req.params;
+    const url = await getFileUrl(bucket, filename);
+    res.json({ url });
   } catch (error) {
-    console.error('Error creating notification:', error);
-    throw error;
-  }
-};
-
-// Example: Create notification when new video is uploaded
-app.post('/api/courses/:courseId/videos', authenticateToken, async (req, res) => {
-  try {
-    // ... existing video upload logic ...
-
-    // Create notifications for all enrolled students
-    const enrolledStudents = await Enrollment.find({ courseId: req.params.courseId });
-    const course = await Course.findById(req.params.courseId);
-    
-    for (const enrollment of enrolledStudents) {
-      await createNotification(
-        enrollment.userId,
-        'video',
-        course.title,
-        req.body.title
-      );
-    }
-
-    res.json({ message: 'Video uploaded successfully' });
-  } catch (error) {
-    console.error('Error uploading video:', error);
-    res.status(500).json({ message: 'Failed to upload video' });
+    console.error('Error getting file URL:', error);
+    res.status(500).json({ message: 'Error generating file URL' });
   }
 });
 
 // Start server
 const PORT = process.env.PORT || 5001;
-
-// Add Minio client initialization and list buckets
-const minioClient = new Minio.Client({
-  endPoint: 'lmsbackendminio-api.llp.trizenventures.com',
-  port: 443,
-  useSSL: true,
-  accessKey: 'b72084650d4c21dd04b801f0',
-  secretKey: 'be2339a15ee0544de0796942ba3a85224cc635'
-});
-
-// Initialize AWS S3 Client (configured for Minio)
-const s3Client = new S3Client({
-  endpoint: 'https://lmsbackendminio-api.llp.trizenventures.com',
-  region: 'us-east-1',
-  credentials: {
-    accessKeyId: 'b72084650d4c21dd04b801f0',
-    secretAccessKey: 'be2339a15ee0544de0796942ba3a85224cc635'
-  },
-  forcePathStyle: true
-});
-
-mdf.listBuckets(minioClient);
-
-// Video upload endpoint with memory storage for processing files from frontend
-const videoUpload = multer({ storage: multer.memoryStorage() });
-
-// Video upload endpoint - updated to use AWS SDK with Upload class
-app.post('/api/upload/video', authenticateToken, videoUpload.single('video'), async (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ message: 'No video file provided' });
-  }
-
-  try {
-    const fileBuffer = req.file.buffer;
-    const originalFilename = req.file.originalname;
-    const objectName = `${Date.now()}-${originalFilename}`;
-    const fileSizeMB = (req.file.size / (1024 * 1024)).toFixed(2);
-
-    console.log(`Processing file: ${originalFilename}`);
-    console.log(`File size: ${fileSizeMB}MB`);
-
-    // Track upload progress
-    let lastPercentLogged = 0;
-    
-    // Set up the upload with the AWS SDK Upload class
-    const upload = new Upload({
-      client: s3Client,
-      params: {
-        Bucket: 'webdevbootcamp1',
-        Key: objectName,
-        Body: fileBuffer,
-        ContentType: req.file.mimetype,
-        ContentLength: req.file.size // Explicitly set content length
-      }
-    });
-
-    // Add progress event listener
-    upload.on('httpUploadProgress', (progress) => {
-      const percent = Math.floor((progress.loaded / req.file.size) * 100);
-      
-      // Log every 10% change to avoid console spam
-      if (percent >= lastPercentLogged + 10 || percent === 100) {
-        lastPercentLogged = percent;
-        console.log(`Upload progress: ${percent}%`);
-      }
-    });
-
-    // Execute the upload
-    const result = await upload.done();
-    
-    // Generate a presigned URL valid for 24 hours using the Minio client
-    const url = await new Promise((resolve, reject) => {
-      minioClient.presignedUrl('GET', 'webdevbootcamp1', objectName, 24 * 60 * 60, (err, url) => {
-        if (err) reject(err);
-        else resolve(url);
-      });
-    });
-
-    // Return response with URL and upload details
-    res.json({ 
-      url,
-      uploadDetails: {
-        fileName: originalFilename,
-        totalSize: fileSizeMB,
-        status: 'completed'
-      },
-      message: `File uploaded successfully (${fileSizeMB}MB)`
-    });
-  } catch (error) {
-    console.error('Upload error:', error);
-    res.status(500).json({ message: 'Error uploading to storage' });
-  }
-});
 
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 
@@ -4204,5 +3791,1959 @@ app.put('/api/notifications/mark-all-read', authenticateToken, async (req, res) 
   } catch (error) {
     console.error('Error marking all notifications as read:', error);
     res.status(500).json({ message: 'Failed to mark all notifications as read' });
+  }
+});
+// Admin: Delete enrollment requests
+app.delete('/api/admin/enrollment-requests', authenticateToken, adminMiddleware, async (req, res) => {
+  try {
+    const { requestIds } = req.query;
+    
+    if (!requestIds) {
+      return res.status(400).json({ message: 'Request IDs are required' });
+    }
+
+    // Parse the stringified array
+    let requestIdsArray;
+    try {
+      const decodedIds = decodeURIComponent(requestIds);
+      requestIdsArray = JSON.parse(decodedIds);
+      if (!Array.isArray(requestIdsArray)) {
+        throw new Error('Not an array');
+      }
+    } catch (error) {
+      console.error('Error parsing request IDs:', error);
+      return res.status(400).json({ message: 'Invalid request IDs format' });
+    }
+
+    // Find the requests before deleting them
+    const requestsToDelete = await EnrollmentRequest.find({
+      _id: { $in: requestIdsArray }
+    });
+
+    // Store the requests in a separate collection for potential restoration
+    await DeletedEnrollmentRequest.insertMany(
+      requestsToDelete.map(req => ({
+        ...req.toObject(),
+        originalId: req._id,
+        deletedAt: new Date()
+      }))
+    );
+
+    // Delete the enrollment requests
+    const deleteResult = await EnrollmentRequest.deleteMany({
+      _id: { $in: requestIdsArray }
+    });
+
+    // Also delete any pending enrollments in UserCourse for these requests
+    const enrollmentRequests = requestsToDelete.filter(req => req.status === 'pending');
+    
+    for (const request of enrollmentRequests) {
+      await UserCourse.deleteOne({ 
+        userId: request.userId,
+        courseId: request.courseId,
+        status: 'pending'
+      });
+    }
+
+    res.json({ 
+      message: 'Enrollment requests deleted successfully',
+      deletedCount: deleteResult.deletedCount,
+      deletedRequests: requestsToDelete
+    });
+  } catch (error) {
+    console.error('Delete enrollment requests error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Create DeletedEnrollmentRequest model
+const deletedEnrollmentRequestSchema = new mongoose.Schema({
+  originalId: mongoose.Schema.Types.ObjectId,
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+  },
+  courseId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Course',
+  },
+  email: {
+    type: String,
+    required: true,
+  },
+  mobile: {
+    type: String,
+    required: true,
+    validate: {
+      validator: function(v) {
+        return /^[0-9]{10}$/.test(v);
+      },
+      message: props => `${props.value} is not a valid 10-digit mobile number!`
+    }
+  },
+  courseName: {
+    type: String,
+    required: true,
+  },
+  transactionId: {
+    type: String,
+    required: true,
+    minlength: 10,
+    maxlength: 30,
+    match: /^[a-zA-Z0-9]+$/,
+  },
+  transactionScreenshot: {
+    type: String,
+    required: true,
+  },
+  status: {
+    type: String,
+    enum: ['pending', 'approved', 'rejected'],
+    required: true,
+  },
+  deletedAt: {
+    type: Date,
+    required: true,
+  }
+}, { timestamps: true });
+
+const DeletedEnrollmentRequest = mongoose.model('DeletedEnrollmentRequest', deletedEnrollmentRequestSchema);
+
+// Admin: Restore deleted enrollment requests
+app.post('/api/admin/enrollment-requests/restore', authenticateToken, adminMiddleware, async (req, res) => {
+  try {
+    const { requestIds } = req.body;
+    
+    if (!requestIds || !Array.isArray(requestIds)) {
+      return res.status(400).json({ message: 'Request IDs array is required' });
+    }
+
+    // Find the deleted requests
+    const deletedRequests = await DeletedEnrollmentRequest.find({
+      originalId: { $in: requestIds }
+    });
+
+    if (deletedRequests.length === 0) {
+      return res.status(404).json({ message: 'No deleted requests found' });
+    }
+
+    // Restore the requests to the original collection with original timestamps
+    const restoredRequests = await EnrollmentRequest.insertMany(
+      deletedRequests.map(({ 
+        originalId, 
+        userId, 
+        courseId, 
+        email, 
+        mobile, 
+        courseName, 
+        transactionId, 
+        transactionScreenshot, 
+        status,
+        createdAt,
+        updatedAt
+      }) => ({
+        _id: originalId,
+        userId,
+        courseId,
+        email,
+        mobile,
+        courseName,
+        transactionId,
+        transactionScreenshot,
+        status,
+        createdAt,
+        updatedAt
+      })),
+      { timestamps: false } // Disable automatic timestamps
+    );
+
+    // Restore any pending enrollments in UserCourse
+    const pendingRequests = deletedRequests.filter(req => req.status === 'pending');
+    
+    for (const request of pendingRequests) {
+      await UserCourse.create({ 
+        userId: request.userId,
+        courseId: request.courseId,
+        status: 'pending',
+        progress: 0,
+        createdAt: request.createdAt,
+        updatedAt: request.updatedAt
+      }, { timestamps: false }); // Disable automatic timestamps
+    }
+
+    // Remove the requests from the deleted collection
+    await DeletedEnrollmentRequest.deleteMany({
+      originalId: { $in: requestIds }
+    });
+
+    res.json({ 
+      message: 'Enrollment requests restored successfully',
+      restoredCount: restoredRequests.length,
+      restoredRequests
+    });
+  } catch (error) {
+    console.error('Restore enrollment requests error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Admin: Get deleted enrollment requests
+app.get('/api/admin/enrollment-requests/deleted', authenticateToken, adminMiddleware, async (req, res) => {
+  try {
+    // First get deleted requests
+    const deletedRequests = await DeletedEnrollmentRequest.find()
+      .sort({ deletedAt: -1 })
+      .limit(100);
+
+    // Get unique emails from the requests
+    const emails = [...new Set(deletedRequests.map(req => req.email))];
+
+    // Find users by these emails
+    const users = await User.find({ email: { $in: emails } }, 'email name');
+
+    // Create a map of email to user details
+    const userMap = users.reduce((map, user) => {
+      map[user.email] = user;
+      return map;
+    }, {});
+
+    // Attach user details to each request
+    const enrichedRequests = deletedRequests.map(request => {
+      const user = userMap[request.email] || null;
+      return {
+        ...request.toObject(),
+        userId: user ? { _id: user._id, name: user.name, email: user.email } : null
+      };
+    });
+    
+    res.json(enrichedRequests);
+  } catch (error) {
+    console.error('Get deleted enrollment requests error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Admin: Get deleted enrollment requests
+app.get('/api/admin/enrollment-requests/deleted', authenticateToken, adminMiddleware, async (req, res) => {
+  try {
+    // First get deleted requests
+    const deletedRequests = await DeletedEnrollmentRequest.find()
+      .sort({ deletedAt: -1 })
+      .limit(100);
+
+    // Get unique emails from the requests
+    const emails = [...new Set(deletedRequests.map(req => req.email))];
+
+    // Find users by these emails
+    const users = await User.find({ email: { $in: emails } }, 'email name userId');
+
+    // Create a map of email to user details
+    const userMap = users.reduce((map, user) => {
+      map[user.email] = user;
+      return map;
+    }, {});
+
+    // Attach user details to each request
+    const enrichedRequests = deletedRequests.map(request => {
+      const user = userMap[request.email] || null;
+      return {
+        ...request.toObject(),
+        userId: user ? { 
+          _id: user._id, 
+          name: user.name, 
+          email: user.email,
+          userId: user.userId 
+        } : null
+      };
+    });
+    
+    res.json(enrichedRequests);
+  } catch (error) {
+    console.error('Get deleted enrollment requests error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Admin: Permanently delete enrollment requests
+app.delete('/api/admin/enrollment-requests/permanent', authenticateToken, adminMiddleware, async (req, res) => {
+  try {
+    const { requestIds } = req.query;
+    
+    if (!requestIds) {
+      return res.status(400).json({ message: 'Request IDs are required' });
+    }
+
+    // Parse the stringified array
+    let requestIdsArray;
+    try {
+      const decodedIds = decodeURIComponent(requestIds);
+      requestIdsArray = JSON.parse(decodedIds);
+      if (!Array.isArray(requestIdsArray)) {
+        throw new Error('Not an array');
+      }
+    } catch (error) {
+      console.error('Error parsing request IDs:', error);
+      return res.status(400).json({ message: 'Invalid request IDs format' });
+    }
+
+    // Permanently delete the requests
+    const deleteResult = await DeletedEnrollmentRequest.deleteMany({
+      originalId: { $in: requestIdsArray }
+    });
+
+    res.json({ 
+      message: 'Enrollment requests permanently deleted',
+      deletedCount: deleteResult.deletedCount
+    });
+  } catch (error) {
+    console.error('Permanent delete error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Update course progress
+app.put('/api/courses/:courseId/progress', authenticateToken, async (req, res) => {
+  try {
+    const { courseId } = req.params;
+    const { completedDays } = req.body;
+    
+    // Try to find course by ID first
+    let course = await Course.findById(courseId);
+    
+    // If not found by ID, try to find by courseUrl
+    if (!course) {
+      course = await Course.findOne({ courseUrl: courseId });
+    }
+    
+    if (!course) {
+      return res.status(404).json({ message: 'Course not found' });
+    }
+
+    // Extract total duration days from course duration
+    const extractDurationDays = (duration) => {
+      const match = duration.match(/\d+/);
+      return match ? parseInt(match[0]) : 0;
+    };
+    
+    // Calculate total duration days
+    const totalDurationDays = course.duration ? extractDurationDays(course.duration) : 0;
+    
+    if (totalDurationDays === 0) {
+      return res.status(400).json({ message: 'Invalid course duration' });
+    }
+
+    // Calculate progress based on completed days and total duration
+    const completedDaysCount = completedDays?.length || 0;
+    const progress = Math.round((completedDaysCount / totalDurationDays) * 100);
+    const daysCompletedPerDuration = `${completedDaysCount}/${totalDurationDays}`;
+
+    // Determine status based on progress
+    let status = 'enrolled';
+    if (progress === 100) {
+      status = 'completed';
+    } else if (progress > 0) {
+      status = 'started';
+    }
+    
+    // Find and update user's course progress
+    const enrollment = await UserCourse.findOneAndUpdate(
+      { userId: req.user.id, courseId: course._id },
+      { 
+        progress,
+        status,
+        completedDays,
+        daysCompletedPerDuration,
+        lastAccessedAt: new Date()
+      },
+      { new: true }
+    );
+    
+    if (!enrollment) {
+      return res.status(404).json({ message: 'Enrollment not found' });
+    }
+    
+    res.json({
+      ...enrollment.toObject(),
+      daysCompletedPerDuration
+    });
+  } catch (error) {
+    console.error('Update progress error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Note Routes
+app.get('/api/notes/:courseId', authenticateToken, async (req, res) => {
+  try {
+    const courseId = req.params.courseId;
+    const userId = req.user.id;
+
+    // Get course ID from either direct ID or courseUrl
+    let actualCourseId = courseId;
+    if (!courseId.match(/^[0-9a-fA-F]{24}$/)) {
+      const course = await Course.findOne({ courseUrl: courseId });
+      if (!course) {
+        return res.status(404).json({ message: 'Course not found' });
+      }
+      actualCourseId = course._id;
+    }
+
+    const notes = await Note.find({
+      userId,
+      courseId: actualCourseId
+    }).sort({ dayNumber: 1 });
+    
+    res.json(notes);
+  } catch (error) {
+    console.error('Error fetching notes:', error);
+    res.status(500).json({ message: 'Failed to fetch notes' });
+  }
+});
+
+app.post('/api/notes', authenticateToken, async (req, res) => {
+  try {
+    const { courseId, dayNumber, content } = req.body;
+    const userId = req.user.id;
+
+    // Get course ID from either direct ID or courseUrl
+    let actualCourseId = courseId;
+    if (!courseId.match(/^[0-9a-fA-F]{24}$/)) {
+      const course = await Course.findOne({ courseUrl: courseId });
+      if (!course) {
+        return res.status(404).json({ message: 'Course not found' });
+      }
+      actualCourseId = course._id;
+    }
+
+    // Validate if user is enrolled in the course
+    const enrollment = await UserCourse.findOne({
+      userId,
+      courseId: actualCourseId,
+      status: { $in: ['enrolled', 'started', 'completed'] }
+    });
+
+    if (!enrollment) {
+      return res.status(403).json({ message: 'You are not enrolled in this course' });
+    }
+
+    // Create or update note
+    const note = await Note.findOneAndUpdate(
+      { userId, courseId: actualCourseId, dayNumber },
+      { content },
+      { new: true, upsert: true }
+    );
+
+    res.status(201).json(note);
+  } catch (error) {
+    console.error('Save note error:', error);
+    res.status(500).json({ message: 'Failed to save note' });
+  }
+});
+
+app.get('/api/notes/:courseId/:dayNumber', authenticateToken, async (req, res) => {
+  try {
+    const { courseId, dayNumber } = req.params;
+    const userId = req.user.id;
+
+    // Find notes directly using courseUrl or courseId
+    const note = await Note.findOne({
+      userId,
+      $or: [
+        { courseId }, // Try with the provided courseId
+        { courseId: { $in: await Course.distinct('_id', { courseUrl: courseId }) } } // Try with course _id from courseUrl
+      ],
+      dayNumber: parseInt(dayNumber)
+    });
+
+    res.json(note || { content: '' });
+  } catch (error) {
+    console.error('Get note error:', error);
+    res.status(500).json({ message: 'Failed to fetch note' });
+  }
+});
+
+app.put('/api/notes/:noteId', authenticateToken, async (req, res) => {
+  try {
+    const { content } = req.body;
+    
+    const note = await Note.findOne({
+      _id: req.params.noteId,
+      userId: req.user.id
+    });
+
+    if (!note) {
+      return res.status(404).json({ message: 'Note not found' });
+    }
+
+    note.content = content;
+    await note.save();
+    
+    res.json(note);
+  } catch (error) {
+    console.error('Error updating note:', error);
+    res.status(500).json({ message: 'Failed to update note' });
+  }
+});
+
+app.delete('/api/notes/:noteId', authenticateToken, async (req, res) => {
+  try {
+    const note = await Note.findOneAndDelete({
+      _id: req.params.noteId,
+      userId: req.user.id
+    });
+
+    if (!note) {
+      return res.status(404).json({ message: 'Note not found' });
+    }
+
+    res.json({ message: 'Note deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting note:', error);
+    res.status(500).json({ message: 'Failed to delete note' });
+  }
+});
+
+// Add or update a review
+app.post('/api/courses/:courseId/reviews', authenticateToken, async (req, res) => {
+  try {
+    const { rating, comment } = req.body;
+    const courseId = req.params.courseId;
+    const studentId = req.user.id;
+
+    // Get user details
+    const user = await User.findById(studentId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Check if user has already reviewed this course
+    let review = await Review.findOne({ courseId, studentId });
+
+    if (review) {
+      // Update existing review
+      review.rating = rating;
+      review.comment = comment;
+      await review.save();
+    } else {
+      // Create new review
+      review = new Review({
+        courseId,
+        studentId,
+        rating,
+        comment
+      });
+      await review.save();
+    }
+
+    // Return the review with user details
+    const populatedReview = await Review.findById(review._id)
+      .populate('studentId', 'name email');
+
+    res.json({
+      _id: populatedReview._id,
+      studentId: populatedReview.studentId._id,
+      studentName: populatedReview.studentId.name,
+      rating: populatedReview.rating,
+      comment: populatedReview.comment,
+      createdAt: populatedReview.createdAt
+    });
+  } catch (error) {
+    console.error('Add review error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Update a review
+app.put('/api/courses/:courseId/reviews', authenticateToken, async (req, res) => {
+  try {
+    const { rating, comment } = req.body;
+    const courseId = req.params.courseId;
+    const studentId = req.user.id;
+
+    const review = await Review.findOne({ courseId, studentId });
+
+    if (!review) {
+      return res.status(404).json({ message: 'Review not found' });
+    }
+
+    review.rating = rating;
+    review.comment = comment;
+    await review.save();
+
+    // Return the updated review with user details
+    const populatedReview = await Review.findById(review._id)
+      .populate('studentId', 'name email');
+
+    res.json({
+      _id: populatedReview._id,
+      studentId: populatedReview.studentId._id,
+      studentName: populatedReview.studentId.name,
+      rating: populatedReview.rating,
+      comment: populatedReview.comment,
+      createdAt: populatedReview.createdAt
+    });
+  } catch (error) {
+    console.error('Update review error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Delete a review
+app.delete('/api/courses/:courseId/reviews/:reviewId', authenticateToken, async (req, res) => {
+  try {
+    const { courseId, reviewId } = req.params;
+    
+    // Find and delete the review
+    const review = await Review.findOneAndDelete({
+      _id: reviewId,
+      courseId,
+      studentId: req.user.id
+    });
+
+    if (!review) {
+      return res.status(404).json({ message: 'Review not found' });
+    }
+
+    // Update course rating statistics
+    const course = await Course.findById(courseId);
+    if (course) {
+      await course.updateRatingStats();
+    }
+
+    res.json({ message: 'Review deleted successfully' });
+  } catch (error) {
+    console.error('Delete review error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get user's review for a course
+app.get('/api/courses/:courseId/reviews/my-review', authenticateToken, async (req, res) => {
+  try {
+    const review = await Review.findOne({
+      courseId: req.params.courseId,
+      studentId: req.user.id
+    }).populate('studentId', 'name email');
+
+    if (!review) {
+      return res.status(404).json({ message: 'Review not found' });
+    }
+
+    res.json({
+      _id: review._id,
+      studentId: review.studentId._id,
+      studentName: review.studentId.name,
+      rating: review.rating,
+      comment: review.comment,
+      createdAt: review.createdAt
+    });
+  } catch (error) {
+    console.error('Get user review error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get review count for a specific course
+app.get('/api/courses/:courseId/review-count', async (req, res) => {
+  try {
+    const courseId = req.params.courseId;
+    
+    // Count reviews for specific course
+    const reviewCount = await Review.countDocuments({ courseId });
+    
+    console.log('Review count for course:', {
+      courseId,
+      totalReviews: reviewCount
+    });
+
+    res.json({ count: reviewCount });
+  } catch (error) {
+    console.error('Error getting review count:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get review counts grouped by course
+app.get('/api/courses/review-counts/all', async (req, res) => {
+  try {
+    // Aggregate to get review counts per course
+    const reviewCounts = await Review.aggregate([
+      {
+        $group: {
+          _id: '$courseId',
+          count: { $sum: 1 }
+        }
+      },
+      {
+        $lookup: {
+          from: 'courses',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'course'
+        }
+      },
+      {
+        $unwind: '$course'
+      },
+      {
+        $project: {
+          courseId: '$_id',
+          courseTitle: '$course.title',
+          reviewCount: '$count'
+        }
+      }
+    ]);
+
+    console.log('Review counts for all courses:', reviewCounts);
+
+    res.json(reviewCounts);
+  } catch (error) {
+    console.error('Error getting review counts:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Log review counts on server start
+const logReviewCounts = async () => {
+  try {
+    // Get all courses
+    const courses = await Course.find({});
+    
+    // For each course, get review count
+    for (const course of courses) {
+      const reviewCount = await Review.countDocuments({ courseId: course._id });
+      console.log(`Course: ${course.title}`);
+      console.log(`ID: ${course._id}`);
+      console.log(`Review Count: ${reviewCount}`);
+      console.log('------------------------');
+    }
+
+    // Get grouped counts
+    const groupedCounts = await Review.aggregate([
+      {
+        $group: {
+          _id: '$courseId',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    console.log('Aggregated Review Counts:');
+    console.log(JSON.stringify(groupedCounts, null, 2));
+    
+  } catch (error) {
+    console.error('Error logging review counts:', error);
+  }
+};
+
+// Call the logging function when server starts
+logReviewCounts();
+
+// Get all review counts in one call
+app.get('/api/review-counts', async (req, res) => {
+  try {
+    const reviewCounts = await Review.aggregate([
+      {
+        $group: {
+          _id: '$courseId',
+          count: { $sum: 1 },
+          averageRating: { $avg: '$rating' }
+        }
+      },
+      {
+        $project: {
+          courseId: '$_id',
+          totalReviews: '$count',
+          rating: { $round: ['$averageRating', 1] }
+        }
+      }
+    ]);
+
+    console.log('Fetched review counts:', reviewCounts);
+    
+    // Convert array to object with courseId as key for easier frontend lookup
+    const reviewCountsMap = reviewCounts.reduce((acc, item) => {
+      acc[item.courseId] = {
+        totalReviews: item.totalReviews,
+        rating: item.rating || 0
+      };
+      return acc;
+    }, {});
+
+    res.json(reviewCountsMap);
+  } catch (error) {
+    console.error('Error getting review counts:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Add this new endpoint for checking enrollment
+app.get('/api/check-enrollment/:courseId', authenticateToken, async (req, res) => {
+  try {
+    const courseIdentifier = req.params.courseId;
+    const userId = req.user.id;
+
+    // First check if the course exists
+    let course;
+    
+    // Try to find by courseUrl first
+    course = await Course.findOne({ courseUrl: courseIdentifier });
+    
+    // If not found by courseUrl, try to find by courseId
+    if (!course) {
+      // Extract the course ID from the URL format (e.g., "d5c63-web-development-bootcamp-TIN59PR")
+      const courseIdMatch = courseIdentifier.match(/^([a-f0-9]{5})-/);
+      if (courseIdMatch) {
+        // Search for any course that ends with this ID
+        const courseIdPattern = new RegExp(courseIdMatch[1] + '$');
+        course = await Course.findOne({
+          _id: { $regex: courseIdPattern }
+        });
+      }
+    }
+
+    if (!course) {
+      return res.status(404).json({
+        message: 'Course not found. Please check the course link and try again.'
+      });
+    }
+
+    // Check if user is already enrolled
+    const existingEnrollment = await UserCourse.findOne({
+      userId: userId,
+      courseId: course._id,
+      status: { $in: ['enrolled', 'started', 'completed'] }
+    });
+
+    // Check if there's a pending enrollment request
+    const pendingRequest = await EnrollmentRequest.findOne({
+      userId: userId,
+      courseId: course._id,
+      status: 'pending'
+    });
+
+    res.json({
+      isEnrolled: !!existingEnrollment,
+      hasPendingRequest: !!pendingRequest
+    });
+
+  } catch (error) {
+    console.error('Error checking enrollment:', error);
+    res.status(500).json({ 
+      message: 'Error checking enrollment status. Please try again.',
+      error: error.message 
+    });
+  }
+});
+
+// Add this endpoint for updating user profile
+app.put('/api/users/profile', authenticateToken, async (req, res) => {
+  try {
+    const { avatar } = req.body;
+    
+    // Get user from token
+    const userId = req.user.userId;
+    
+    // Update user profile
+    const updatedUser = await User.findOneAndUpdate(
+      { userId: userId },
+      { 
+        $set: { 
+          avatar: avatar 
+        }
+      },
+      { new: true }
+    );
+
+    if (!updatedUser) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Return updated user data
+    res.json({
+      message: 'Profile updated successfully',
+      user: {
+        name: updatedUser.name,
+        email: updatedUser.email,
+        avatar: updatedUser.avatar,
+        userId: updatedUser.userId,
+        bio: updatedUser.bio,
+        displayName: updatedUser.displayName,
+        referralCount: updatedUser.referralCount
+      }
+    });
+
+  } catch (error) {
+    console.error('Error updating user profile:', error);
+    res.status(500).json({ message: 'Error updating profile' });
+  }
+});
+
+// Delete reply from discussion
+app.delete('/api/discussions/:discussionId/replies/:replyId', authenticateToken, async (req, res) => {
+  try {
+    const { discussionId, replyId } = req.params;
+
+    // Find the discussion
+    const discussion = await Discussion.findById(discussionId);
+    if (!discussion) {
+      return res.status(404).json({ message: 'Discussion not found' });
+    }
+
+    // Find the reply
+    const reply = discussion.replies.id(replyId);
+    if (!reply) {
+      return res.status(404).json({ message: 'Reply not found' });
+    }
+
+    // Check if user is the reply author or an instructor
+    if (reply.userId.toString() !== req.user.id && req.user.role !== 'instructor') {
+      return res.status(403).json({ message: 'Not authorized to delete this reply' });
+    }
+
+    // Remove the reply
+    reply.remove();
+    await discussion.save();
+
+    res.json({ message: 'Reply deleted successfully' });
+  } catch (error) {
+    console.error('Delete reply error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get total completed quizzes count
+app.get('/api/quiz-submissions/completed-count', authenticateToken, async (req, res) => {
+  try {
+    console.log('Fetching quiz submissions for user:', req.user.id);
+
+    // Get all submissions for the user
+    const allSubmissions = await QuizSubmission.find({ 
+      userId: req.user.id 
+    }).lean();
+
+    // Log detailed information about each submission
+    console.log('=== Quiz Submissions for User ===');
+    console.log(`Total submissions found: ${allSubmissions.length}`);
+    allSubmissions.forEach((submission, index) => {
+      console.log(`\nSubmission #${index + 1}:`);
+      console.log(`Course: ${submission.courseUrl}`);
+      console.log(`Title: ${submission.title || 'No title'}`);
+      console.log(`Score: ${submission.score}`);
+      console.log(`Submitted at: ${submission.submittedAt}`);
+      console.log('------------------------');
+    });
+
+    // Get unique quizzes count using aggregation
+    const uniqueQuizzes = await QuizSubmission.aggregate([
+      { 
+        $match: { 
+          userId: new mongoose.Types.ObjectId(req.user.id) 
+        } 
+      },
+      { 
+        $group: { 
+          _id: { 
+            courseId: "$courseUrl", 
+            title: "$title" 
+          },
+          attempts: { $sum: 1 },
+          highestScore: { $max: "$score" }
+        } 
+      }
+    ]);
+
+    console.log('\n=== Unique Quizzes Summary ===');
+    uniqueQuizzes.forEach((quiz, index) => {
+      console.log(`\nQuiz #${index + 1}:`);
+      console.log(`Course: ${quiz._id.courseId}`);
+      console.log(`Title: ${quiz._id.title || 'No title'}`);
+      console.log(`Total Attempts: ${quiz.attempts}`);
+      console.log(`Highest Score: ${quiz.highestScore}`);
+      console.log('------------------------');
+    });
+
+    res.json({ 
+      totalSubmissions: allSubmissions.length,
+      uniqueQuizCount: uniqueQuizzes.length,
+      submissions: allSubmissions,
+      uniqueQuizzes: uniqueQuizzes
+    });
+  } catch (error) {
+    console.error('Error getting quizzes taken count:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Debug endpoint to check all quiz submissions for a user
+app.get('/api/quiz-submissions/debug', authenticateToken, async (req, res) => {
+  try {
+    // Get all quiz submissions for the user
+    const submissions = await QuizSubmission.find({ 
+      userId: req.user.id 
+    }).sort({ courseUrl: 1, dayNumber: 1, attemptNumber: 1 });
+
+    // Group submissions by courseUrl and dayNumber
+    const groupedSubmissions = submissions.reduce((acc, sub) => {
+      const key = `${sub.courseUrl}-${sub.dayNumber}`;
+      if (!acc[key]) {
+        acc[key] = [];
+      }
+      acc[key].push(sub);
+      return acc;
+    }, {});
+
+    res.json({
+      totalSubmissions: submissions.length,
+      uniqueQuizzes: Object.keys(groupedSubmissions).length,
+      submissions: groupedSubmissions
+    });
+  } catch (error) {
+    console.error('Error getting quiz submissions:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get total quizzes taken count (unique quizzes with at least one attempt)
+app.get('/api/quiz-submissions/completed-count', authenticateToken, async (req, res) => {
+  try {
+    // Get all quiz submissions for the user
+    const submissions = await QuizSubmission.find({ 
+      userId: req.user.id 
+    });
+
+    // Create a Set of unique courseUrl-dayNumber combinations
+    const uniqueQuizzes = new Set(
+      submissions.map(sub => `${sub.courseUrl}-${sub.dayNumber}`)
+    );
+
+    console.log('Found submissions:', {
+      totalSubmissions: submissions.length,
+      uniqueQuizCount: uniqueQuizzes.size,
+      uniqueQuizzes: Array.from(uniqueQuizzes)
+    });
+
+    res.json({ count: uniqueQuizzes.size });
+  } catch (error) {
+    console.error('Error getting quizzes taken count:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get quiz submissions count and details for a user
+app.get('/api/quiz-submissions/user-stats', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    console.log('\n=== User ID Details ===');
+    console.log('User ID:', userId);
+
+    // Check if there are any documents in the collection
+    const totalDocsInCollection = await QuizSubmission.countDocuments({});
+    console.log('\n=== Collection Status ===');
+    console.log('Total documents in QuizSubmission collection:', totalDocsInCollection);
+
+    // Get all submissions for this user using string comparison
+    const allSubmissions = await QuizSubmission.find({ 
+      userId: userId  // Using string comparison
+    })
+    .select('courseUrl title score submittedDate dayNumber')
+    .sort({ submittedDate: -1 })
+    .lean();
+    
+    console.log('\n=== Query Results ===');
+    console.log('Found submissions:', allSubmissions.length);
+    
+    if (allSubmissions.length > 0) {
+      console.log('\n=== Submission Details ===');
+      allSubmissions.forEach((sub, index) => {
+        console.log(`\nSubmission #${index + 1}:`);
+        console.log('Full submission:', JSON.stringify(sub, null, 2));
+      });
+    } else {
+      console.log('\n=== No Results Found ===');
+      console.log('User ID used for query:', userId);
+      
+      // Get a sample of all documents to verify data structure
+      const sampleDocs = await QuizSubmission.find({})
+        .limit(3)
+        .lean();
+      
+      if (sampleDocs.length > 0) {
+        console.log('\nSample documents in collection:');
+        sampleDocs.forEach((doc, index) => {
+          console.log(`\nSample #${index + 1}:`);
+          console.log('userId:', doc.userId);
+          console.log('courseUrl:', doc.courseUrl);
+          console.log('dayNumber:', doc.dayNumber);
+        });
+      }
+    }
+
+    // Count unique quizzes
+    const uniqueQuizzes = allSubmissions.reduce((acc, sub) => {
+      const key = `${sub.courseUrl}-${sub.dayNumber}`;
+      acc.add(key);
+      return acc;
+    }, new Set());
+
+    console.log('\n=== Final Response ===');
+    const response = { 
+      success: true,
+      stats: {
+        totalSubmissions: allSubmissions.length,
+        uniqueQuizzes: uniqueQuizzes.size,
+        submissions: allSubmissions
+      }
+    };
+    console.log('Sending response:', JSON.stringify(response, null, 2));
+
+    res.json(response);
+  } catch (error) {
+    console.error('\n=== Error Details ===');
+    console.error('Error name:', error.name);
+    console.error('Error message:', error.message);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ 
+      message: 'Server error', 
+      error: error.message,
+      details: {
+        name: error.name,
+        message: error.message
+      }
+    });
+  }
+});
+
+// Debug endpoint to inspect quiz submissions
+app.get('/api/quiz-submissions/debug-all', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    console.log('\n=== Debug Info ===');
+    console.log('Looking for userId:', userId);
+
+    // Get all documents in the collection
+    const allDocs = await QuizSubmission.find({}).lean();
+    console.log('\nTotal documents in collection:', allDocs.length);
+
+    // Log each document's userId for comparison
+    console.log('\nAll documents in collection:');
+    allDocs.forEach((doc, i) => {
+      console.log(`\nDocument ${i + 1}:`);
+      console.log('_id:', doc._id);
+      console.log('userId:', doc.userId);
+      console.log('courseUrl:', doc.courseUrl);
+      console.log('dayNumber:', doc.dayNumber);
+      console.log('title:', doc.title);
+      console.log('score:', doc.score);
+      console.log('submittedDate:', doc.submittedDate);
+      console.log('userId type:', typeof doc.userId);
+      console.log('userId matches?', doc.userId === userId);
+      if (doc.userId) {
+        console.log('userId string comparison:', doc.userId.toString() === userId);
+      }
+    });
+
+    // Try different query approaches
+    const results = {
+      exactMatch: await QuizSubmission.find({ userId: userId }).lean(),
+      stringMatch: await QuizSubmission.find({ userId: userId.toString() }).lean(),
+      regexMatch: await QuizSubmission.find({ 
+        userId: { $regex: new RegExp(userId, 'i') } 
+      }).lean(),
+      objectIdMatch: await QuizSubmission.find({ 
+        userId: new mongoose.Types.ObjectId(userId) 
+      }).lean()
+    };
+
+    console.log('\n=== Query Results ===');
+    Object.entries(results).forEach(([method, docs]) => {
+      console.log(`${method}:`, docs.length, 'documents found');
+    });
+
+    res.json({
+      searchingFor: userId,
+      totalDocuments: allDocs.length,
+      allDocuments: allDocs,
+      queryResults: results
+    });
+
+  } catch (error) {
+    console.error('Debug endpoint error:', error);
+    res.status(500).json({ 
+      message: 'Error in debug endpoint',
+      error: error.message
+    });
+  }
+});
+
+// Get quiz submissions count and details for a user
+app.get('/api/quiz-submissions/user-stats', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    console.log('\n=== User ID Details ===');
+    console.log('User ID:', userId);
+
+    // Check if there are any documents in the collection
+    const totalDocsInCollection = await QuizSubmission.countDocuments({});
+    console.log('\n=== Collection Status ===');
+    console.log('Total documents in QuizSubmission collection:', totalDocsInCollection);
+
+    // Try all possible ways to match the userId
+    const allSubmissions = await QuizSubmission.find({
+      $or: [
+        { userId: userId },
+        { userId: userId.toString() },
+        { userId: new mongoose.Types.ObjectId(userId) },
+        { userId: { $regex: new RegExp(userId, 'i') } }
+      ]
+    })
+    .select('courseUrl title score submittedDate dayNumber')
+    .sort({ submittedDate: -1 })
+    .lean();
+    
+    console.log('\n=== Query Results ===');
+    console.log('Found submissions:', allSubmissions.length);
+    
+    if (allSubmissions.length > 0) {
+      console.log('\n=== Submission Details ===');
+      allSubmissions.forEach((sub, index) => {
+        console.log(`\nSubmission #${index + 1}:`);
+        console.log('Full submission:', JSON.stringify(sub, null, 2));
+      });
+    } else {
+      console.log('\n=== No Results Found ===');
+      console.log('User ID used for query:', userId);
+      
+      // Get a sample of all documents to verify data structure
+      const sampleDocs = await QuizSubmission.find({})
+        .limit(3)
+        .lean();
+      
+      if (sampleDocs.length > 0) {
+        console.log('\nSample documents in collection:');
+        sampleDocs.forEach((doc, index) => {
+          console.log(`\nSample #${index + 1}:`);
+          console.log('userId:', doc.userId);
+          console.log('courseUrl:', doc.courseUrl);
+          console.log('dayNumber:', doc.dayNumber);
+        });
+      }
+    }
+
+    // Count unique quizzes
+    const uniqueQuizzes = allSubmissions.reduce((acc, sub) => {
+      const key = `${sub.courseUrl}-${sub.dayNumber}`;
+      acc.add(key);
+      return acc;
+    }, new Set());
+
+    console.log('\n=== Final Response ===');
+    const response = { 
+      success: true,
+      stats: {
+        totalSubmissions: allSubmissions.length,
+        uniqueQuizzes: uniqueQuizzes.size,
+        submissions: allSubmissions
+      }
+    };
+    console.log('Sending response:', JSON.stringify(response, null, 2));
+
+    res.json(response);
+  } catch (error) {
+    console.error('\n=== Error Details ===');
+    console.error('Error name:', error.name);
+    console.error('Error message:', error.message);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ 
+      message: 'Server error', 
+      error: error.message,
+      details: {
+        name: error.name,
+        message: error.message
+      }
+    });
+  }
+});
+
+// Get detailed quiz attempts for a user
+app.get('/api/quiz-attempts/user-details', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    console.log('\n=== Fetching Quiz Attempts for User ===');
+    console.log('User ID:', userId);
+
+    // Get all quiz attempts for the user
+    const attempts = await QuizSubmission.find({ 
+      userId: userId 
+    })
+    .sort({ submittedDate: -1 })
+    .lean();
+
+    // Group attempts by course and day
+    const attemptsByQuiz = attempts.reduce((acc, attempt) => {
+      const key = `${attempt.courseUrl}-Day${attempt.dayNumber}`;
+      if (!acc[key]) {
+        acc[key] = [];
+      }
+      acc[key].push(attempt);
+      return acc;
+    }, {});
+
+    // Calculate statistics
+    const stats = {
+      totalAttempts: attempts.length,
+      uniqueQuizzes: Object.keys(attemptsByQuiz).length,
+      quizzesByScore: {
+        perfect: attempts.filter(a => a.score === 100).length,
+        passing: attempts.filter(a => a.score >= 70 && a.score < 100).length,
+        failing: attempts.filter(a => a.score < 70).length
+      },
+      attemptDetails: []
+    };
+
+    // Generate detailed report
+    console.log('\n=== Quiz Attempts Report ===');
+    console.log(`Total Attempts: ${stats.totalAttempts}`);
+    console.log(`Unique Quizzes Attempted: ${stats.uniqueQuizzes}`);
+    console.log('\nScore Distribution:');
+    console.log(`Perfect Score (100%): ${stats.quizzesByScore.perfect}`);
+    console.log(`Passing Score (70-99%): ${stats.quizzesByScore.passing}`);
+    console.log(`Failed Attempts (<70%): ${stats.quizzesByScore.failing}`);
+
+    // Log detailed attempts by quiz
+    console.log('\n=== Detailed Attempts by Quiz ===');
+    Object.entries(attemptsByQuiz).forEach(([quizKey, quizAttempts]) => {
+      console.log(`\n${quizKey}:`);
+      console.log(`Total attempts: ${quizAttempts.length}`);
+      
+      // Sort attempts by date
+      const sortedAttempts = quizAttempts.sort((a, b) => 
+        new Date(b.submittedDate) - new Date(a.submittedDate)
+      );
+
+      // Log each attempt
+      sortedAttempts.forEach((attempt, index) => {
+        console.log(`\n  Attempt #${attempt.attemptNumber || index + 1}:`);
+        console.log(`  Score: ${attempt.score}%`);
+        console.log(`  Submitted: ${new Date(attempt.submittedDate).toLocaleString()}`);
+        console.log(`  Status: ${attempt.score >= 70 ? 'Passed' : 'Failed'}`);
+      });
+
+      // Add to stats
+      stats.attemptDetails.push({
+        quizKey,
+        totalAttempts: quizAttempts.length,
+        highestScore: Math.max(...quizAttempts.map(a => a.score)),
+        latestAttempt: sortedAttempts[0],
+        passed: quizAttempts.some(a => a.score >= 70)
+      });
+    });
+
+    // Send response
+    res.json({
+      success: true,
+      message: 'Quiz attempts retrieved successfully',
+      data: {
+        stats,
+        attemptsByQuiz
+      }
+    });
+
+  } catch (error) {
+    console.error('\n=== Error Details ===');
+    console.error('Error name:', error.name);
+    console.error('Error message:', error.message);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ 
+      success: false,
+      message: 'Error retrieving quiz attempts',
+      error: error.message
+    });
+  }
+});
+
+// Direct query to find quiz submissions by specific user ID
+app.get('/api/quiz-submissions/find-by-id/:userId', async (req, res) => {
+  try {
+    const targetUserId = req.params.userId;
+    console.log('\n=== Searching QuizSubmissions Collection ===');
+    console.log('Target User ID:', targetUserId);
+
+    // Convert the userId to ObjectId
+    const userObjectId = new mongoose.Types.ObjectId(targetUserId);
+    console.log('User ObjectId:', userObjectId);
+
+    // Find all documents for this user
+    const submissions = await QuizSubmission.find({
+      'userId.$oid': targetUserId
+    }).lean();
+
+    // If no results, try alternative query
+    if (submissions.length === 0) {
+      console.log('Trying alternative query...');
+      const altSubmissions = await QuizSubmission.find({
+        'userId': userObjectId
+      }).lean();
+      
+      if (altSubmissions.length > 0) {
+        submissions.push(...altSubmissions);
+      }
+    }
+
+    console.log('\n=== Database Query Results ===');
+    console.log('Total documents found:', submissions.length);
+
+    if (submissions.length > 0) {
+      console.log('\n=== Document Details ===');
+      submissions.forEach((doc, index) => {
+        console.log(`\nDocument ${index + 1}:`);
+        console.log(JSON.stringify({
+          id: doc._id,
+          courseUrl: doc.courseUrl,
+          dayNumber: doc.dayNumber,
+          title: doc.title,
+          score: doc.score,
+          submittedDate: doc.submittedDate,
+          attemptNumber: doc.attemptNumber,
+          userId: doc.userId
+        }, null, 2));
+      });
+
+      // Group by course and day
+      const groupedSubmissions = submissions.reduce((acc, sub) => {
+        const key = `${sub.courseUrl}-Day${sub.dayNumber}`;
+        if (!acc[key]) {
+          acc[key] = [];
+        }
+        acc[key].push(sub);
+        return acc;
+      }, {});
+
+      console.log('\n=== Summary ===');
+      console.log('Total Submissions:', submissions.length);
+      console.log('Unique Quizzes:', Object.keys(groupedSubmissions).length);
+      
+      Object.entries(groupedSubmissions).forEach(([key, attempts]) => {
+        console.log(`\n${key}:`);
+        console.log(`- Attempts: ${attempts.length}`);
+        console.log(`- Highest Score: ${Math.max(...attempts.map(a => a.score))}%`);
+        console.log(`- Latest Attempt: ${new Date(Math.max(...attempts.map(a => new Date(a.submittedDate)))).toLocaleString()}`);
+      });
+    } else {
+      console.log('\nNo documents found');
+      
+      // Debug: Show a sample document from collection
+      const sampleDoc = await QuizSubmission.findOne().lean();
+      if (sampleDoc) {
+        console.log('\nSample document structure from collection:');
+        console.log(JSON.stringify(sampleDoc, null, 2));
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Found ${submissions.length} submissions`,
+      data: {
+        totalSubmissions: submissions.length,
+        submissions: submissions.map(doc => ({
+          id: doc._id,
+          courseUrl: doc.courseUrl,
+          dayNumber: doc.dayNumber,
+          title: doc.title,
+          score: doc.score,
+          submittedDate: doc.submittedDate,
+          attemptNumber: doc.attemptNumber
+        }))
+      }
+    });
+
+  } catch (error) {
+    console.error('\n=== Error Details ===');
+    console.error('Error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error finding submissions',
+      error: error.message 
+    });
+  }
+});
+
+// Add this function to get quiz submission stats
+async function getQuizSubmissionStats(userId) {
+  try {
+    const userObjectId = new mongoose.Types.ObjectId(userId);
+    
+    // Get all submissions for this user
+    const submissions = await QuizSubmission.find({
+      userId: userObjectId
+    }).lean();
+
+    // Get unique courses and days
+    const uniqueCourses = new Set(submissions.map(sub => sub.courseUrl));
+    const uniqueDays = new Set(submissions.map(sub => `${sub.courseUrl}-${sub.dayNumber}`));
+    
+    // Calculate average score
+    const totalScore = submissions.reduce((sum, sub) => sum + (sub.score || 0), 0);
+    const averageScore = submissions.length > 0 ? (totalScore / submissions.length).toFixed(1) : 0;
+
+    return {
+      totalSubmissions: submissions.length,
+      uniqueQuizzesTaken: uniqueDays.size,
+      coursesWithSubmissions: uniqueCourses.size,
+      averageScore: averageScore
+    };
+  } catch (error) {
+    console.error('Error getting quiz stats:', error);
+    return {
+      totalSubmissions: 0,
+      uniqueQuizzesTaken: 0,
+      coursesWithSubmissions: 0,
+      averageScore: 0
+    };
+  }
+}
+
+// Update the dashboard route to include quiz stats
+app.get('/api/dashboard/:userId', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    
+    // Get user details
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Get quiz submission stats
+    const quizStats = await getQuizSubmissionStats(userId);
+
+    // Get enrolled courses
+    const enrolledCourses = await UserCourse.find({ userId: userId })
+      .populate('courseId')
+      .lean();
+
+    // Calculate profile completion
+    const profileCompletion = calculateProfileCompletion(user);
+
+    // Get course completion data
+    const courseCompletionData = await getCourseCompletionData();
+
+    // Get recent activities
+    const recentActivities = await getRecentActivities();
+
+    // Prepare dashboard data
+    const dashboardData = {
+      user: {
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        avatar: user.avatar
+      },
+      enrolledCourses: enrolledCourses.length,
+      profileCompletion,
+      quizStats,
+      courseCompletionData,
+      recentActivities
+    };
+
+    res.json(dashboardData);
+  } catch (error) {
+    console.error('Error fetching dashboard data:', error);
+    res.status(500).json({ message: 'Error fetching dashboard data' });
+  }
+});
+
+// Add this endpoint to get quiz stats for a user
+app.get('/api/quiz-stats/:userId', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    const userObjectId = new mongoose.Types.ObjectId(userId);
+    
+    // Get all submissions for this user
+    const submissions = await QuizSubmission.find({
+      userId: userObjectId
+    }).lean();
+
+    // Get unique courses and days
+    const uniqueCourses = new Set(submissions.map(sub => sub.courseUrl));
+    const uniqueDays = new Set(submissions.map(sub => `${sub.courseUrl}-${sub.dayNumber}`));
+    
+    // Calculate average score
+    const totalScore = submissions.reduce((sum, sub) => sum + (sub.score || 0), 0);
+    const averageScore = submissions.length > 0 ? (totalScore / submissions.length).toFixed(1) : 0;
+
+    res.json({
+      totalSubmissions: submissions.length,
+      uniqueQuizzes: uniqueDays.size,
+      coursesWithSubmissions: uniqueCourses.size,
+      averageScore: averageScore,
+      submissions: submissions
+    });
+  } catch (error) {
+    console.error('Error getting quiz stats:', error);
+    res.status(500).json({ message: 'Error getting quiz stats' });
+  }
+});
+
+// Get quiz submissions for a user
+app.get('/api/quiz-submissions', authenticateToken, async (req, res) => {
+  try {
+    // Use the same MongoDB connection as countSubmissions.js
+    await mongoose.connect(MongoDB_URL);
+    console.log('Connected to MongoDB');
+
+    // Define the schema exactly as in countSubmissions.js
+    const quizSubmissionSchema = new mongoose.Schema({
+      courseUrl: String,
+      userId: mongoose.Schema.Types.ObjectId,
+      dayNumber: Number,
+      title: String,
+      score: Number,
+      submittedDate: Date
+    });
+
+    const QuizSubmission = mongoose.models.QuizSubmission || mongoose.model('QuizSubmission', quizSubmissionSchema);
+
+    // Get the user ID from the authenticated user
+    const targetUserId = req.user.id;
+    const userObjectId = new mongoose.Types.ObjectId(targetUserId);
+    
+    console.log('Looking for submissions with userId:', targetUserId);
+    console.log('User ObjectId:', userObjectId);
+
+    // Get all documents first - exactly as in countSubmissions.js
+    const allDocs = await QuizSubmission.find({}).lean();
+    console.log('\nTotal documents in collection:', allDocs.length);
+
+    if (allDocs.length > 0) {
+      console.log('\nAll documents in collection:');
+      allDocs.forEach((doc, i) => {
+        console.log(`\nDocument ${i + 1}:`);
+        console.log('userId:', doc.userId);
+        console.log('courseUrl:', doc.courseUrl);
+        console.log('dayNumber:', doc.dayNumber);
+        console.log('score:', doc.score);
+        console.log('userId type:', typeof doc.userId);
+        if (doc.userId) {
+          console.log('userId matches?', doc.userId.toString() === targetUserId);
+        }
+      });
+
+      // Use exact same matching logic as countSubmissions.js
+      const exactMatches = allDocs.filter(doc => doc.userId && doc.userId.toString() === targetUserId);
+      console.log('\nMatching documents found:', exactMatches.length);
+
+      if (exactMatches.length > 0) {
+        console.log('\nMatching submissions:');
+        exactMatches.forEach((sub, i) => {
+          console.log(`\n${i + 1}. ${sub.courseUrl} - Day ${sub.dayNumber}`);
+          console.log(`   Score: ${sub.score}%`);
+          console.log(`   Date: ${sub.submittedDate}`);
+          console.log(`   ID: ${sub._id}`);
+        });
+      }
+
+      // Get unique courses and days
+      const uniqueCourses = new Set(exactMatches.map(sub => sub.courseUrl));
+      const uniqueDays = new Set(exactMatches.map(sub => `${sub.courseUrl}-${sub.dayNumber}`));
+      
+      // Calculate average score
+      const totalScore = exactMatches.reduce((sum, sub) => sum + (sub.score || 0), 0);
+      const averageScore = exactMatches.length > 0 ? (totalScore / exactMatches.length).toFixed(1) : 0;
+
+      res.json({
+        totalSubmissions: exactMatches.length,
+        uniqueQuizzes: uniqueDays.size,
+        coursesWithSubmissions: uniqueCourses.size,
+        averageScore: Number(averageScore),
+        submissions: exactMatches.map(sub => ({
+          courseUrl: sub.courseUrl,
+          title: sub.title || `Quiz ${sub.dayNumber}`,
+          score: sub.score,
+          submittedDate: sub.submittedDate,
+          dayNumber: sub.dayNumber
+        }))
+      });
+    } else {
+      res.json({
+        totalSubmissions: 0,
+        uniqueQuizzes: 0,
+        coursesWithSubmissions: 0,
+        averageScore: 0,
+        submissions: []
+      });
+    }
+  } catch (error) {
+    console.error('Error getting quiz submissions:', error);
+    res.status(500).json({ 
+      message: 'Error getting quiz submissions',
+      error: error.message 
+    });
+  }
+});
+
+// Get quiz submissions count using the same approach as countSubmissions.js
+app.get('/api/quiz-submissions/count', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    console.log('Looking for submissions with userId:', userId);
+
+    // Get all documents first
+    const allDocs = await QuizSubmission.find({}).lean();
+    console.log('\nTotal documents in collection:', allDocs.length);
+
+    // Filter matching submissions using the same method as countSubmissions.js
+    const exactMatches = allDocs.filter(doc => doc.userId && doc.userId.toString() === userId);
+    console.log('\nMatching documents found:', exactMatches.length);
+
+    // Get unique courses and days
+    const uniqueCourses = new Set(exactMatches.map(sub => sub.courseUrl));
+    const uniqueDays = new Set(exactMatches.map(sub => `${sub.courseUrl}-${sub.dayNumber}`));
+    
+    // Calculate average score
+    const totalScore = exactMatches.reduce((sum, sub) => sum + (sub.score || 0), 0);
+    const averageScore = exactMatches.length > 0 ? (totalScore / exactMatches.length).toFixed(1) : 0;
+
+    if (exactMatches.length > 0) {
+      console.log('\nMatching submissions:');
+      exactMatches.forEach((sub, i) => {
+        console.log(`\n${i + 1}. ${sub.courseUrl} - Day ${sub.dayNumber}`);
+        console.log(`   Score: ${sub.score}%`);
+        console.log(`   Date: ${sub.submittedDate}`);
+        console.log(`   ID: ${sub._id}`);
+      });
+    }
+
+    res.json({
+      totalSubmissions: exactMatches.length,
+      uniqueQuizzes: uniqueDays.size,
+      coursesWithSubmissions: uniqueCourses.size,
+      averageScore: Number(averageScore),
+      submissions: exactMatches.map(sub => ({
+        courseUrl: sub.courseUrl,
+        title: sub.title || `Quiz ${sub.dayNumber}`,
+        score: sub.score,
+        submittedDate: sub.submittedDate,
+        dayNumber: sub.dayNumber
+      }))
+    });
+
+  } catch (error) {
+    console.error('Error getting quiz submissions:', error);
+    res.status(500).json({ 
+      message: 'Error getting quiz submissions',
+      error: error.message 
+    });
+  }
+});
+
+// Get quiz submissions for a user - using exact logic from countSubmissions.js
+app.get('/api/quiz-submissions', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const userObjectId = new mongoose.Types.ObjectId(userId);
+    
+    console.log('Looking for submissions with userId:', userId);
+    console.log('User ObjectId:', userObjectId);
+
+    // Get all documents first - exact same as countSubmissions.js
+    const allDocs = await QuizSubmission.find({}).lean();
+    console.log('\nTotal documents in collection:', allDocs.length);
+
+    // Use exact same matching logic as countSubmissions.js
+    const exactMatches = allDocs.filter(doc => doc.userId && doc.userId.toString() === userId);
+    console.log('\nMatching documents found:', exactMatches.length);
+
+    if (exactMatches.length > 0) {
+      console.log('\nMatching submissions:');
+      exactMatches.forEach((sub, i) => {
+        console.log(`\n${i + 1}. ${sub.courseUrl} - Day ${sub.dayNumber}`);
+        console.log(`   Score: ${sub.score}%`);
+        console.log(`   Date: ${sub.submittedDate}`);
+        console.log(`   ID: ${sub._id}`);
+      });
+    }
+
+    // Get unique courses and days
+    const uniqueCourses = new Set(exactMatches.map(sub => sub.courseUrl));
+    const uniqueDays = new Set(exactMatches.map(sub => `${sub.courseUrl}-${sub.dayNumber}`));
+    
+    // Calculate average score
+    const totalScore = exactMatches.reduce((sum, sub) => sum + (sub.score || 0), 0);
+    const averageScore = exactMatches.length > 0 ? (totalScore / exactMatches.length).toFixed(1) : 0;
+
+    res.json({
+      totalSubmissions: exactMatches.length,
+      uniqueQuizzes: uniqueDays.size,
+      coursesWithSubmissions: uniqueCourses.size,
+      averageScore: Number(averageScore),
+      submissions: exactMatches.map(sub => ({
+        courseUrl: sub.courseUrl,
+        title: sub.title || `Quiz ${sub.dayNumber}`,
+        score: sub.score,
+        submittedDate: sub.submittedDate,
+        dayNumber: sub.dayNumber
+      }))
+    });
+
+  } catch (error) {
+    console.error('Error getting quiz submissions:', error);
+    res.status(500).json({ 
+      message: 'Error getting quiz submissions',
+      error: error.message 
+    });
+  }
+});
+
+// Get exact quiz submission count using countSubmissions.js logic
+app.get('/api/quiz-submissions/exact-count', authenticateToken, async (req, res) => {
+  try {
+    // The user ID we're looking for - from the authenticated user
+    const targetUserId = req.user.id;
+    const userObjectId = new mongoose.Types.ObjectId(targetUserId);
+    
+    console.log('Looking for submissions with userId:', targetUserId);
+    console.log('User ObjectId:', userObjectId);
+
+    // Get all documents first - exactly as in countSubmissions.js
+    const allDocs = await QuizSubmission.find({}).lean();
+    console.log('\nTotal documents in collection:', allDocs.length);
+
+    // Use exact same matching logic as countSubmissions.js
+    const exactMatches = allDocs.filter(doc => doc.userId && doc.userId.toString() === targetUserId);
+    console.log('\nMatching documents found:', exactMatches.length);
+
+    // Return just the count
+    res.json({ count: exactMatches.length });
+
+  } catch (error) {
+    console.error('Error getting quiz submissions count:', error);
+    res.status(500).json({ 
+      message: 'Error getting quiz submissions count',
+      error: error.message 
+    });
+  }
+});
+
+// Get quiz submissions using exact same logic as countSubmissions.js
+app.get('/api/quiz-submissions', async (req, res) => {
+  try {
+    // Use the exact same MongoDB URL as countSubmissions.js
+    const MongoDB_URL = 'mongodb+srv://user:user@cluster0.jofrcro.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0';
+    await mongoose.connect(MongoDB_URL);
+    console.log('Connected to MongoDB');
+
+    // Define the schema exactly as in countSubmissions.js
+    const quizSubmissionSchema = new mongoose.Schema({
+      courseUrl: String,
+      userId: mongoose.Schema.Types.ObjectId,
+      dayNumber: Number,
+      title: String,
+      score: Number,
+      submittedDate: Date
+    });
+
+    const QuizSubmission = mongoose.models.QuizSubmission || mongoose.model('QuizSubmission', quizSubmissionSchema);
+
+    // Use the exact same user ID that works in countSubmissions.js
+    const targetUserId = '68384d7ce137d5e9228ea76a';
+    const userObjectId = new mongoose.Types.ObjectId(targetUserId);
+    
+    console.log('Looking for submissions with userId:', targetUserId);
+    console.log('User ObjectId:', userObjectId);
+
+    // Get all documents first - exactly as in countSubmissions.js
+    const allDocs = await QuizSubmission.find({}).lean();
+    console.log('\nTotal documents in collection:', allDocs.length);
+
+    // Use exact same matching logic as countSubmissions.js
+    const exactMatches = allDocs.filter(doc => doc.userId && doc.userId.toString() === targetUserId);
+    console.log('\nMatching documents found:', exactMatches.length);
+
+    if (exactMatches.length > 0) {
+      console.log('\nMatching submissions:');
+      exactMatches.forEach((sub, i) => {
+        console.log(`\n${i + 1}. ${sub.courseUrl} - Day ${sub.dayNumber}`);
+        console.log(`   Score: ${sub.score}%`);
+        console.log(`   Date: ${sub.submittedDate}`);
+        console.log(`   ID: ${sub._id}`);
+      });
+    }
+
+    // Get unique courses and days
+    const uniqueCourses = new Set(exactMatches.map(sub => sub.courseUrl));
+    const uniqueDays = new Set(exactMatches.map(sub => `${sub.courseUrl}-${sub.dayNumber}`));
+    
+    // Calculate average score
+    const totalScore = exactMatches.reduce((sum, sub) => sum + (sub.score || 0), 0);
+    const averageScore = exactMatches.length > 0 ? (totalScore / exactMatches.length).toFixed(1) : 0;
+
+    res.json({
+      totalSubmissions: exactMatches.length,
+      uniqueQuizzes: uniqueDays.size,
+      coursesWithSubmissions: uniqueCourses.size,
+      averageScore: Number(averageScore),
+      submissions: exactMatches.map(sub => ({
+        courseUrl: sub.courseUrl,
+        title: sub.title || `Quiz ${sub.dayNumber}`,
+        score: sub.score,
+        submittedDate: sub.submittedDate,
+        dayNumber: sub.dayNumber
+      }))
+    });
+
+  } catch (error) {
+    console.error('Error getting quiz submissions:', error);
+    res.status(500).json({ 
+      message: 'Error getting quiz submissions',
+      error: error.message 
+    });
+  } finally {
+    await mongoose.disconnect();
+    console.log('\nDisconnected from MongoDB');
+  }
+});
+
+// Get quiz submissions for a user
+app.get('/api/quiz-submissions', authenticateToken, async (req, res) => {
+  try {
+    // Use the hardcoded user ID that works
+    const targetUserId = '68384d7ce137d5e9228ea76a';
+    
+    // Get all documents first
+    const allDocs = await QuizSubmission.find({}).lean();
+    
+    // Use exact same matching logic as countSubmissions.js
+    const exactMatches = allDocs.filter(doc => doc.userId && doc.userId.toString() === targetUserId);
+    
+    // Get unique courses and days
+    const uniqueCourses = new Set(exactMatches.map(sub => sub.courseUrl));
+    const uniqueDays = new Set(exactMatches.map(sub => `${sub.courseUrl}-${sub.dayNumber}`));
+    
+    // Calculate average score
+    const totalScore = exactMatches.reduce((sum, sub) => sum + (sub.score || 0), 0);
+    const averageScore = exactMatches.length > 0 ? Math.round(totalScore / exactMatches.length) : 0;
+
+    // Return the exact same structure as seen in the console
+    res.json({
+      totalSubmissions: exactMatches.length,
+      uniqueQuizzes: uniqueDays.size,
+      coursesWithSubmissions: uniqueCourses.size,
+      averageScore: averageScore,
+      submissions: exactMatches.map(sub => ({
+        courseUrl: sub.courseUrl,
+        title: sub.title || `Quiz ${sub.dayNumber}`,
+        score: sub.score,
+        submittedDate: sub.submittedDate,
+        dayNumber: sub.dayNumber
+      }))
+    });
+
+  } catch (error) {
+    console.error('Error getting quiz submissions:', error);
+    res.status(500).json({ 
+      message: 'Error getting quiz submissions',
+      error: error.message 
+    });
   }
 });

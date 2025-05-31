@@ -1,26 +1,17 @@
-
 import axios from 'axios';
 
-const baseURL = 'http://localhost:5001';
-
 const instance = axios.create({
-  baseURL,
-  withCredentials: false,
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5001',
 });
 
-// Add a request interceptor to add the token
-instance.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
+// Add token to requests if available
+instance.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
-);
+  return config;
+});
 
 // Add response interceptor to handle common errors
 instance.interceptors.response.use(
@@ -36,11 +27,25 @@ instance.interceptors.response.use(
   }
 );
 
-// Helper function to get full URL for images
-export const getImageUrl = (path: string) => {
+interface FileUrlResponse {
+  url: string;
+}
+
+// Helper function to get file URLs
+export const getImageUrl = async (path: string) => {
   if (!path) return '';
-  if (path.startsWith('http')) return path;
-  return `${baseURL}${path}`;
+  
+  try {
+    // Extract bucket and filename from path (format: bucket/filename)
+    const [bucket, filename] = path.split('/');
+    if (!bucket || !filename) return '';
+
+    const response = await instance.get<FileUrlResponse>(`/api/files/${bucket}/${filename}`);
+    return response.data.url;
+  } catch (error) {
+    console.error('Error getting file URL:', error);
+    return '';
+  }
 };
 
 export default instance;
