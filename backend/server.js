@@ -290,11 +290,6 @@ app.post('/api/auth/signup', async (req, res) => {
       return res.status(400).json({ message: 'Email already registered' });
     }
 
-    // Hash password
-    console.log('Hashing password...');
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-
     // Generate userId based on role
     const userRole = role === 'admin' ? 'admin' : 'student';
     let userId;
@@ -309,7 +304,7 @@ app.post('/api/auth/signup', async (req, res) => {
       userId,
       name,
       email,
-      password: hashedPassword,
+      password, // Use the plain password, let the model handle hashing
       role: userRole,
       displayName: name,
       status: 'active'
@@ -534,10 +529,8 @@ app.put('/api/user/password', authenticateToken, async (req, res) => {
       return res.status(400).json({ message: 'Current password is incorrect' });
     }
     
-    // Hash new password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(newPassword, salt);
-    user.password = hashedPassword;
+    // Update password - let the User model handle hashing
+    user.password = newPassword;
     
     await user.save();
     
@@ -2338,6 +2331,9 @@ app.get('/api/admin/dashboard/stats', authenticateToken, adminMiddleware, async 
     const totalCourses = await Course.countDocuments();
     const activeCourses = await Course.countDocuments({ isActive: true });
     
+    // Get total enrollments count
+    const totalEnrollments = await UserCourse.countDocuments();
+    
     // Get pending enrollment requests
     const pendingEnrollments = await EnrollmentRequest.countDocuments({ status: 'pending' });
     
@@ -2411,6 +2407,7 @@ app.get('/api/admin/dashboard/stats', authenticateToken, adminMiddleware, async 
         activeCourses
       },
       enrollmentStats: {
+        totalEnrollments,
         pendingEnrollments,
         daily: dailyEnrollments,
         weekly: weeklyEnrollments,
@@ -3983,42 +3980,6 @@ app.post('/api/admin/enrollment-requests/restore', authenticateToken, adminMiddl
     });
   } catch (error) {
     console.error('Restore enrollment requests error:', error);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
-// Admin: Get deleted enrollment requests
-app.get('/api/admin/enrollment-requests/deleted', authenticateToken, adminMiddleware, async (req, res) => {
-  try {
-    // First get deleted requests
-    const deletedRequests = await DeletedEnrollmentRequest.find()
-      .sort({ deletedAt: -1 })
-      .limit(100);
-
-    // Get unique emails from the requests
-    const emails = [...new Set(deletedRequests.map(req => req.email))];
-
-    // Find users by these emails
-    const users = await User.find({ email: { $in: emails } }, 'email name');
-
-    // Create a map of email to user details
-    const userMap = users.reduce((map, user) => {
-      map[user.email] = user;
-      return map;
-    }, {});
-
-    // Attach user details to each request
-    const enrichedRequests = deletedRequests.map(request => {
-      const user = userMap[request.email] || null;
-      return {
-        ...request.toObject(),
-        userId: user ? { _id: user._id, name: user.name, email: user.email } : null
-      };
-    });
-    
-    res.json(enrichedRequests);
-  } catch (error) {
-    console.error('Get deleted enrollment requests error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -5780,5 +5741,226 @@ app.get('/api/instructors/:id', async (req, res) => {
   } catch (error) {
     console.error('Get instructor error:', error);
     res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Generate OTP
+function generateOTP() {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
+// Store OTPs temporarily (in production, use Redis or similar)
+const otpStore = new Map();
+
+// Send verification code for password reset
+app.post('/api/auth/send-verification', async (req, res) => {
+  try {
+    const { email } = req.body;
+    console.log('Received request to send verification code to:', email);
+
+    // Check if email exists in Users collection
+    const user = await User.findOne({ email });
+    if (!user) {
+      console.log('User not found for email:', email);
+      return res.status(404).json({ 
+        success: false,
+        message: 'Please create an account before attempting to reset your password.' 
+      });
+    }
+
+    // Generate OTP
+    const otp = generateOTP();
+    console.log('Generated OTP:', otp, 'for email:', email);
+    
+    // Store OTP with timestamp (valid for 10 minutes)
+    otpStore.set(email, {
+      code: otp,
+      expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
+      verified: false
+    });
+
+    // Send email
+    const mailOptions = {
+      from: '"Trizen Ventures" <' + process.env.EMAIL_USER + '>',
+      to: email,
+      subject: 'Password Reset Verification Code - Trizen Ventures',
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Reset Your Password</title>
+        </head>
+        <body style="margin: 0; padding: 0; background-color: #f6f9fc; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+          <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" width="100%" style="max-width: 600px; margin: 0 auto; padding: 40px 20px; background-color: #f6f9fc;">
+            <tr>
+              <td>
+                <div style="background-color: #ffffff; border-radius: 8px; padding: 40px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
+                  <!-- Logo and Header -->
+                  <div style="text-align: center; margin-bottom: 30px;">
+                    <h1 style="color: #1a56db; margin: 0; font-size: 28px; font-weight: 700;">Trizen Ventures</h1>
+                  </div>
+
+                  <!-- Main Content -->
+                  <div style="margin-bottom: 30px;">
+                    <h2 style="color: #1f2937; margin-bottom: 20px; font-size: 24px; font-weight: 600;">Password Reset Request</h2>
+                    <p style="color: #4b5563; font-size: 16px; line-height: 24px; margin-bottom: 25px;">
+                      We received a request to reset your password. Use the verification code below to continue with your password reset.
+                    </p>
+                  </div>
+
+                  <!-- Verification Code -->
+                  <div style="background-color: #f3f4f6; border-radius: 6px; padding: 20px; margin-bottom: 30px; text-align: center;">
+                    <p style="color: #6b7280; font-size: 14px; margin: 0 0 10px 0;">Your verification code is:</p>
+                    <div style="font-family: 'Courier New', monospace; font-size: 32px; font-weight: 700; color: #1a56db; letter-spacing: 4px; margin: 0;">
+                      ${otp}
+                    </div>
+                  </div>
+
+                  <!-- Security Notice -->
+                  <div style="margin-bottom: 30px;">
+                    <p style="color: #4b5563; font-size: 14px; line-height: 20px; margin-bottom: 10px;">
+                      This code will expire in <span style="color: #dc2626; font-weight: 600;">10 minutes</span> for security purposes.
+                    </p>
+                    <p style="color: #4b5563; font-size: 14px; line-height: 20px;">
+                      If you didn't request this password reset, please ignore this email or contact our support team if you have concerns.
+                    </p>
+                  </div>
+
+                  <!-- Footer -->
+                  <div style="border-top: 1px solid #e5e7eb; padding-top: 20px; margin-top: 30px;">
+                    <p style="color: #6b7280; font-size: 12px; line-height: 16px; margin: 0; text-align: center;">
+                      This is an automated message from Trizen Ventures. Please do not reply to this email.
+                    </p>
+                    <p style="color: #6b7280; font-size: 12px; line-height: 16px; margin: 10px 0 0 0; text-align: center;">
+                      © ${new Date().getFullYear()} Trizen Ventures. All rights reserved.
+                    </p>
+                  </div>
+                </div>
+              </td>
+            </tr>
+          </table>
+        </body>
+        </html>
+      `
+    };
+
+    await transporter.sendMail(mailOptions);
+    console.log('Verification email sent successfully to:', email);
+
+    res.json({ 
+      success: true,
+      message: 'Verification code sent successfully. Please check your email.' 
+    });
+
+  } catch (error) {
+    console.error('Error sending verification code:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Failed to send verification code. Please try again.' 
+    });
+  }
+});
+
+// Verify OTP
+app.post('/api/auth/verify-otp', async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    console.log('Received OTP verification request for email:', email);
+    
+    const storedOTPData = otpStore.get(email);
+    
+    if (!storedOTPData) {
+      console.log('No OTP found for email:', email);
+      return res.status(400).json({ 
+        success: false,
+        message: 'No verification code found. Please request a new one.' 
+      });
+    }
+
+    if (new Date() > storedOTPData.expiresAt) {
+      console.log('OTP expired for email:', email);
+      otpStore.delete(email);
+      return res.status(400).json({ 
+        success: false,
+        message: 'Verification code has expired. Please request a new one.' 
+      });
+    }
+
+    if (storedOTPData.code !== otp) {
+      console.log('Invalid OTP provided for email:', email);
+      return res.status(400).json({ 
+        success: false,
+        message: 'Invalid verification code.' 
+      });
+    }
+
+    // Mark OTP as verified
+    storedOTPData.verified = true;
+    otpStore.set(email, storedOTPData);
+    
+    console.log('OTP verified successfully for email:', email);
+
+    res.json({ 
+      success: true,
+      message: 'Verification successful.' 
+    });
+
+  } catch (error) {
+    console.error('Error verifying OTP:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Failed to verify code. Please try again.' 
+    });
+  }
+});
+
+// Reset password
+app.post('/api/auth/reset-password', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    console.log('Received password reset request for email:', email);
+
+    // Find user
+    const user = await User.findOne({ email });
+    if (!user) {
+      console.log('User not found for email:', email);
+      return res.status(404).json({ 
+        success: false,
+        message: 'User not found.' 
+      });
+    }
+
+    // Check if user has a valid OTP verification
+    const storedOTPData = otpStore.get(email);
+    if (!storedOTPData || !storedOTPData.verified) {
+      console.log('No verified OTP found for email:', email);
+      return res.status(400).json({ 
+        success: false,
+        message: 'Please verify your email first.' 
+      });
+    }
+
+    // Update user's password - let the User model handle hashing
+    user.password = password;
+    await user.save();
+
+    // Clear the OTP after successful password reset
+    otpStore.delete(email);
+
+    console.log('Password successfully reset for email:', email);
+
+    res.json({ 
+      success: true,
+      message: 'Your password has been successfully reset.' 
+    });
+
+  } catch (error) {
+    console.error('Error resetting password:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Failed to reset password. Please try again.' 
+    });
   }
 });

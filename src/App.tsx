@@ -29,6 +29,7 @@ import PendingApproval from "./pages/PendingApproval";
 import Assessments from "./pages/student/Assessments";
 import EnrollPage from "./pages/enroll";
 import Leaderboard from "./pages/student/Leaderboard";
+import ForgotPassword from "./pages/ForgotPassword";
 
 // Admin Pages
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -39,6 +40,7 @@ import EnrollmentRequests from "./pages/admin/EnrollmentRequests";
 import ContactRequests from "./pages/admin/ContactRequests";
 import InstructorManagement from "./pages/admin/InstructorManagement";
 import InstructorApprovals from "./pages/admin/InstructorApprovals";
+import AdminLeaderboard from "./pages/admin/Leaderboard";
 
 // Layouts
 import DashboardLayout from "./components/layouts/DashboardLayout";
@@ -125,6 +127,11 @@ const AppRoutes = () => (
     <Route path="/signup" element={
       <PublicRoute>
         <Signup />
+      </PublicRoute>
+    } />
+    <Route path="/forgot-password" element={
+      <PublicRoute>
+        <ForgotPassword />
       </PublicRoute>
     } />
     <Route path="/enroll" element={<EnrollPage />} />
@@ -228,6 +235,11 @@ const AppRoutes = () => (
     <Route path="/admin/analytics" element={
       <AdminRoute>
         <Analytics />
+      </AdminRoute>
+    } />
+    <Route path="/admin/leaderboard" element={
+      <AdminRoute>
+        <AdminLeaderboard />
       </AdminRoute>
     } />
     <Route path="/admin/enrollment-requests" element={
